@@ -1,0 +1,98 @@
+#alarm-detail
+    .alarm-breviary
+        position: fixed
+        bottom: 4rem
+        right: 2rem
+        width: 2.4rem
+        height: 2.4rem
+        border-radius: 100px
+        background: #009fff
+        text-align: center
+        line-height: 3rem
+        .icon
+            fill: #fff
+            height: 1.4rem
+            width: 1.4rem
+        .contNum
+            position: relative
+            width: 1.3rem
+            height: 1.3rem
+            background: #ea4d4d
+            display: block
+            border-radius: 100px
+            top: -3rem
+            right: -1.7rem
+            font-size: 0.8rem
+            line-height: 1rem
+        .icon-close
+            width: 1rem
+            height: 1rem
+            position: relative
+            right: -9rem
+            fill: #009fff
+        .span
+            display: block
+            position: absolute
+            width: 95%
+            height: 2px
+            background: #1f1f1f
+            &:nth-child(1)
+                top: -2px
+                left: 2.5%
+            &:nth-child(2)
+                top: 100%
+                left: 2.5%
+            &:nth-child(3)
+                height: 90%
+                width: 2px
+                top: 5%
+                left: -2px
+            &:nth-child(4)
+                height: 90%
+                width: 2px
+                top: 5%
+                left: 100%
+        .op-title
+            color: #fff
+    .list_container
+        height: 100%
+        background: #242424
+        padding-left: 1rem
+        .sub-title
+            font-size: 1rem
+            height: 28px
+            line-height: 28px
+            margin-left: 5px
+        .cont
+            font-size: 1rem
+            white-space:nowrap
+            height: 26px
+            display: flex
+            justify-content: space-around
+            .point
+                width: 0.4rem
+                height: 0.4rem
+                border-radius: 100px
+                background: #9d9d9d
+                margin-top: 5px
+                margin-right: 3px
+                margin-left: 6px
+                //display: inline-block
+            .alarmName
+                width: 100%
+                //display: inline-block
+            .number
+                width: 7.5rem
+                cursor: pointer
+                margin-right: 1rem
+                &.activated
+                    color: #009fff
+            .area
+                width: 5rem
+            .map
+                width: 5.5rem
+            .icon-content
+                clear: both
+                &.activated
+                    .icon
+                        fill: #009fff

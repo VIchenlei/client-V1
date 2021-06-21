@@ -1,0 +1,417 @@
+<rept-graph>
+  <div if={ existgraph } style="margin-top:30px">
+    <div if={ graphname=='v_vehicle_month' } style="display:flex;">
+      <div id="pieChart" style="width:500px;height:250px;"></div>
+      <div id="brokeLineChart" style="width:500px;height:250px;"></div>
+    </div>
+    <div if={ graphname=='v_vehicle_day' || graphname=='person_day' }>
+      <div id="barChart" style="width:1000px;height:500px;"></div>
+    </div>
+    <div if={ graphname=='driver_dept_month' } style="display:flex;">
+      <div id="brokeLineChart" style="width:450px;height:250px;"></div>
+      <div id="barChart" style="width:450px;height:250px;"></div>
+    </div>
+    <div if={ graphname=='whole_status' } id="query-whole"></div>
+  </div>
+  <script>
+    import './query-whole.html'
+    import echarts from 'echarts'
+    import graphQuery from '../../js/def/graph_query.js'
+    import {
+      pieOption,
+      barOption,
+      lineOption
+    } from '../../js/def/graph_def.js'
+    import {
+      getDisplaySql,
+      getAccessSql,
+      computeDays,
+      computeMonthDays,
+      dealMonth,
+      getSqlByIsCheck
+    } from '../../js/utils/utils.js'
+    import {
+      reptNames
+    } from '../js/report_defs.js'
+
+    this.existgraph = false
+    this.graphname = opts.graphname // eslint-disable-line
+    this.msg = null
+    this.reptNames = reptNames
+    const MONTHRP = ['person_month']
+    this.init = () => {
+      if (this.reptNames.includes(this.graphname)) {
+        this.graph = graphQuery[this.graphname]
+        this.graphType = this.graph.graphType
+        this.sqlTmpl = getSqlByIsCheck(this.graph.name, this.graph.sqlTmpl)
+        this.exprs = this.graph.exprFields
+        this.conds = this.graph.exprCond
+
+        if (this.graphname === 'driver_dept_month') {
+          this.graphTwo = graphQuery['driver_dept_month_two']
+          this.graphTypeTwo = this.graphTwo.graphType
+          this.sqlTmplTwo = getSqlByIsCheck(this.graphTwo.name, this.graphTwo.sqlTmpl)
+          this.exprsTwo = this.graphTwo.exprFields
+          this.condsTwo = this.graphTwo.exprCond
+        }
+      }
+    }
+    this.init()
+
+    // 获取生成各种图形的原始数据,并触发显示图形的事件
+    this.getGraphData = (msg) => {
+      // this.init()
+      let exprList = []
+      let objRange = xdata.objRange
+      let isCheck = xdata.isCheck
+      this.msg = msg
+      if (msg.name === 'v_vehicle_day' && msg.timeResult) {
+        this.exprs[0] = msg.timeResult.scondition
+        this.exprs[1] = msg.timeResult.econdition
+      }
+
+      for (let i = 0; i < this.exprs.length; i++) {
+        let item = this.exprs[i]
+        let data = msg.time && msg.time[i]
+        if (data && data != "undefined") {
+          let str = ''
+          if (this.msg.type === 'MONTH' && data) {
+            str = `${item} between ${dealMonth(data)}`
+            exprList.push(str)
+            break
+          } else {
+            str = item + this.conds[i] + `"${data}"`
+            exprList.push(str)
+          }
+        }
+      }
+      let replaceStr = exprList.join(' and ')
+      let accessSql = ''
+      let displaySql = ''
+      if (this.graphname === 'person_month') {
+        accessSql = getAccessSql('person_month')
+        replaceStr += accessSql
+        if (objRange === 1 || isCheck === 1) {
+          displaySql = getDisplaySql('person_month')
+          replaceStr += displaySql
+        }
+      }
+      let sqlString = this.sqlTmpl.replace('{exprString}', replaceStr)
+      // console.log('sqlString', sqlString)
+      let message = {
+        cmd: 'query',
+        data: {
+          name: 'graphChart',
+          sql: sqlString
+        }
+      }
+      window.xhint.showLoading()
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: 'graphChart',
+          rept: this.graphname
+        },
+        monthTime: msg.monthTime
+      })
+
+      if (this.graphname === 'driver_dept_month') {
+        let exprListTwo = []
+        let str = ''
+        this.exprsTwo.forEach((item, index) => {
+          if (index === 0) {
+            str += ' and ' + item + this.condsTwo[index] + `"${msg.time[index]}"`
+          } else {
+            str += item + this.condsTwo[index] + `"${msg.time[index]}"`
+          }
+          exprListTwo.push(str)
+        })
+
+        let sqlStringTwo = this.sqlTmplTwo.replace('{exprString}', str)
+        let messageTwo = {
+          cmd: 'query',
+          data: {
+            name: 'graphChart',
+            sql: sqlStringTwo
+          }
+        }
+
+        xbus.trigger('REPT-FETCH-DATA', {
+          req: messageTwo,
+          def: {
+            name: 'graphChart',
+            rept: this.graphname,
+            define: 'two'
+          }
+        })
+      }
+    }
+
+    // rept-show-result
+    xbus.on('REPT-SHOW-RESULT', (ds) => {
+      if (ds.def.rept === this.graphname) {
+        // window.xhint.close()
+        let define = null
+        let name = 'QGraph_' + ds.def.rept
+        if (ds.def.define) {
+          define = ds.def.define
+        }
+        let data = ds.rows
+        if (data && ds && ds.def && ds.def.rept === 'person_month') {
+          // window.xhint.close()
+          let t = []
+          for (let i = 0, len = data.length; i < len; i++) {
+            !data[i].short_name || t.includes(data[i].short_name) ? '' : t.push(data[i].short_name)
+          }
+
+          this.graph.fields = ["0点班", "8点班", "4点班"]
+        }
+
+        if (name === 'QGraph_whole_status') {
+          riot.mount('div#query-whole', 'query-whole', {
+            data: data
+          })
+          window.xhint.close()
+        } else if (define === 'two') {
+          let dataTwo = ds.rows
+          this.graphTypeTwo.forEach((item) => {
+            this.createData(dataTwo, item, ds.monthTime)
+          })
+        } else {
+          this.graphType && this.graphType.length > 0 ? this.graphType.forEach((item) => {
+            this.createData(data, item, ds.monthTime)
+          }) : ''
+        }
+      }
+    })
+
+    /**
+     * @description: 根据item区分执行不同的处理数据函数
+     * @param {type} data，item
+     * @return: 
+     */
+    this.createData = (data, item, monthTime) => {
+      switch (item) {
+        case 'pie':
+          this.createPieData(data)
+          break
+        case 'bar':
+          this.createBarData(data)
+          break
+        case 'line':
+          data && this.createLineData(data, monthTime)
+          break
+      }
+    }
+
+    /**
+     * @description: 处理创建饼状图数据
+     * @param {type} data
+     * @return: 
+     */
+    this.createPieData = (data) => {
+      let graph = this.graph
+      let names = graph.fields
+      let indexed = graph.indexField
+      let mcount = graph.countField
+      let title = graph.label
+      let tip = graph.tipText
+      let piedatas = names.map((field) => {
+        return {
+          name: field,
+          value: 0
+        }
+      })
+      data && data.length > 0 ? data.forEach((item) => {
+        if (item[indexed] > 0 && item[indexed] < 4) {
+          let index = item[indexed] - 1
+          piedatas[index].value += item[mcount]
+        }
+      }) : ''
+      this.initPieChart(title, tip, piedatas)
+    }
+
+    /**
+     * @description: 处理创建折线图数据
+     * @param {type} data
+     * @return: 
+     */
+    this.createLineData = (data, monthTime) => {
+      let indexed = null
+      let graph = this.graph
+      let names = graph.fields
+      if (graph.indexField) {
+        indexed = graph.indexField
+      }
+      let mcount = graph.countField
+      let title = graph.label
+      let unit = graph.unit
+      let month = data[0] ? new Date(data[0].att_date).getMonth() + 1 : new Date().getMonth() + 1
+      let year = new Date().getFullYear()
+      let computeResult = null
+      if (monthTime) {
+        let stime = new Date(monthTime.stime).format('yyyy-MM-dd')
+        let etime = new Date(monthTime.etime).format('yyyy-MM-dd')
+        computeResult = computeMonthDays(stime, etime)
+      } else {
+        computeResult = computeDays(year, month)
+      }
+      // let computeResult = computeDays(year, month)
+      // if(MONTHRP.includes(opts.graphname) && opts.hasOwnProperty('stime')){
+      //   computeResult = computeMonthDays(opts.stime,opts.etime)
+      // }
+      let days = computeResult.days
+      let xcoord = computeResult.daysArr
+      let month_start = computeResult.month_start
+      let month_end = computeResult.month_end
+      let linedatas = names.map((item) => {
+        return {
+          name: item,
+          type: 'line',
+          data: new Array(days).fill(0)
+        }
+      })
+
+      data && data.length > 0 ? data.forEach((item) => {
+        if (item[indexed]) {
+          if (item[indexed] > 0 && item[indexed] < 4) {
+            let day = parseInt(new Date(item.att_date).format('dd'))
+            let index = item[indexed]
+            if (day - month_start < 0) {
+              let tdIndex = xcoord.indexOf(Math.abs(day))
+              if (tdIndex > 0) {
+                linedatas[index - 1].data[tdIndex] = item[mcount]
+              }
+            } else {
+              linedatas[index - 1].data[day - month_start] = item[mcount]
+            }
+          }
+        } else if (graph.name === 'driver_dept_month') {
+          let day = parseInt(new Date(item.att_date).format('dd'))
+          linedatas[0].data[day - month_start] = Math.round(item[mcount] * 100) / 100
+        }
+      }) : ''
+      this.initLineChart(title, linedatas, xcoord, unit)
+    }
+
+    /**
+     * @description: 处理创建柱状图数据
+     * @param {type} data
+     * @return: 
+     */
+    this.createBarData = (data) => {
+      let legend, bardatas = [],
+        xcoord
+      if (this.graphname === 'driver_dept_month') {
+        let graph = this.graphTwo
+        let names = graph.fields
+        legend = graph.fields
+        xcoord = []
+        bardatas = {
+          name: names[0],
+          type: 'bar',
+          data: []
+        }
+        data && data.length > 0 ? data.forEach((item) => {
+          xcoord.push(item.name)
+          bardatas.data.push(item.mcount)
+        }) : ''
+      } else {
+        let graph = this.graph
+        let namess = graph.fields
+        legend = graph.fields
+        let sDate = this.msg && this.msg.time && this.msg.time[0]
+        let eDate = this.msg && this.msg.time && this.msg.time[1]
+        let duration = (Date.parse(eDate) - Date.parse(sDate)) / (1000 * 60 * 60 * 24)
+        let gap = Math.round(duration * 3)
+        if (duration > 1 && Number.isInteger(duration)) {
+          duration = duration - 1
+        }
+        namess && namess.filter((item) => {
+          bardatas.push({
+            name: item,
+            type: 'bar',
+            data: new Array(gap).fill(0)
+          })
+          // return { name: item, type: 'bar', data: new Array(gap).fill(0) }
+        })
+        data && data.length > 0 ? data.forEach((item) => {
+          if (item.date && item.categoryId) {
+            let index = Math.round((Date.parse(item.date) - Date.parse(sDate)) / (1000 * 60 * 60 * 24) * 3 + item
+              .shiftId - 1) - item.shiftId + 1
+            if (index < 0) index = 0
+            bardatas[item.categoryId - 1].data[index] = item.mcount
+          }
+        }) : ''
+        xcoord = []
+        for (let i = 0; i <= duration; i++) {
+          let fields = [' 0', ' 8', ' 4']
+          fields.forEach((item) => {
+            let shift = new Date(Date.parse(sDate) + i * 24 * 60 * 60 * 1000).format('yyyy-MM-dd') + item
+            xcoord.push(shift)
+          })
+        }
+      }
+      this.initBarChart(legend, bardatas, xcoord)
+    }
+
+    /**
+     * @description: 初始化饼状图，绘制饼状图
+     * @param {type} title，name，xdatas
+     * @return: 
+     */
+    this.initPieChart = (title, name, xdatas) => {
+      let canva = this.root.querySelector('#pieChart')
+      if (!canva) return
+      echarts.dispose(canva) || console.log('initPieChart')
+      let pieChart = echarts.init(canva)
+      let option = {
+        text: title,
+        name: name,
+        data: xdatas
+      }
+      let config = pieOption(option)
+      pieChart.setOption(config)
+    }
+
+    /**
+     * @description: 初始化折线图，绘制折线图
+     * @param {type} title，name，xdatas，unit
+     * @return: 
+     */
+    this.initLineChart = (title, rows, xdatas, unit) => {
+      let canva = this.root.querySelector('#brokeLineChart')
+      if (!canva) return
+      echarts.dispose(canva) || console.log('initLineChart')
+      let lineChart = echarts.init(canva)
+      let option = {
+        text: title,
+        data: xdatas,
+        series: rows,
+        unit: unit
+      }
+      let config = lineOption(option)
+      lineChart.setOption(config)
+    }
+
+    /**
+     * @description: 初始化折线图，绘制折线图
+     * @param {type} legend，rows，xdatas
+     * @return: 
+     */
+    this.initBarChart = (legend, rows, xdatas) => {
+      let canva = this.root.querySelector('#barChart')
+      if (!canva) return
+      echarts.dispose(canva) || console.log('initBarChart')
+      let barChart = echarts.init(canva)
+      let option = {
+        legend: legend,
+        data: xdatas,
+        series: rows
+      }
+      let config = barOption(option)
+      barChart.setOption(config)
+    }
+
+  </script>
+</rept-graph>

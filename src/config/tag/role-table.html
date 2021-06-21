@@ -1,0 +1,245 @@
+<role-table>
+  <div class="op-panel role-panel">
+    <span class="seek-staff">
+      <span class="id-{name} search-bar" ref="search"></span>
+    </span>
+    <div>
+        <span class="hint--bottom-left" aria-label="添加信息" onclick={ insert }>
+            <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-add"></use></svg>
+        </span>
+        <span onclick={ askFile } name="csv" class="hint--bottom-left" aria-label="批量导出">
+          <img class='pointImg' src="/img/export.png" alt="">
+        </span>
+    </div>
+  </div>
+  <div data-is="public-table" class="public-table content-panel" data={ data }></div>
+  <div class="pagination" data-is="pagination" totalpage={ totalPage } pageindex={ pageIndex } tablename={ name }></div>
+
+  <script>
+    import {initPagination, copySubRows, compare, getSearchData, specialName, checkClick } from '../../js/utils/utils.js'
+   
+    this.root.classList.remove('hide')
+    const sortByNumber = ['staff_id','coalface_id','drivingface_id']
+    let typeDef = null
+    let dataSet = null
+
+    this.insert = (evt) => {
+      this.tags['public-table'].insert()
+    }
+
+    this.sortRows = (evt) => { //排序
+			let target = evt && evt.target
+      let nodename = target.nodeName.toLowerCase()
+      let label = checkClick(target, nodename)
+      if(!label) return //为‘操作’时label无值，不能点击
+			this.tags['public-table'].isAscending = label === this.sortBasic ? !this.tags['public-table'].isAscending : true
+      this.sortBasic = label   
+			let labelIndex = this.def.fields.labels.indexOf(label)
+			let condition = this.def.fields.names[labelIndex]
+		  let sortType = this.def.fields.types[labelIndex] !== 'NUMBER' && this.def.fields.types[labelIndex] !== 'SELECT' && !sortByNumber.includes(condition) ? 'chinese' : ''
+      this.rows.sort(compare(condition, sortType , this.tags['public-table'].isAscending ? null : 'reverse'))
+      this.subRows = copySubRows(this.rows, this.pageIndex)
+      this.tags['public-table'].updateList({
+        value: this.subRows,
+        maxid: this.maxid
+      }) 
+      this.tags['public-table'].controlDisplay(target, nodename)
+    }  
+    
+    this.getSpeed = (name, row) => {
+      let vehicleCate = xdata.metaStore.data.vehicle_category
+      let value = row[name]
+      if (!isNaN(value)) return value
+      return value.replace('1,', '人车,').replace('2,', '料车,').replace('3,', '特种车,')
+    }
+
+    this.getBusiness = (name, row) => {
+      let values = row[name]
+      let businesses = xdata.metaStore.data.area_business
+      if (!values || !businesses) return values
+      businesses = Array.from(businesses.values())
+      values = values.toString(2).padStart(12, 0).split('').reverse()
+      let result = ''
+      for (let i = 0; i < values.length; i++) {
+        if (parseInt(values[i], 10)) {
+          let res = businesses[i] ? businesses[i].name : ''
+          result += res ? `${res};` : ''
+        }
+      }
+      return result
+    }
+
+    xbus.on('META-DATA-UPDATE', (msg) => {
+      if (!msg.def) return
+      if (msg.def.name === this.name) {
+        this.hasdata = msg && msg.def && msg.rows && msg.rows.length > 0
+        this.rows = msg.rows
+        this.maxid = msg.maxid
+        let results = null
+        if (this.hasdata) {
+          if (this.subRows && this.subRows.length > 1 || this.inRows.length===1) {
+            initPagination(this.pageIndex)
+            let singleRow =  this.rows
+            this.subRows = copySubRows(singleRow, this.pageIndex)
+          }else{
+            let singleRow = this.subRows.length === 1 ? xdata.metaStore.data[this.name].get(this.keyValue) : this.rows
+            this.subRows = (this.subRows.length === 1 ? [singleRow] : (this.inRows.length>1?copySubRows(singleRow, this.pageIndex):this.rows))
+          }
+          this.tags['public-table'] && this.tags['public-table'].updateList({
+            value: this.subRows,
+            maxid: this.maxid
+          })      
+          if (this.subRows && this.subRows.length > 1 || this.inRows.length===1) {
+            results = getSearchData(this.label,this.name, this.rows, this.getSearchResult)
+          } else {
+            results = getSearchData(this.label,this.name, this.subRows, this.getSearchResult)
+          }
+          typeDef = results.typeDef
+          dataSet = results.dataSet
+          if (this.root.querySelector('#searchinput')) {
+            if (this.inputValue) {
+              this.root.querySelector('#searchinput').value=this.inputValue
+            } else {
+              this.root.querySelector('#searchinput').value=''
+            }
+          }
+          
+          if (this.fuzz) {
+            this.fuzz.updateData({ typeDef: typeDef, dataSet: dataSet, searchType: false, searchIcon: false })
+          }
+        }
+        this.update()
+      }
+    })
+
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+      if (msg.name === this.name) {
+        this.pageIndex = msg.pageIndex
+        this.subRows = copySubRows(this.rows, this.pageIndex)
+        this.tags['public-table'].updateList({
+          value: this.subRows,
+          maxid: this.maxid
+        }) 
+        this.update()
+        window.xhint.close()
+      }
+    })
+
+    this.getSearchResult = (result) => {
+      let chosedStaff = result     
+      let desc = dataSet.desc
+      // 检索之后 页面分页为第一页
+      this.pageIndex = 0
+      if(this.root.querySelector('#searchinput').value){
+        if (desc!=='name') {     
+          this.root.querySelector('#searchinput').value = result[desc]
+          this.inputValue = result[desc]
+          this.subRows =copySubRows([result], this.pageIndex)    
+          this.rows = this.subRows
+          this.showSubRows() 
+        } else {
+          this.root.querySelector('#searchinput').value = result[0][desc]
+          this.inputValue = result[0][desc]
+          this.subRows = copySubRows(result, this.pageIndex)      
+          this.rows = this.subRows
+          this.showSubRows()
+        }
+      }else{
+        this.subRows =copySubRows(result, this.pageIndex)
+        this.root.querySelector('#searchinput').value = '' 
+        this.inputValue = ''
+        this.rows = result  
+        this.showSubRows()  
+      }   
+      this.tags['public-table'].updateList({
+        value: this.subRows,
+        maxid: this.maxid
+      }) 
+      this.update()
+    }
+
+    this.showSubRows = () => {
+      this.hasdata = !!(this.rows && this.rows.length > 0)
+      if (this.hasdata) {
+        let pages = initPagination(this.rows)
+        this.total = pages.total
+        this.totalPage = pages.totalPage
+        this.pageIndex = pages.pageIndex
+        this.subRows = copySubRows(this.rows, this.pageIndex) // 初始化显示第一页
+      }
+    }
+
+    this.init = (msg) => {
+      this.def = msg.def
+      if (!this.def) {
+        this.hasdata = false
+        return
+      }
+      this.title = this.def.label
+      this.name = this.def.name
+      this.names = this.def.fields.names
+      this.tableKeyName = specialName(this.name)
+      this.labels = this.def.fields.labels
+      this.label = this.def.label
+      this.rows = msg.rows
+      this.inRows=msg.rows
+      this.maxid = msg.maxid
+      let results = getSearchData(this.label,this.name, this.rows, this.getSearchResult)
+      this.showSubRows(this.rows)
+      this.data = {
+        def : this.def,
+        subRows : this.subRows,
+        maxid : this.maxid, 
+        tableKeyName : this.tableKeyName,
+        from : 'role'
+      }
+      
+      // if(msg.def.hasOwnProperty('inputValue')) this.inputVal = msg.def.inputValue
+      typeDef = results.typeDef
+      dataSet = results.dataSet
+    }
+    this.init(opts)
+
+    this.on('mount', () => {
+      this.fuzz = riot.mount('span.id-' + this.name, 'fuzzy-search2', { typeDef: typeDef, dataSet: dataSet, searchIcon: true})[0]
+      // if(this.msg.def.hasOwnProperty('inputValue')){
+      //   this.fuzz.root.querySelector('#searchinput').value = this.inputVal
+      //   delete this.msg.inputValue
+      // }         
+      this.tags['public-table'].updateList({
+        value: this.subRows,
+        maxid: this.maxid
+      }) 
+    })
+    
+    this.getAskFileSql = (def) => {
+      let names = def.fields.names
+      let fstring = names.join(',')
+      let sql = `select ${fstring} from ${def.table};`
+      return sql
+    }
+    
+    this.askFile = (evt) => {
+			window.xhint.close()
+			window.xhint.showLoading()
+      let opName = evt.currentTarget.getAttribute('name')
+      let sqlString = this.getAskFileSql(this.def)
+      let name = this.name
+      let reptTime = new Date().getTime()
+      let msg = {
+        cmd: 'file',
+        exprList: [],
+		    name: name,
+		    labels: this.def.fields.labels,
+		    title: this.def.label,
+		    namesInShort: this.def.fields.names,
+		    types: this.def.fields.types,
+		    fileType: opName,
+        reptIndex: reptTime,
+        sql: sqlString,
+        userName: xdata.userName
+      }
+		  xbus.trigger('REPT-FETCH-FILE', msg)
+    }
+  </script>
+</role-table>

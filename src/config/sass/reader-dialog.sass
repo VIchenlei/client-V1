@@ -1,0 +1,397 @@
+@import '../../sass/defs'
+
+.reader-dialog
+    width: 64.5rem
+    .content-panel
+        display: flex
+        flex-flow: column nowrap
+        overflow: auto
+        max-height: 35rem
+        .reader_manage
+            // padding: 1rem 0
+            .manage_title
+                font-size: 1rem
+                color: #333
+                padding:  0 1rem
+                display: flex
+                align-items: center
+                line-height: 3rem
+                img
+                    height: 1.3rem
+                    margin-left: 1rem
+                    cursor: pointer 
+            .wrapper
+                padding: 1rem 0
+                .wrapper-list:after
+                    clear: both
+                    display: block 
+                    content: "" 
+                    height: 0px 
+                    overflow: hidden            
+                .wrapper-list
+                    padding: 0 1rem
+                    width: 63rem
+                    // clear: both
+                    zoom: 1
+                    div 
+                        width: 14.5rem
+                        position: relative
+                        .info
+                            position: absolute
+                            bottom: -0.7rem
+                        .demand-field 
+                            width: 14.5rem
+                            height: 2.25rem
+                            position: relative
+                            margin-bottom: 28px
+                            .mdc-text-field__label
+                                position: absolute
+                                display: inline-block
+                                width: auto
+                                line-height: 0px
+                                vertical-align: middle
+                                bottom: auto
+                                top: 50%
+
+                            .mdc-text-field__bottom-line
+                                background: $active-bg
+                            .info
+                                position: absolute
+                                bottom: -0.7rem
+                            input
+                                width: 11rem
+                                /* padding-left: 6rem; */
+                                position: absolute
+                                right: 0
+                                padding-bottom: 0
+                                text-align: center
+                                top: 50%
+                                margin-top: -0.9rem
+                            .mdc-text-field__input  
+                                border-bottom: 1px solid #000
+                            .mdc-text-field__bottom-line
+                                width: 11rem
+                                left: auto
+                                right: 0
+                                position: absolute
+                        .mdc-text-field--upgraded:not(.mdc-text-field--fullwidth):not(.mdc-text-field--box)
+                            margin-top: 10px
+                        
+                        clear: both
+                    div
+                        float: left
+                        width: 14.5rem
+                        position: relative
+                        .info
+                            position: absolute
+                            bottom: -0.7rem
+                        .demand-field 
+                            width: 14.5rem
+                            height: 2.25rem
+                            position: relative
+                            margin-bottom: 28px
+                            .mdc-text-field__label
+                                position: absolute
+                                display: inline-block
+                                width: auto
+                                line-height: 0px
+                                vertical-align: middle
+                                bottom: auto
+                                top: 50%
+
+                            .mdc-text-field__bottom-line
+                                background: $active-bg
+                            input
+                                width: 11rem
+                                /* padding-left: 6rem; */
+                                position: absolute
+                                right: 0
+                                padding-bottom: 0
+                                text-align: center
+                                top: 50%
+                                margin-top: -0.9rem
+                            .mdc-text-field__input  
+                                border-bottom: 1px solid #000
+                            .mdc-text-field__bottom-line
+                                width: 11rem
+                                left: auto
+                                right: 0
+                                position: absolute
+                            select
+                                width: 11rem
+                                overflow: hidden
+                                text-overflow: ellipsis
+                                white-space: nowrap
+                                text-align-last: center
+                                text-align: center
+                                right: 0
+                                position: absolute
+                                border-bottom: 1px solid #e9e9e9
+                            .mdc-text-field__label--float-above 
+                                transform: translateY(0) scale(1, 1)
+                            li.reader-cover
+                                div
+                                    width: 11.5rem 
+                            li
+                                float: left 
+                                margin-right: .5rem
+            .wrapper_even
+                background: #e9e9e9
+                .wrapper-list_even
+                    background: #f5f5f5
+            .mark
+                display: flex
+                justify-content: flex-start
+                align-items: center
+                padding: 0 1rem
+                .color_mark
+                    margin-right: 1.5rem
+                    span
+                        width: 30px
+                        height: 10px
+                        line-height: 40px
+                        color: #fff
+                        display: inline-block
+                .color_mark:nth-child(1)
+                    span
+                        background: #f15a4a
+                .color_mark:nth-child(2)
+                    span
+                        background: #ffcc33
+            .list:after
+                clear: both
+                display: block 
+                content: "" 
+                height: 0px 
+                overflow: hidden            
+            .list
+                padding: 0 1rem 1.4rem
+                width: 63rem
+                // clear: both
+                zoom: 1
+                div
+                    width: 100%
+                    clear: both
+                    content: ""
+                    zoom: 1
+                    text-filed 
+                        .drivers
+                            position: relative  
+                            input
+                                width: 10rem !important
+                            .choose-scorll
+                                position: absolute
+                                top: 3.5rem
+                                .choose-result
+                                    height: 2rem   
+                                    padding: 0 0.3rem
+                                    z-index: 999
+                                    width: 14.5rem
+                                    overflow-y: scroll
+                                    .choose-result_list           
+                                        display: inline-block
+                                        padding: 0 0.3rem
+                                        margin: 2px                      
+                                    span
+                                        background: #4af
+                                        color: #fff
+                                    .delete_reader
+                                        cursor: pointer
+                            .card_list
+                                position: absolute
+                                top: 4rem
+                            .hint--bottom-left
+                                position: absolute
+                                left: 3.5rem
+                                bottom: .35rem
+                        .readers
+                            position: relative
+                            input
+                                width: 10rem !important
+                            .choose-scorll
+                                position: absolute
+                                top: 3.5rem
+                                .choose-result
+                                    height: 2rem   
+                                    padding: 0 0.3rem
+                                    z-index: 999
+                                    width: 14.5rem
+                                    overflow-y: scroll
+                                    .choose-result_list           
+                                        display: inline-block
+                                        padding: 0 0.3rem
+                                        margin: 2px         
+                                    span
+                                        background: #4af
+                                        color: #fff
+                                    .delete_reader
+                                        cursor: pointer
+                            .card_list
+                                position: absolute
+                                top: 4rem
+                            .hint--bottom-left
+                                position: absolute
+                                left: 3.5rem
+                                bottom: .35rem
+                        div 
+                            width: 14.5rem
+                            position: relative
+                            .info
+                                position: absolute
+                                bottom: -0.7rem
+                            .demand-field
+                                width: 14.5rem
+                                height: 2.25rem
+                                position: relative
+                                margin-bottom: 28px
+                                .mdc-text-field__label
+                                    position: absolute
+                                    display: inline-block
+                                    width: auto
+                                    line-height: 0px
+                                    vertical-align: middle
+                                    bottom: auto
+                                    top: 50%
+
+                                .mdc-text-field__bottom-line
+                                    background: $active-bg
+                                input
+                                    width: 11rem
+                                    /* padding-left: 6rem; */
+                                    position: absolute
+                                    right: 0
+                                    padding-bottom: 0
+                                    text-align: center
+                                    top: 50%
+                                    margin-top: -0.9rem
+                                .mdc-text-field__bottom-line
+                                    width: 11rem
+                                    left: auto
+                                    right: 0
+                                    position: absolute
+                                    // bottom: 0.7rem
+                        .driver_dist_time
+                            .demand-field
+                                input
+                                    width: 5rem
+                                .mdc-text-field__bottom-line
+                                    width: 5rem
+                        .schedule_work_time
+                            .demand-field
+                                input
+                                    width: 4rem
+                                .mdc-text-field__bottom-line
+                                    width: 4rem
+                        .driver_dist,.drifting_footage_unit
+                            .demand-field
+                                input
+                                    width: 6.5rem
+                                    // text-align: right !important
+                                    // padding-right: 2rem
+                                .mdc-text-field__bottom-line
+                                    width: 6.5rem
+                        .plan_time,.alarm_threshold,.plan_length,.ht_radius,.warning_threshold
+                            .demand-field
+                                input
+                                    width: 9rem
+                                .mdc-text-field__bottom-line
+                                    width: 9rem
+                        .driver_alarm_threshold
+                            .demand-field
+                                input
+                                    width: 8rem
+                                .mdc-text-field__bottom-line
+                                    width: 8rem
+                    text-select
+                        clear: both
+                        div
+                            float: left
+                            width: 14.5rem
+                            position: relative
+                            .info
+                                position: absolute
+                                bottom: -0.7rem
+                            .demand-field
+                                width: 14.5rem
+                                height: 2.25rem
+                                position: relative
+                                margin-bottom: 28px
+                                .mdc-text-field__label
+                                    position: absolute
+                                    display: inline-block
+                                    width: auto
+                                    line-height: 0px
+                                    vertical-align: middle
+                                    bottom: auto
+                                    top: 50%
+                                .mdc-text-field--upgraded:not(.mdc-text-field--fullwidth):not(.mdc-text-field--box)
+                                    margin-top: 10px
+                                select
+                                    width: 11rem
+                                    overflow: hidden
+                                    text-overflow: ellipsis
+                                    white-space: nowrap
+                                    text-align-last: center
+                                    text-align: center
+                                    right: 0
+                                    position: absolute
+                                    border-bottom: 1px solid #e9e9e9
+                                .mdc-text-field__label--float-above 
+                    li.reader-cover
+                        div
+                            width: 10.5rem 
+                            input
+                                width: 8rem
+                        select
+                            width: 10rem
+                    .path-color
+                        float: left
+                        width: 1rem
+                        height: 0.5rem
+                        margin: 1rem 0.5rem 0 0
+                    li
+                        float: left 
+                        margin-right: .5rem
+                    li.jump_icon
+                        height: 48px
+                        margin: 10px 0 8px 10px
+                        line-height: 48px
+                        img
+                            height: 1.3rem
+                            cursor: pointer
+                    pathEdit
+                        width: 3rem
+                        height: 3rem
+                        float:left
+                        .pointImg
+                            width: 1.25rem
+                            height: 1.25rem
+        .even
+            background: #fafafa
+        .antenna_manage
+            position: relative
+            .offset
+                display: flex
+                flex-direction:row
+                .offset_list
+                    .list
+                        width: 48rem
+                .circle
+                    width: 140px
+                    height: 140px
+                    background: rgba(255,255,255,.5)
+                    border-radius: 50%
+                    div
+                        width: 120px
+                        height: 120px
+                        border-radius: 50% 
+                        margin-top: 10px
+                        margin-left: 10px
+                        .canvas
+                            position: absolute
+                            cursor: pointer
+                            z-index: 999
+                            background: url('/img/reader.png') no-repeat center center
+                            background-size: 25px 25px
+                            
+

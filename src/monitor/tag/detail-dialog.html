@@ -1,0 +1,723 @@
+<detail-dialog class="detailDialog">
+  <div class="dlg-bg animated" onclick={hidelist}><!--隐藏弹窗-->
+    <div ref="detaildialog" class="dlg-window detail-dialog animated">
+      <div class="dlg-head">
+        <span class="mobile-goback hide-on-pc" onclick={ hide }>
+          <svg class="icon"><use xlink:href="/icons/icons.svg#icon-back"></use></svg>
+        </span>
+        <span class="dlg-title">
+          <grip class="hide-on-mb" type="grip-horizontal"></grip>
+          <span>{ title + '：' + total }</span>
+          <span if={searchFilter}>{ ' | ' + searchFilterTitle }</span>
+        </span>
+        <div>
+          <span class="hide-on-mb" onclick={ hide }>
+            <svg class="icon"><use xlink:href="/icons/icons.svg#icon-close"></use></svg>
+          </span>
+        </div>
+      </div>
+
+      <div class="dlg-body">
+        <div class="ctrl-panel">
+          <span class="condition-builder">
+            <span class="condition" if={ subTypeID ===1 }>
+              <span>员工：</span>
+              <span id="searchstaffbox" class="search-bar"></span>
+            </span>
+            <span class="condition" if={ subTypeID ===2 || subTypeID === 'TDVEHICLE' }>
+              <span>车牌：</span>
+              <span id="searchstaffbox"  ref="vehicle" id = "vehicle" type="text" class="search-bar vehicle"></span>
+              <div id="vehicle-list-panel" class="popup-list hide"></div>
+            </span>
+            <span class="condition">
+              <span>部门：</span>
+              <icon-input ref="dept" idname="dept" type="text" class="dept" placeholder="请输入部门" icon="icon-down" classname="login-input" reg-type="CENR" onclick={ list } onkeyup={ enterForSearch }></icon-input>
+              <div id="dept-list-panel" class="popup-list hide"></div>
+            </span>
+          </span>
+          <span>
+            <button if={from === 'ALARM'} onclick={ triggerAlarmObject }>触发告警对象</button>
+            <button onclick={ searchList }>查询</button>
+            <button class="hide-on-mb" onclick={ sendCall } if={ subTypeID ===1 && xdata.roleID == 1 }>呼叫所有</button>
+            <button if={isReaderReport} onclick={gotoReaderReport}>进出分站明细</button>
+            <button onclick={ askFile }>导出</button>
+          </span>
+        </div>
+        <div class="content-panel" if={hasdata}>
+          <table id="symbol-table">
+            <thead>
+              <tr onclick={sortRows} style="cursor: pointer">
+                <th>序号</th>
+                <th if={ type === 'card' && subTypeID === 1}>工号</th>
+                <th each={ label,i in labels } if={ (type=='device' || type=='alarm' ) ? true : getValue(labels,label) }>
+                  <span class={ label==='速度' ? 'defultsort' : ''}>{label}</span>
+                  <img class="hide" src="/img/{isAscending ? 'angle-up.png' : 'angle-down.png'}" alt="">
+                </th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody class={type === 'tdvehicle' ? 'tdvehicle' : ''}>
+              <tr each={ row in subRows } id={ type === 'tdvehicle' ? row[2] : row[0] } ondblclick={ !row[17] ? toggleLocate : '' }>
+                <td>{ (subRows.indexOf(row) + 1) + pageIndex*PAGE_SIZE }</td>
+                <td if={ type === 'card' && subTypeID === 1}>{ getStaffID(row[16]) }</! -->
+                <td each={ i,j in names } if={ (type=='device' || type=='alarm' ) ? true : getValue(names,i) } data-type={i} onclick={showTDVehicle}>{ row[names.indexOf(i)] }</td>
+                <td>
+                  <card-opbar if={ subTypeID !== 1 } cardid={type === 'tdvehicle' ? row[2] : row[0]} cardtypeid={subTypeID} isspecial={row[17]} needhide="1"></card-opbar>
+                  <card-opbar if={ subTypeID === 1 } cardid={ row[16] } cardtypeid={subTypeID} isspecial={row[19]} needhide="1"></card-opbar>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div if={ hasdata } class="pagination" data-is="pagination" totalpage={ pageCount } pageindex={ pageIndex } tablename={ name } if={pageCount>1}></div>
+        <div data-is="blank-message" message="没有符合条件的数据。" class="blank-message" if={ !hasdata }></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { CARD } from '../../js/def/state.js'
+    import { clone, checkClick, show } from '../../js/utils/utils.js'
+    import { STAFFCARD } from '../../js/def/staff_card'
+    import detailPrintDef from '../../js/def/detail_dialog_print_def.js'
+    import './call-leave.html'
+    import './card-opbar.html'
+    import './td-vehicle-list.html'
+    import '../../report/tag/bat-curve.html'
+
+    let self = this
+    this.pcFlag = window.isPC
+    this.showCall = false
+    let pcBlockedIndex = [1, 3, 4, 13]
+    let mbBlockedIndex = [0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] // [0, 1, 3, 4, 5, 6, 7, 11, 13]
+    this.blockedIndex = this.pcFlag ? pcBlockedIndex : mbBlockedIndex
+    this.searchFilter = false
+
+    this.triggerAlarmObject = (evt) => {
+      if (typeof this.msg.cb === 'function') {
+        this.rows = this.msg.cb(this.rows)
+        this.searchFilterTitle = `触发告警数：${this.rows.length}`
+        this.searchFilter = true
+        this.showDetail()
+      }
+    }
+
+    this.gotoReaderReport = (evt) => {
+      this.hide(evt)
+      let innerScopeReaders = xdata.deviceStore.getReaderDetail(this.geom)
+      
+      xbus.trigger('REPORT-FAST-OPEN', {
+        reader_id: innerScopeReaders,
+        name: this.subTypeID === 1 ? 'staff' : 'vehicle',
+        title: 'fast-jump',
+        report: `${this.subTypeID === 1 ? 'person' : 'v'}_reader`,
+        cardID: true,
+        startTime: `${new Date().format('yyyy-MM-dd')} 00:00:00`,
+        endTime: `${new Date().format('yyyy-MM-dd hh:mm:ss')}`
+      })
+    }
+
+    this.getStaffID = (cardID) => {
+      return xdata.metaStore.getCardBindObjectInfo(cardID) && xdata.metaStore.getCardBindObjectInfo(cardID).staff_id
+    }
+
+    this.getValue = (names,name) =>{
+      return !this.blockedIndex.includes(names.indexOf(name))
+    }
+
+    this.initPagination = () => {
+      this.rowCount = this.rows ? this.rows.length : 0
+      this.pageCount = Math.ceil(this.rowCount / PAGE_SIZE)
+      this.pageIndex = 0
+      this.update()
+    }
+
+    this.on('mount', () => {
+      if (window.isPC) {
+        window.setDialogDraggable(this.root)
+      }
+    })
+
+    this.updateData = (msg) => {
+      this.msg = msg
+      this.isReaderReport = !!msg.gotoReader
+      this.from = msg.from
+      this.geom = msg.filterGeo
+      this.init(msg)
+      this.refs.detaildialog.style.top = null
+      this.refs.detaildialog.style.left = null
+      this.update()
+      this.loadObjects(msg.subTypeID)
+      this.fuzz = riot.mount('span#searchstaffbox', 'fuzzy-search2', { typeDef: this.typeDef, dataSet: this.dataSet, searchType: false, searchIcon: false })[0]
+      this.show()
+    }
+
+    this.init = (msg) => {
+      this.name = 'detaildialog'
+      this.type = msg.type
+      this.subTypeID = msg.subTypeID
+      this.composeType = null
+      this.searchFilter = false
+      this.isAscending = false
+      this.sortBasic = null
+      this.area=msg.area
+      this.rows = []
+      if (msg.filterGeo) {
+        this.showCall = true
+      }
+
+      if (this.type === 'card') {
+        this.composeType = msg.composeType
+      }
+
+      let inputs = this.root.querySelectorAll('input')
+      inputs.forEach(input => {
+        input.value = ''
+      })
+
+      //this.title = this.setTitle(msg.type, msg.subTypeID)
+      this.title = this.setTitle(msg)
+
+      if (['card', 'device'].includes(this.type)) {
+        let subID = parseInt(this.subTypeID, 10)
+        this.subTypeName = xdata.metaStore.data[this.type + '_type'].get(subID).name
+        // console.log(subID,this.subTypeName)
+      }
+
+      this.rows = null
+      switch (this.type) {
+        case 'card':
+         this.subTypeName = this.subTypeID === 1 ? this.subTypeName + '1' : this.subTypeName
+          this.def = xdata.cardStore.stateDefs[this.subTypeName]
+          this.rows = this.getCardRows(msg.subTypeID, msg.statType, this.composeType, msg.groupID, msg.deptID, msg.filterGeo)
+          this.rows.sort(this.compare)
+          this.subTypeID === 1 ? this.joinRows() : ''
+          this.blockedIndex = this.subTypeID === 1 ? [0, 3, 4] : [1, 3, 4, 5, 14]
+          // this.rows = xdata.metaStore.fiilterWorkFaceByCardID(this.rows)
+          this.total = this.subTypeID === 1 ? this.rows.length + ' 人' : '当天上报车数：共有 ' + this.rows.length + '辆车'
+          break
+        case 'device':
+          this.def = xdata.deviceStore.stateDefs['device']
+          this.rows = this.getDeviceRows(msg.subTypeID, msg.statType)
+          this.total = '共有 ' + this.rows.length + ' 设备'
+          break
+        case 'alarm':
+          this.labels = ['名字', '身份证', '出车时间', '接收时间', '工作时长', '地图', '区域', '部门', '电量']
+          this.names = this.labels
+          this.rows = this.getAlarmRows(msg.detail)
+          break
+        case 'tdvehicle':
+          this.subTypeName = 'tdvehicle'
+          this.def = xdata.cardStore.stateDefs[this.type]
+          this.rows = this.getTDvehicleRows()
+          this.blockedIndex = [1, 3, 4, 5, 14]
+          this.total = `共有 ${this.rows.length}辆车`
+          break
+        default:
+          console.log('未知类型：' + msg.type)
+          break
+      }
+
+      if (this.type !== 'alarm') {
+        this.labels = this.def.fields.labels
+        this.names = this.def.fields.names
+      }
+      // if (this.type === 'card' && this.subTypeID === 1 && this.labels.length !== 19){
+      //   this.labels.splice(5, 0, '职务','工种')
+      //   this.def.fields.types.splice(5, 0, 'NUMBER', 'NUMBER')
+      //   this.names.splice(5, 0, 'occupation_id','worktype_id')
+      // }
+      this.hasdata = (this.rows && this.rows.length > 0) || false
+      this.showDetail()
+      this.datarows = [...this.rows]
+    }
+
+    this.showDetail = () => {
+      // if (this.hasdata) {
+        this.subRows = this.rows.slice(0, PAGE_SIZE)
+        let count = this.subRows.length
+        for (let i = 0; i < count; i++) {
+          let row = this.subRows[i]
+          let areaID = this.subRows[i][10]
+          this.subRows[i] = this.type === 'device' ? xdata.metaStore.formatRecordArray(this.def, row, 'SHORT-DATE') : xdata.metaStore.formatStateArray(this.def, row, 'SHORT-DATE')
+          // this.subRows[i] = this.type === 'device' ? xdata.metaStore.formatRecordArray(this.def, row) : xdata.metaStore.formatStateArray(this.def, row)
+          // 人员没有特殊区域概念
+          this.subTypeID === 1 ? this.subRows[i].push(false) : this.subRows[i].push(this.isSpecialArea(areaID)) 
+        }
+        if (this.subRows.length <= 0) {
+          this.hasdata = false
+        } else {
+          this.hasdata = true
+        }
+
+        // console.log(this.subRows)
+        this.initPagination()
+
+
+        setTimeout(() => {
+          this.countRows = clone(this.rows)
+          this.formatCards(this.countRows)
+        }, 250)
+      // }
+    }
+
+    this.sortRows = (evt) => {
+      let target = (evt && evt.target) ? evt.target : this.root.querySelector('.defultsort')
+      if (!target) return
+      let nodename = target.nodeName.toLowerCase()
+      let label = checkClick(target, nodename)
+      if (!label) return
+      if(this.sortBasic){
+        this.isAscending = label === this.sortBasic ? !this.isAscending : false
+      }
+      this.sortBasic = label
+      this.rows.sort(this.compare)
+      this.showDetail()
+      this.controlDisplay(target, nodename)
+    }  
+
+    //改变箭头的方向、显隐 2019-05-22 lmj
+    this.controlDisplay = (target, nodename) => {
+      this.preTarget && this.preTarget.querySelector('img').classList.add('hide')
+      if (!target) return
+      target = nodename === 'th' ? target : target.parentElement
+      target.querySelector('img').classList.remove('hide')
+      this.preTarget = target
+    }
+
+    this.joinRows = () =>{
+      let arr = []
+      for(let i=0,len=this.rows.length;i<len;i++){    
+        let row = this.rows[i]
+        let cardid = [row[CARD.card_id]]
+        let deptid = [row[CARD.dept_id]]
+        let cardType = [row[CARD.card_type_id]]
+        let CardObj = xdata.metaStore.data.staff_extend && Array.from(xdata.metaStore.data.staff_extend.values()).filter(item => item.card_id === row[CARD.card_id])[0]
+        let occupationID = CardObj && xdata.metaStore.getNameByID('occupation_id', CardObj.occupation_id)
+        let worktypeID = CardObj && xdata.metaStore.getNameByID('worktype_id', CardObj.worktype_id)
+        let name = [row[CARD.object_id]]
+        let containsFirst = row.slice(4, 12)
+        let containsLast = row.slice(13, 16)
+        let containsLastend = row.slice(16, row.length)
+        let joinRow = cardType.concat(name).concat(deptid).concat(containsFirst).concat(containsLast).concat(cardid).concat(containsLastend)
+        joinRow.splice(5, 0, occupationID, worktypeID)
+        arr.push(joinRow)
+      }
+      this.rows = arr
+    }
+
+    this.getResult = (result) => {
+      let desc = this.dataSet.desc
+      if(this.root.querySelector('#searchinput').value){
+        if (desc!=='name' || this.dataSet.keys.includes('staff_id')) {  
+          this.root.querySelector('#searchinput').value = result.name
+        } else {
+          this.root.querySelector('#searchinput').value = result[0].name
+        }
+        
+      }else{
+        this.root.querySelector('#searchinput').value = ''
+        this.root.querySelector('.dept').querySelector('#dept').value = ''
+        this.searchList()
+      }
+      
+      // this.subRow = [result]
+    }
+
+    this.loadObjects = (subtypeID) => {
+      let objectArr = []
+      let objects = subtypeID === 1 ? xdata.cardStore.scards.values() : xdata.cardStore.vcards.values()
+      for (let rec of objects) {
+        let obj = xdata.metaStore.getCardBindObjectInfo(rec[0])
+        if (obj && obj.name) {
+          objectArr.push(obj)
+        }
+      }
+      // let staffs = xdata.metaStore.dataInArray.get('staff')
+      this.typeDef = {
+        name: subtypeID === 1 ? 'staff' : 'vehicle',
+        label: subtypeID === 1 ? '人员' : '车辆',
+        placeholder: subtypeID === 1 ? '请输入姓名,卡号,姓名首字母' : '请输入车牌号,车辆编号,车卡号',
+        cb: this.getResult  // the callback when select an item.
+      }
+      this.dataSet = {
+        desc: 'name',  // 显示结果集时，显示的字段：一般为描述字段
+        keys: subtypeID === 1 ? ['name', 'spy', 'staff_id', 'card_id']:['name', 'spy', 'vehicle_id', 'card_id'],  // 参与搜索的列名称
+        data: objectArr
+      }
+    }
+
+    this.loadvehicle = () => {
+      let vehicleArr = []
+      let vehicles = xdata.cardStore.vcards.values()
+      for (let rec of vehicles) {
+        let vehicle = xdata.metaStore.getCardBindObjectInfo(rec[0])
+        if (vehicle && vehicle.name) {
+          vehicleArr.push(vehicle)
+        }
+      }
+      // let vehicles = xdata.metaStore.dataInArray.get('vehicle')
+      this.typeDefv = {
+        name: 'vehicle',
+        label: '车辆',
+        placeholder: '请输入车牌号,车辆编号,车卡号',
+        cb: this.getResult  // the callback when select an item.
+      }
+      this.dataSetv = {
+        desc: 'name',  // 显示结果集时，显示的字段：一般为描述字段
+        keys: ['name', 'spy', 'vehicle_id', 'card_id'],  // 参与搜索的列名称
+        data: vehicleArr
+      }
+    }
+
+    this.list = (evt) => {
+      evt.stopPropagation()
+
+      let target = evt.currentTarget
+      let parentTarget = this.root.querySelector('.dlg-window')
+      let name = target.getAttribute('class')
+      if (this.callList) {
+        this.callList.root.classList.add('hide')
+        this.callList.unmount(true)
+      }
+      let vessel = `div#${name}-list-panel`
+      this.callList = riot.mount(vessel, 'popup-list', {
+        target: target,
+        name: name,
+        self: self,
+        parentTarget: parentTarget
+      })[0]
+    }
+
+    this.enterForSearch = (evt) => {
+      evt.stopPropagation()
+      let searchTarget = evt.currentTarget.getElementsByTagName('input')[0]
+      // console.log('searchTarget',searchTarget)
+      this.callList && this.callList.enterForSearch(searchTarget)
+    }
+
+    this.insertChoosed = (target, name) => {
+      let root = this.root.querySelector('.' + name)
+      root.querySelector('#' + name).value = target.innerText
+      let dataType = target.getAttribute('data-type')
+      root.setAttribute('data-type', dataType)
+    }
+
+    this.searchList = (evt) => {
+      this.searchFilter = false
+      let obj = this.root.querySelector('.search-box') && this.root.querySelector('.search-box').querySelector('#searchinput').value && this.root.querySelector('.search-box').querySelector('#searchinput').getAttribute('data-type')
+      // if(this.subTypeID !==1) obj = obj && this.root.querySelector('.search-box').querySelector('input').getAttribute('data-type')
+      let dept = this.root.querySelector('.dept').querySelector('#dept').value
+      let deptName = dept && this.root.querySelector('.dept').getAttribute('data-type')
+      let objects = this.subTypeID === 1 ? xdata.metaStore.data.staff_extend : xdata.metaStore.data.vehicle_extend
+      let card = obj && objects && objects.get(Number(obj))
+      let cardID = card && card.card_id
+      if (!obj && dept && deptName) {
+        this.rows = this.subTypeID === 1 ? this.datarows.filter(item => item[2] === parseInt(deptName, 10)) : this.datarows.filter(item => item[CARD.dept_id] === parseInt(deptName, 10))
+        this.searchFilter = true
+        this.searchFilterTitle = `${dept}：${this.rows.length}${this.subTypeID === 1 ? '人' : '车'}`
+      }
+      if (obj) {
+        switch (this.subTypeID) {
+          case 2:
+            this.rows = this.datarows.filter(item => Number(item[0]) === Number(cardID))
+            break;
+          case 'TDVEHICLE':
+            this.rows = this.datarows.filter(item => Number(item[2]) === Number(cardID))
+            break;
+          default:
+            this.rows = this.datarows.filter(item => Number(item[16]) === Number(cardID))
+            break;
+        }
+      }
+      if (obj && dept && deptName) {
+        switch (this.subTypeID) {
+          case 2:
+            this.rows = this.datarows.filter(item => Number(item[0]) === Number(cardID) && (item[CARD.dept_id] === parseInt(deptName, 10)))
+            break;
+          case 'TDVEHICLE':
+            this.rows = this.datarows.filter(item => Number(item[2]) === Number(cardID) && (item[1] === parseInt(deptName, 10)))
+            break;
+          default:
+            this.rows = this.datarows.filter(item => Number(item[16]) === Number(cardID) && (item[2] === parseInt(deptName, 10)))
+            break;
+        }
+      }
+      // xbus.trigger('HIDE-ALL-POPUP')
+      this.showDetail()
+      if (!obj && !dept) {
+        this.init(this.msg)
+      }
+    }
+    //呼叫所有
+    this.sendCall = (evt) => {     
+      let tagName = 'docallall'
+      if (this.activePanel) {
+        this.activePanel.unmount(true)
+      }
+      this.activePanel = riot.mount('call-leave', {
+        name: tagName,
+      })[0]
+      this.needhide && this.parent.hide()
+      this.hide()
+    }
+ 
+    this.compare = (carA, carB) => {
+      if (this.sortBasic) {
+        let labelIndex = this.def.fields.labels.indexOf(this.sortBasic)
+        if (this.isAscending) {
+          return carA[labelIndex] < carB[labelIndex] ? -1 : 1
+        } else {
+          return carA[labelIndex] > carB[labelIndex] ? -1 : 1
+        }
+      } else if (!this.sortBasic && this.subTypeID === 1) {
+        if (carA[CARD.speed] == carB[CARD.speed]) {
+          return carA[0] > carB[0] ? 1 : -1
+        } else {
+          return carA[CARD.speed] > carB[CARD.speed] ? -1 : 1
+        }
+      } else {
+        if (carA[15] < carB[15]) {
+          return 1
+        }
+        if (carA[15] > carB[15]) {
+          return -1
+        }
+        return 0
+      }
+      
+    }
+
+    this.isSpecialArea = (id) => {
+      let ret = false
+
+      if (id === 0) {
+        ret = true
+      } else {
+        let areaDef = xdata.metaStore.data.area && xdata.metaStore.data.area.get(id)
+        let areaTypeID = areaDef && areaDef.area_type_id
+        if (areaTypeID) {
+          ret = areaTypeID >= 1000
+        }
+      }
+
+      return ret
+    }
+
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+      this.pageIndex = msg.pageIndex
+      let start = this.pageIndex * PAGE_SIZE
+      let end = start + PAGE_SIZE
+      this.subRows = this.rows && this.rows.slice(start, end)
+
+      let count = this.subRows.length
+      for (let i = 0; i < count; i++) {
+        let row = this.subRows[i]
+        let areaID = this.subRows[i][10]
+        this.subRows[i] = this.type === 'device' ? xdata.metaStore.formatRecordArray(this.def, row, 'SHORT-DATE') : xdata.metaStore.formatStateArray(this.def, row, 'SHORT-DATE')
+        this.subTypeID === 1 ? this.subRows[i].push(false) : this.subRows[i].push(this.isSpecialArea(areaID))
+      }
+      this.update()
+      window.xhint.close()
+    })
+
+    this.getCardRows = (subTypeID, statType, composeType, areaID, deptID, filterGeo) => {
+      let ret = null
+      let groupID = parseInt(areaID, 10)
+      ret = xdata.cardStore.getDetail(subTypeID, statType, groupID, filterGeo)
+      return ret
+    }
+
+    this.getDeviceRows = (subTypeID, groupID) => {
+      let rows = []
+      let allDevice = Array.from(xdata.deviceStore.states.values())
+      if (typeof (allDevice) !== 'undefined') {
+        for (let i = 0; i < allDevice.length; i++) {
+          if (groupID === '*' && Number(subTypeID) === Number(allDevice[i].device_type_id)) {
+            rows.push(allDevice[i])
+          } else if (Number(subTypeID) === Number(allDevice[i].device_type_id) && Number(groupID) === (Number(allDevice[i].state) === 0 ? 0 : 1)) {
+            rows.push(allDevice[i])
+          }
+        }
+      }
+      return rows
+    }
+
+    this.getAlarmRows = (msg) => {
+      for (let i = 0, len = msg.length; i < len; i++) {
+        let msgData = msg[i]
+        msgData[2] = new Date(Number(msgData[2])).format('yyyy-MM-dd hh:mm:ss')
+        msgData[3] = new Date(Number(msgData[3])).format('yyyy-MM-dd hh:mm:ss')
+        msgData[4] = new Date(Number(msgData[4])).format('hh:mm:ss')
+        msgData[5] = xdata.metaStore.getNameByID('map_id', msgData[5])
+        msgData[6] = xdata.metaStore.getNameByID('area_id', msgData[6])
+        msgData[7] = xdata.metaStore.getNameByID('dept_id', msgData[7])
+        msgData[8] = xdata.metaStore.getNameByID('state_card_id', msgData[8])
+      }
+
+      return msg
+    }
+
+    this.getTDvehicleRows = () => {
+      let tdvehicles = Array.from(xdata.cardStore.tdVehicle.values())
+      tdvehicles = clone(tdvehicles)
+      let rows = [].concat(tdvehicles)
+      for (let i = 0, len = rows.length; i < len; i++) {
+        let row = rows[i]
+        row.push(row[0])
+        row[0] = row[2]
+        row[2] = row[row.length - 1]
+        row.pop()
+      }
+      rows = rows.sort(function (x, y) {
+        return y[7] - x[7]
+      })
+      return rows
+    }
+
+    this.showTDVehicle = (evt) => {
+      let self = this
+      let target = evt.currentTarget
+      let dataType = target.getAttribute('data-type')
+      if (this.type === 'tdvehicle' && dataType === 'number') {
+        let cardID = target.nextElementSibling.innerText
+        let card = xdata.metaStore.getCardBindObjectInfo(cardID)
+        let vehicleID = card && card.vehicle_id
+        if (this.tdVehicleList) {
+          this.tdVehicleList.unmount(true)
+        }
+        this.tdVehicleList = riot.mount('td-vehicle-list', {vehicleID: vehicleID, parent: self})[0]
+        window.xhint.showLoading()
+        this.root.classList.add('hide')
+      } else if (this.type === 'card' && this.subTypeID === 1 && dataType === 'card_id' && (xdata.roleID === 1 || xdata.roleID === 2)) {
+        if (this.activePanel) {
+          this.activePanel.unmount(true)
+        }
+        this.activePanel = riot.mount('bat-curve', {cardID: evt.target.innerText})[0]
+      }
+    }
+
+    this.setTitle = (msg) => {
+      let title = '对象'
+      switch (msg.type) {
+        case 'device':
+          title = '设备'
+          break
+        case 'card':
+          if (msg.subTypeID === 2) {
+            let groupNameV = xdata.metaStore.getNameByID(msg.statType + '_id', msg.groupID)
+            if (groupNameV) {              
+              title =  groupNameV + '车辆'
+            } else {
+              title = '车辆'
+            }
+          } else if (msg.subTypeID === 1) {
+            if(this.area){
+              title = '区域人数'
+            }else{
+              let groupNameS = xdata.metaStore.getNameByID(msg.statType + '_id', msg.groupID)
+              if (groupNameS) {        
+                title = groupNameS + '当前人数'
+              } else {
+                title = '当前井下人数'
+              }
+            }          
+          } else {
+            console.log('UNKNOWN card type： ', msg.subTypeID)
+          }
+          break
+        case 'tdvehicle':
+          title = '当天出车车数'
+          break
+        default:
+          console.log('UNKNOWN object： ', msg.type)
+          break
+      }
+
+      return title
+    }
+
+    this.hide = (evt) => {
+      this.hasShow = false
+      if (this.refs['searchinput']) {
+        this.refs['searchinput'].value = ''
+      }
+      this.refs['dept'].value = ''
+      // this.refs['map'].value = ''
+      let ele = this.root.querySelector('.dlg-window').classList
+      let dlBgEle = this.root.querySelector('.dlg-bg').classList
+      ele.remove('zoomIn')
+      ele.add('zoomOut')
+      dlBgEle.remove('zoomToOut')
+      dlBgEle.add('zoomNone')
+      // this.hidelist()
+    }
+
+    this.print = (evt) => {
+      xbus.trigger('PRINT-AREA', {
+        tag_id: 'symbol-table',
+        title: this.title
+      })
+    }
+
+    this.show = () => {
+      this.hasShow = true
+      this.sortRows()
+      show (this.root)
+    }
+    //隐藏弹窗
+    this.hidelist = (evt) => {
+      evt.stopPropagation()
+      if (this.callList) {
+        this.callList.root.classList.add('hide')
+        this.callList.unmount(true)
+      }
+    }
+
+    this.askFile = () => {
+      let askDefs = this.dealAskDefs()
+      let askDef = askDefs.def
+      let rows = askDefs.rows
+      let msg = {
+        cmd: 'file',
+        name: askDef.name,
+        labels: askDef.fields.labels,
+        title: askDef.label,
+        namesInShort: askDef.fields.names,
+        types: askDef.fields.types,
+        fileType: 'csv',
+				reptIndex: new Date().format('yyyyMMddhhmmss'),
+				data: JSON.stringify(rows),
+				isQuery: true
+      }
+      msg.userName = xdata.userName
+      xbus.trigger('REPT-FETCH-FILE', msg)
+    }
+    
+    this.dealAskDefs = () => {
+      let def = detailPrintDef[this.subTypeName]
+      let rows = this.countRows && clone(this.countRows).map(item => {
+        if (this.subTypeName === 'staff1') {
+          let staffID = this.getStaffID(item[16])
+          item.splice(0, 1, staffID)
+        } else if (this.subTypeName === 'vehicle1') {
+          item.splice(0,1)
+        } else {
+          item.splice(1,1)
+        }
+        return item
+      })
+      return {
+        def: def,
+        rows: rows
+      }
+    }
+    this.formatCards = (rows) => {
+      let count = rows.length
+      for (let i = 0; i < count; i++) {
+        let row = rows[i]
+        rows[i] = this.type === 'device' ? xdata.metaStore.formatRecordArray(this.def, row, 'SHORT-DATE') : xdata.metaStore.formatStateArray(this.def, row, 'SHORT-DATE')
+      }
+    }
+  </script>
+</detail-dialog>

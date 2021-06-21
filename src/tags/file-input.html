@@ -1,0 +1,37 @@
+<file-input>
+  <input class="xinput file-input" type="text" placeholder="点击上传文件..." value={ fieldValue } name={ fieldName } readonly onclick={ modifyFile }>
+
+  <script>
+    this.fieldName = opts.name
+    this.fieldValue = opts.value
+    this.topicName = opts.topic
+    this.data = opts.data
+
+    xbus.on('FILE-MODIFIED', (msg) => {
+      this.fieldValue = msg.fileName
+      this.update()
+    })
+
+    this.modifyFile = (evt) => {
+      // debugger
+      let fileName = evt.target.value
+      let fileNamePrefix = ''
+      if (this.parent.cmd === 'INSERT') {
+        fileNamePrefix = this.parent.maxid
+      } else {
+        fileNamePrefix = fileName.replace(/\..+/, '')
+      }
+
+      let msg = {
+        cmd: parent.cmd,    // eslint-disable-line
+        fieldName: this.fieldName,
+        fileType: this.topicName,
+        fileName: fileName,
+        fileNamePrefix: fileNamePrefix,
+        data: this.data
+      }
+
+      xbus.trigger('FILE-MODIFY', msg)
+    }
+  </script>
+</file-input>

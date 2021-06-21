@@ -1,0 +1,214 @@
+<dialog-table>  
+    <table>
+      <tbody>
+        <tr each={rows} if={ isNeedDisplay(field_name) }>
+          <td>
+            <text-filed if={field_type!=='SELECT' && !checkboxes.includes(field_name) && field_name !== 'over_speed_vehicle' && field_name !== 'readers' && field_name !== 'drivers' && field_name !== 'over_count_person_rp' && field_name !== 'route_planning' && field_name !== 'reader_planning'} text={field_label} enableNull={field_enableNull} class="xinput {getTimeClass(field_type)} {field_name !=='label' ? field_name : '' }" data-oldvalue={field_value} value={getTextValue(field_value, field_name, field_type)} onblur={ opts.dataLeave } type={getInputType(field_type, field_name)} ref={field_name} min='1' max={ setMax(field_type, field_name) } name={field_name} data-type={getDateType(field_name)} readonly={ isReadonly(field_name) } disabled={ isDisabled(field_name) }></text-filed>
+            <text-select if={field_type=='SELECT' && (field_name !== 'is_check' || xdata.isCheck !== 1 )} text={field_label} enableNull={ field_enableNull } ref={ field_name } name={ field_name } data-oldvalue={field_value} value={ field_value } data-name={ tableName } onchange={ change } class={ field_name } disabled={isDisabled(field_name)}></text-select>
+            <text-choose if={field_name == 'readers' || field_name == 'drivers'} text={field_label} value={field_value} name={field_name} ref={field_name}></text-choose>
+            <checkbox-role if={from === 'role' && checkboxes.includes(field_name)} class="hide checkbox-role" ref={ field_name } data-value={field_value} data-select={selectedIndex} disabled={isDisabled()} data-title={dataTitle} data-key={dataKey} placeholder={placeholder} data-all={dataAll}></checkbox-role>
+            <align-input class="align-input" if={from === 'role' && ['over_speed_vehicle','route_planning','reader_planning'].includes(field_name)} data-value={field_value} ref={field_name} name={field_name} text={field_label} readonly={isReadonly()}></align-input>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  <script>
+    import './align-input.html'
+    import './text-choose.html'
+    import './checkbox-role.html'
+    import {trim, composeUpdateDBReq, show, compare } from '../../js/utils/utils.js'
+    import {metaUpdateRes,formatFieldValue,testUnenableNullData,testForm,isReadonly,isDisabled} from '../utils.js'
+    this.rows = opts.data.rows
+    this.tableName = opts.data.table
+    this.cmd = opts.data.cmd
+    this.tableKeyName = opts.data.key
+    this.from = opts.data.from
+    this.dataTitle = this.tableName === 'dat_area' ? '区域业务列表' : '管理范围列表'
+    this.dataKey = this.tableName === 'dat_area' ? 'area_business_id' : 'dept_id'
+    this.placeholder = this.tableName === 'dat_area' ? '请输入区域业务名称、拼音' : '请输入部门名称、拼音'
+    this.dataAll = this.tableName === 'dat_user' && '全矿所有'
+    this.checkboxes = ['menus', 'depts', 'access_id', 'business_type']
+    this.fieldName = opts.name
+
+    this.on('update', function() {
+      this.rows = opts.data.rows
+    })
+    
+    this.isReadonly = (field_name) => {
+      return isReadonly(this.tableName, field_name, this.tableKeyName, this.cmd)
+    }
+
+    /**
+     * @description: 判断编辑时是否禁用输入框 删除数据时输入框禁用不允许修改
+     * @param {type} fieldName不传参时为 ''
+     * @return: 
+     */
+    this.isDisabled = (fieldName) => {
+      let _fieldName = fieldName ? fieldName : '' 
+      let key = null
+      if (this.tableName === 'dat_area' && fieldName === 'area_type_id' && this.cmd === 'UPDATE') key = this.opts.data.rows[0].field_value
+      return  isDisabled(this.tableName, _fieldName, this.tableKeyName, this.cmd, key)
+    }
+
+    this.isNeedDisplay = (name) => {
+      if (name === 'obj_range') return false
+      if (xdata.isCheck === 1 && (name === 'need_display' || name === 'hm_dept_id')) return false
+      if (this.tableName === 'dat_battery' && name === 'battery_id') return false
+      if (this.tableName === 'rt_person_forbid_down_mine') {
+        if (['id', 'name', 'dept_id', 'last_update', 'oper_user', 'oper_time'].includes(name)) return false
+      }
+      if (this.tableName === 'tt_inspection_route_planning' && name === 'name') return false
+      return true
+    }
+
+    // this.isHideClass = (name) => {
+    //   if (this.tableName === 'dat_battery' && name === 'battery_id') return 'hide'
+    //   if (this.tableName === 'rt_person_forbid_down_mine') {
+    //     if (['id', 'name', 'dept_id', 'last_update', 'oper_user', 'oper_time'].includes(name)) return 'hide'
+    //   }
+    //   return ''
+    // }
+
+    this.getTextValue = (field_value, field_name, field_type) => {
+      if (this.tableName === 'dat_drivingface_vehicle' && field_name === 'shake_threshold') {
+        if (!field_value) return 20
+      } else if(this.tableName === 'dat_user' && this.cmd === 'INSERT' && field_name === 'pwd'){
+        return 123
+      }else {
+        if (field_value) {
+          if(field_name === 'y'  && this.cmd !== 'INSERT'){
+            field_value = -Number(field_value)
+          }
+          if (['bpoint', 'epoint'].includes(field_name)) {
+            field_value = `${field_value.split(',')[0]},${-Number(field_value.split(',')[1])}`
+          }
+          if (field_type === 'DATETIME') {
+            return new Date(field_value).format('yyyy-MM-ddThh:mm:ss')
+          } else if (field_type === 'DATE') {
+            return new Date(field_value).format('yyyy-MM-dd')
+          } else if (field_type === 'TIME') {
+            let curTime = new Date().format('yyyy-MM-dd')
+            return new Date(`${curTime} ${field_value}`).format('hh:mm')
+          }
+        }
+        return field_value
+      }
+    }
+
+    this.getDateType = (name) => {
+      name=='ident' && this.tableName=='dat_card' ? 'ident' : ''
+    }
+
+    this.getTimeClass = (type) => {
+      if (type === 'DATETIME' || type === 'DATE') return 'datetime-input'
+      return ''
+    }
+
+    this.getInputType = (fieldType, field_name) => {
+      if (fieldType !== 'SELECT') {
+        let ret = 'text'
+        if (this.tableName === 'dat_user' && (this.cmd === 'UPDATE' || this.cmd === 'DELETE') && field_name === 'pwd') {
+          ret = xdata.roleID === 1 ? 'text' : 'password'
+        } else {
+          ret = 'text'
+        }
+        let inputType = {
+          'DATETIME': 'datetime-local',
+          'DATE': 'date',
+          'TIME': 'time',
+          'COLOR': 'color'
+        }
+        ret = inputType[fieldType] ? inputType[fieldType] : ret
+        return ret
+      }
+    }
+
+    this.setMax = (fieldType, fieldName) => {
+      let Max = 1
+      if (['over_count_person', 'over_count_vehicle', 'over_time_person', 'over_time_vehicle', 'rank'].includes(fieldName)) Max = 10
+      return Max
+    }
+
+    this.change = (evt) => {
+      if (this.from === 'role') {
+        let target = evt.target
+        let selectedIndex = target.selectedIndex
+        let selectedValue = Number(target.value)
+        if (selectedValue === 2) {
+          this.refs['menus'] && this.refs['menus'].root.classList.remove('hide')
+        } else {
+          this.refs['menus'] && this.refs['menus'].root.classList.add('hide')
+        }
+        let name = target.getAttribute('name')
+        if (name === 'area_type_id') {
+          let value = parseInt(target[target.selectedIndex].value, 10)
+          this.refs['business_type'].updateSelect(value)
+        }
+      } else if (this.from === 'meta') {
+        let target = evt.currentTarget.querySelector('select')
+        let name = target.getAttribute('name')
+        if (this.topicName === 'leader_arrange' && name === 'shift_type_id') {
+          let chooseValue = target[target.selectedIndex].value
+          let childtags = self.tags['meta-select'] ? self.tags['meta-select'] : self.tags['text-select']
+          if (childtags) {
+            for (let i = 0, len = childtags.length; i < len; i++) {
+              let childtag = childtags[i]
+              if (childtag.fieldName === 'shift_id' || childtag.opts.name === 'shift_id') {
+                childtag.tags["meta-select"].filterout(chooseValue)
+              }
+            }
+          }
+        }
+        target.setAttribute('value', target[target.selectedIndex].value)
+        evt.preventUpdate = true
+        let cardValue = evt.target.value
+        let inputType = this.root.querySelector('.xinput').getAttribute('type')
+        this.cardValue = Number(cardValue)
+        if (this.tableName === 'dat_card') {
+          window.sessionStorage.setItem('selected', Number(cardValue))
+          if (name === 'card_type_id') {
+            let cardInputVal = this.refs['card_id'].root.querySelector('input').value
+            let value = cardInputVal
+            if (value.length>10) {
+              cardInputVal = cardInputVal.substr(3)
+            }
+            this.refs['card_id'].root.querySelector('input').value = value.length > 10 ? `${cardValue.padStart(3,0)}${cardInputVal}` : `${cardValue.padStart(3,0)}`
+          }
+        }
+      }
+    }
+
+    this.init = (opts) => {
+      if (this.tableName === 'dat_area') {
+        let areaTypeID = this.rows[2].field_value
+        this.selectedIndex = Number(areaTypeID)
+      } 
+    }
+    this.init(opts)
+    this.on('mount', () => {
+      if (this.tableName === 'dat_card' && this.cmd === 'INSERT') {
+          let ele = ''
+          let card_ds = []
+          let ds = xdata.metaStore.data.card_type
+          for (let rec of ds.values()) {
+              let item = {
+                  name: rec.detail,
+                  value: rec.card_type_id
+              }
+              card_ds.push(item)
+          }
+          card_ds = card_ds.sort(compare('name', 'chinese'))
+          ele = `00${card_ds[0].value}`
+          if(this.root.querySelector('.card_id') && this.root.querySelector('.card_id').querySelector('input').value){
+              this.root.querySelector('.card_id').querySelector('input').value = ele
+          }
+        } else if (this.from === 'role') { // TODO如果新增角色等级 会有问题
+          if (this.rows.length<3) return
+          let roleRankID = this.rows[2].field_value
+          if (roleRankID === 2 || !roleRankID) {
+            this.refs['menus'] && this.refs['menus'].root.classList.remove('hide')
+          }
+        }
+    })
+  </script>
+</dialog-table>

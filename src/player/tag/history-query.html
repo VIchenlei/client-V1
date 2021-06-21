@@ -1,0 +1,69 @@
+<history-query>
+  <ul class="query-tab-panel hide-on-mb">
+    <li id="trackTag" type="track-query" onclick={ switchItem } class="query-tab { currentQuery == 'track-query' ? 'activate' : '' }">轨迹查询</li>
+    <!-- <li id="sceneTag" type="scene-query" onclick={ switchItem } class="query-tab { currentQuery == 'scene-query' ? 'activate' : '' }">场景重现</li> -->
+  </ul>
+  <div class="query-panel" onclick={ hideList }></div>
+
+  <script>
+    import './track-query.html'
+    import './scene-query.html'
+
+    this.tagQuery = null
+    this.currentQuery = 'track-query'
+
+    this.on('mount', () => {
+      this.tagQuery = riot.mount('div.query-panel', this.currentQuery, {papa: this})[0]
+    })
+
+    this.switchTo = (queryName) => {
+      if (queryName !== this.currentQuery) {
+        this.tagQuery && this.tagQuery.unmount(true)
+        this.tagQuery = riot.mount('div.query-panel', queryName, {papa: this})[0]
+        this.parent.tags['history-player'].tags['player-ctrl'].stopPlay()
+        this.currentQuery = queryName
+      }
+    }
+
+    // this.hideList =(e)=>{
+    //   let ele = e.target.getAttribute('class')
+    //   if(ele === 'query-panel' || ele === 'object-type-panel'){
+    //     this.root.querySelector('#selectOpts').classList.add('hide')
+    //   }
+    // }
+
+    /**
+     * 切换类型：场景或轨迹
+     */
+    this.switchItem = (evt) => {
+      xbus.trigger('MAP-HISTORY-RESET')
+      let queryTagName = evt.target.getAttribute('type')
+
+      if (queryTagName !== this.currentQuery) {
+        this.switchTo(queryTagName)
+      } else {
+        evt.preventUpdate = true  // do NOT refresh the tag
+      }
+    }
+
+    this.fastQuery = (cardID,numberId,name) => {
+      // 需要先转到 轨迹查询
+      let targetQueryName = 'track-query'
+      if (targetQueryName !== this.currentQuery) {
+        this.switchTo(targetQueryName)
+      }
+
+      if (!this.tagQuery) {
+        this.tagQuery = riot.mount('div.query-panel', targetQueryName, {papa: this})[0]
+      }
+
+      // track-query
+      let cardTypeID = xdata.metaStore.getCardTypeID(cardID)
+
+      this.tagQuery.setCardType(cardTypeID)
+      this.tagQuery.setQueryKey(cardTypeID, cardID,numberId,name)  // set the query key input value
+     // this.tagQuery.queryTrackList(cardTypeID, objID, null)  // do query
+      this.tagQuery.doQueryList()
+    }
+  </script>
+</history-query>

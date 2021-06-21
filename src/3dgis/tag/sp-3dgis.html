@@ -1,0 +1,84 @@
+<sp-3dgis>
+
+  <div id="cesiumContainer" onclick={ clickMap }></div>
+  <div data-is="map-3dtopbar" class="map-topbar op-panel hide-on-mb"></div>
+  <script>
+    import CeMapService from '../../js/service/CeMapService.js'
+    import './map-3dtopbar.html'
+    this.MAP_CONTAINER_NAME = 'cesiumContainer'
+
+    this.on('mount', () => {
+      this.mapService = new CeMapService()
+      this.mapService.createViewer(this.MAP_CONTAINER_NAME)
+      console.log(this.MAP_CONTAINER_NAME)
+      // viewer.imageryLayers.addImageryProvider(new Cesium.WebMapServiceImageryProvider({
+      //   url: 'http://local.beijingyongan.com:8091/geoserver/GeoHe/wms',
+      //   layers: 'GeoHe:daohedaping2',
+      //   parameters: {
+      //     transparent: false,
+      //     gridSet: 'gaohemap',
+      //     format: 'image/png'
+      //   }
+      // }))
+
+      // Create an initial camera view
+      // var initialPosition = new Cesium.Cartesian3.fromDegrees(0.05, 0.01, 10000)
+      // var homeCameraView = {
+      //   destination: initialPosition
+      // }
+
+      // scene.camera.setView(homeCameraView)
+
+      // save a new miner model entity
+      // var minerEntity = viewer.entities.add({
+      //   name: 'miner',
+      //   position: Cesium.Cartesian3.fromDegrees(0.04248, 0.00593),
+      //   model: {
+      //     uri: './ThirdParty/model/personObj.gltf',
+      //     scale: 0.2
+      //   }
+      // })
+
+      // var miner = Cesium.GeoJsonDataSource.load('./ThirdParty/mockGeoData.geojson', {
+      //   stroke: Cesium.Color.HOTPINK,
+      //   fill: Cesium.Color.PINK.withAlpha(0.5),
+      //   strokeWidth: 3
+      // })
+
+      // viewer.dataSources.add(miner)
+      // Load a miner move path from a JSON file
+      // var dronePromise = Cesium.CzmlDataSource.load('./ThirdParty/sampleFlight.czml')
+      // var list = [[0.04246, 0.00605], [0.04246, 0.00601], [0.04246, 0.00599], [0.04246, 0.00596], [0.04246, 0.00593], [0.04246, 0.00591], [0.04246, 0.00588], [0.04246, 0.00586],
+      //           [0.04246, 0.00583], [0.04246, 0.00580], [0.04246, 0.00575], [0.04246, 0.00572], [0.04246, 0.00569], [0.04246, 0.00565], [0.04246, 0.00562], [0.04246, 0.00559],
+      //           [0.04246, 0.00554], [0.04246, 0.00550], [0.04246, 0.00549], [0.04246, 0.00545], [0.04246, 0.00541], [0.04246, 0.00538], [0.04246, 0.00535], [0.04246, 0.00531],
+      //           [0.04246, 0.00525], [0.04246, 0.00520], [0.04246, 0.00515], [0.04246, 0.00510], [0.04246, 0.00505], [0.04246, 0.00500], [0.04246, 0.00495], [0.04246, 0.00485],
+      //           [0.04246, 0.00475], [0.04246, 0.00465], [0.04246, 0.00455], [0.04246, 0.00445], [0.04246, 0.00435], [0.04246, 0.00425], [0.04246, 0.00415], [0.04246, 0.00405],
+      //           [0.04246, 0.00395], [0.04246, 0.00385], [0.04246, 0.00375], [0.04246, 0.00365], [0.04246, 0.00360]]
+      // var positions = []
+      // for (var i = 0; i < list.length; i++) {
+      //   var long = list[i][0]
+      //   var lat = list[i][1]
+      //   var position = Cesium.Cartesian3.fromDegrees(long, lat, 0.0)
+      //   positions.push(position)
+      // }
+      // console.log(positions)
+      // var drone
+      // dronePromise.then(function (dataSource) {
+      //   viewer.dataSources.add(dataSource)
+      //   drone = dataSource.entities.values[0]
+      //   // Attach a 3D model
+      //   drone.model = {
+      //     uri: './ThirdParty/model/personObj.gltf',
+      //     scale: 0.2
+      //   }
+      //   drone.viewFrom = new Cesium.Cartesian3(0.04248, 0.00593, 0.0)
+      // })
+
+      // miner.viewFrom = new Cesium.Cartesian3(0.04248, 0.00593)
+    })
+
+    this.clickMap = (evt) => {
+      evt.stopPropagation()
+    }
+  </script>
+</sp-3dgis>

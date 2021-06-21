@@ -1,0 +1,125 @@
+@import defs
+//该文件停用
+
+.hover-it
+  &:hover
+    box-shadow: 0 8px 8px rgba(0,0,0,.24),0 0 8px rgba(0,0,0,.12),0 6px 18px rgba(0,0,0,.12)
+    transform: translate3d(0,-2px,0)
+
+/* shining */
+.shining
+  animation: twinkling 1s infinite ease-in-out
+
+.animated
+  animation-duration: 1s
+  animation-fill-mode: both
+
+// @keyframes twinkling
+//   0%
+//     opacity: 0.5
+//   100%
+//     opacity: 1
+
+@keyframes twinkling
+  0%
+    border: none
+  50%
+    height: 2px solid #FF0
+
+// ------  buble ----------
+// ---- from http://umega.lethemes.net/1.4.1/first-layout/index.html
+.dot
+  width: 8px
+  height: 8px
+  border-radius: 50%
+  position: relative
+
+  &:before
+    content: ""
+    position: absolute
+    top: -12px
+    left: -12px
+    width: 26px
+    height: 26px
+    border-width: 3px
+    border-style: solid
+    border-radius: 50%
+    animation: pulse 2s ease-out infinite
+    border: 0
+
+
+  .bg-success:before
+    border-color: #17A88B
+
+  .bg-warning:before
+    border-color: #FFB61E
+
+  .bg-danger:before
+    border-color: #E5343D
+
+
+@keyframes pulse
+  0%
+    transform: scale(0)
+    opacity: 1
+  100%
+    transform: scale(1)
+    opacity: 0
+
+
+// ---- buble 2 in svg ----
+// ---- from http://www.keenthemes.com/preview/metronic/theme/admin_4/dashboard_2.html ----
+
+.ripple-point
+  animation: ripple 1.6s ease-out infinite
+
+@keyframes ripple
+  0%
+    stroke-opacity: .7
+    stroke-width: 0px
+
+  100%
+    stroke-opacity: 0
+    stroke-width: 100px
+
+// ---- moving dash in svg ----
+.graph-stroke
+  stroke-dasharray: 4px 5px
+  stroke-linejoin: round
+  stroke-linecap: round
+  animation: moving-dashes 1s linear infinite
+
+@keyframes moving-dashes
+  100%
+    stroke-dashoffset: -28px
+
+
+/* Effect 12: circle */
+.circle-effect::before,
+.circle-effect::after
+	position: absolute
+	top: 50%
+	left: 50%
+	width: 100px
+	height: 100px
+	border: 2px solid rgba(0,0,0,0.1)
+	border-radius: 50%
+	content: ''
+	opacity: 0
+	transition: transform 0.3s, opacity 0.3s
+	transform: translateX(-50%) translateY(-50%) scale(0.2)
+
+
+.circle-effect::after
+	width: 90px
+	height: 90px
+	border-width: 6px
+	transform: translateX(-50%) translateY(-50%) scale(0.8)
+
+
+.circle-effect:hover::before,
+.circle-effect:hover::after,
+.circle-effect:focus::before,
+.circle-effect:focus::after
+	opacity: 1
+	transform: translateX(-50%) translateY(-50%) scale(1)

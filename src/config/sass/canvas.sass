@@ -1,0 +1,134 @@
+@import '../../sass/defs'
+
+
+.map-dialog
+    @include wh(100%,99%)
+
+    .op-panel
+        padding: 0 1rem
+.battery-table,.maintenance-table,.oilwear-record
+    height: 100%
+    padding-top: 1rem
+    .search-content
+        display: flex
+        padding: .5rem 0 0 5rem
+        position: absolute
+.oilwear-record
+    overflow-x: auto
+  
+.manage-canvas, .report-canvas, .content-canvas, .meta-canvas, .maintenance-table, .battery-table,.oilwear-record, .maintenance-detail, .echarts-work
+    flex: auto
+    overflow-y: scroll
+    background: #fff
+    display: flex
+    flex-flow: column nowrap
+    .selectAll
+        display: flex
+        align-items: center
+        padding: 2rem 0
+    .d-report
+        display: flex
+        height: 2rem
+        color: #ff0000
+        margin: 5px -2px 0 0
+        font-size: 1rem
+        line-height: 2rem
+        justify-content: space-between
+        span
+            min-width: 4rem
+            padding: 5px 10px
+            text-align: center
+            line-height: 2rem
+            background: #09f
+            color: #f0f0f0
+            border: none
+            border-radius: 2px
+    .op-panel
+        @include align-middle
+        height: 30px
+        color: $minor-color
+        padding: 0 1rem
+        justify-content: flex-end
+        @media screen and (max-width: $width-medium)
+            padding: 0 0px
+
+        .printButton
+              @media screen and (max-width: $width-medium)
+                display: none
+    
+    .tooltips
+        @include wh(30%,20%)
+        @include absolute(60%,30%)
+        text-align: center
+        font-size: .9rem
+        border-radius: 5px
+        line-height: 5rem
+        margin-left: -10%
+        background: #e3f2ff
+    .pointImg
+        width: 1.125rem
+        height: 1.125rem
+    #leaderArrange
+        justify-content: space-between
+        div
+            @include align-middle
+            margin: .5rem 0 0 3rem
+            input, button
+                height: 1.8rem
+                //margin-top: 0.3rem
+                font-size: .9rem
+            button
+                margin-left: 1rem
+        .leader_title
+            font-size: $fontsize-s
+    .content-panel
+        @media screen and (min-width: $width-medium)
+            padding: 1rem
+            height: 100%
+            overflow: auto
+            margin-top: 1.5rem
+            .detailNumber
+                @include text-overflow
+        @media screen and (max-width: $width-medium)
+            padding: 1rem 2rem
+            width: 24rem
+            font-size: 20%
+        @media screen and (max-width: $width-small)
+            padding: 1rem 2rem
+            width: 20rem
+            font-size: 20%
+        @media screen and (max-width: $width-small) and (orientation : landscape)
+            @include absolute(0,8rem)
+    .content-panel.topDistance
+        margin-top: 3rem
+
+    .tips
+        background: none
+
+.report-canvas .op-panel
+    display: flex
+    background: none
+    justify-content: space-between
+    padding: 0
+    font-size: 1.125rem
+    font-weight: 900
+    .staffnum span:nth-child(2)
+        text-decoration: underline
+.report-canvas .worktime-panel
+    font-size: .9rem
+    justify-content: space-between
+.report-canvas .manage-panel
+    justify-content: flex-end
+.meta-canvas .op-panel
+    flex: 0 0 2rem
+.meta-canvas .role-panel
+    justify-content: space-between
+    margin-top: 3rem
+
+#sp_config #query-newexprs
+    font-size: 12px
+    margin: 34px 20px 0 6px
+.configTableWarp
+    display: flex
+    flex: auto
+    flex-direction: column

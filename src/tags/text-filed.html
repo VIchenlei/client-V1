@@ -1,0 +1,520 @@
+<text-filed>
+    <div class="mdc-form-field  {opts.name}">
+        <svg class="icon" if={ opts.idname==='username' || opts.idname==='userpwd' }>
+            <use xlink:href="/icons/icons.svg#{opts.icon}"></use>
+        </svg>
+        <div class="mdc-text-field demand-field" ref='content' data-mdc-auto-init="MDCTextField">
+            <span class="hint--bottom-left" onclick={ insert } if={ opts.name === 'drivers' || opts.name === 'readers' }>
+                <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-add"></use></svg>
+            </span>
+            <input if={opts.name !== 'staff_id' && opts.name !== 'card_id' && opts.name !== 'drivers' && opts.name !== 'readers'} id={opts.idname} type={opts.type} ref='inputField' class="mdc-text-field__input {opts.idname}" size={opts.size} placeholder={opts.placeholder}
+                value={opts.riotValue || opts.riotValue == 0 ? opts.riotValue : opts.value} class={opts.classname} onkeydown={ enterForLogin } onfocus={ changeLoginText } onblur={
+                restLoginText } readonly={opts.readonly} disabled={ opts.disabled }>
+                
+            <input if={opts.name === 'staff_id' || opts.name === 'card_id'  || opts.name === 'drivers' || opts.name === 'readers' } id={opts.idname} type={opts.type} ref='inputField' class="mdc-text-field__input {opts.idname} {isHide()}" size={opts.size} placeholder={opts.placeholder}
+            value={opts.riotValue ? xdata.metaStore.getNameByID(opts.name, opts.riotValue) : opts.value} class={opts.classname} onkeyup={ enterForLogin } onfocus={ changeLoginText } onblur={
+            restLoginText } readonly={opts.readonly} oninput={ searchInput }>
+            <label for={opts.idname} ref='labelField' class="mdc-text-field__label { floatAbove } { controlPoint }">
+                <span>{labelText}</span>
+                <span>{ tips }</span>
+                <img class="toggle-button" onclick={ editAreaPath } if={ showImg()} src="/img/jump_icon.png" alt="">
+            </label>
+            <div if={!opts.readonly} class="mdc-text-field__bottom-line"></div>
+        </div>
+        <span class={ info ? "info" : ''}>{ info }</span>
+        <div if={ isShowResultList && (opts.name === 'drivers' || opts.name === 'readers')} class="card_list popup-list">
+            <span if={ hasresult } class="list-item"  each={ item, i in result  } data-name={item} onclick={ chooseItem } data-type={ item[name + '_id'] } data-index={ i }>{ name === 'card_id' ? item.card_id : item.name }</span>
+            <span if={ !hasresult } class="tips"> 无符合条件的结果 </span>
+        </div>
+        <div class="choose-scorll" if={ (opts.name ==='readers'  || opts.name === 'drivers') && lists && lists.length>0 }>
+            <div class="choose-result">
+                <span each={ list in lists } class="choose-result_list">
+                    <span>{list.key}</span>
+                    <span class="delete_reader" data-type={list.keyID} onclick={ deleteChoode }>x</span>
+                </span>
+            </div>
+        </div>  
+    </div>
+    <div if={ isShowResultList && (opts.name === 'card_id' || opts.name === 'staff_id') } class="card_list popup-list">
+        <span if={ hasresult } class="list-item"  each={ item, i in result  } data-name={item} onclick={ chooseItem } data-type={ item[opts.name] } data-index={ i }>{ name === 'card_id' ? item.card_id : item.name }</span>
+        <span if={ !hasresult } class="tips"> 无符合条件的结果 </span>
+    </div>
+    <!-- <div if={opts.name === 'staff_id' || opts.name === 'frontline'} id="staff-list-panel" class="popup-list hide"></div> -->
+    <script>
+        import { trim, clone } from '../js/utils/utils.js'
+        import Fuse from 'fuse.js'
+        this.isShowResultList = false
+        this.hasresult = false
+        this.lists = null
+        if (opts && opts.name) {
+            switch (opts.name) {
+                case 'card_id':
+                    this.name === 'card'
+                    this.keys = ['card_id']
+                    this.rows = null
+                    break
+                case 'readers':
+                    this.name === 'reader'
+                    this.keys = ['spy','name','reader_id']
+                    this.rows = Array.from(xdata.metaStore.data.reader.values())
+                    break
+                default:
+                    this.name === 'staff'
+                    this.keys = ['name', 'spy', 'staff_id']
+                    this.rows = Array.from(xdata.metaStore.staffs.values())
+                    break
+            }
+        }
+        
+        let fuse_opts = {
+            threshold: 0,
+            // includeMatches: true,
+            minMatchCharLength: 1,
+            location: 0,
+            tokenize: true,
+            matchAllTokens: true,
+            keys: this.keys
+            // keys: ['id', 'n', 'b']
+            // id: 'id'
+        }
+        let fuse = new Fuse(this.rows, fuse_opts)
+        this.labelText = opts.text
+        this.info = '', this.tips = ''
+        this.enableNull = opts.enablenull
+        this.floatAbove = opts.type === 'date' || opts.type === 'datetime-local' ? 'mdc-text-field__label--float-above' : ''
+        this.controlPoint = opts.name === 'path' ? 'controlPoint' : ''
+        if (this.enableNull !== undefined) {
+            this.tips = this.enableNull ? '' : ' *'
+        }
+        this.on('mount', () => {
+            window.mdc && window.mdc.autoInit()
+        })
+
+        this.isHide = () => {
+            let name = this.opts.name
+            let names = ['rt_person_forbid_down_mine', 'his_leader_arrange', 'tt_inspection_route_planning']
+            if (name === 'staff_id' && names.includes(this.parent.tableName)) return ''
+            if (this.parent.tableName === 'dat_card' && name === 'card_id') return ''
+            return 'hide'
+        }
+
+        this.init =() =>{
+            this.showStore = new Map() // 显示store
+            this.insertStore = new Map() // 插入store
+            this.deleteStore = new Map() // 删除sotre
+            if(opts.name === 'drivers' || opts.name === 'readers'){
+                let dataNames = opts.name === 'drivers' ? (xdata.metaStore.data.sensor_driver_map && Array.from(xdata.metaStore.data.sensor_driver_map.values())) : (xdata.metaStore.data.sensor_reader_map && Array.from(xdata.metaStore.data.sensor_reader_map.values()))
+                let names = dataNames && dataNames.filter(item => item.sensor_id === opts.sensorid)
+                let type = opts.name === 'drivers' ? 'staff_id' : 'reader_id'
+                let _result = []
+                names.forEach(e => {
+                    let row = this.rows.filter(item => item[type] === e[type])[0]
+                    if(row) _result.push(row)
+                })
+                if (_result.length > 0) {
+                    _result.forEach(res => {
+                        let key = res[type]
+                        let _value = opts.name === 'drivers' ? res.name : `${res.brief_name}分站`
+                        this.insertStore.set(key, res)
+                        this.showStore.set(res[type], {
+                            key: _value,
+                            keyID: res[type]
+                        })
+                    })
+                    this.lists = Array.from(this.showStore.values())
+                }        
+            }
+        }
+        this.init()
+        this.getValue = () => {
+            if (opts.name === 'pwd') return '***'
+            return opts.riotValue || opts.riotValue == 0 ? opts.riotValue : opts.value
+        }
+
+        this.addList = (evt, target) => {
+            let self = this
+            evt.stopPropagation()
+            let parentTarget = this.parent.parent.root.querySelector('.dlg-window')
+            if (this.callList) {
+                this.callList.unmount(true)
+            }
+            let vesselObj = {
+                target: target,
+                name: 'staff',
+                self: self,
+                parentTarget: parentTarget
+            }
+            if(opts.name === 'staff_id'){
+                vesselObj.searchValue = this.parent.root.querySelector('input').value
+            }
+            let vessel = `div#staff-list-panel`
+            this.callList = riot.mount(vessel, 'popup-list', vesselObj)[0]
+        }
+
+        this.insertChoosed = (target, name) => {
+            this.root.querySelector('input').value = target.innerText
+            let dataType = target.getAttribute('data-type')
+            this.root.querySelector('input').setAttribute('data-type', dataType)
+        }
+
+        this.changeLoginText = (evt) => {
+            let target = evt.currentTarget
+            if (opts.idname === 'username' || opts.idname === 'userpwd') {
+                this.root.getElementsByTagName('svg')[0].style = `fill: #09f;`
+                opts.idname === 'userpwd' ? this.labelText = '密码:' : opts.text
+                opts.idname === 'username' ? this.labelText = '帐号:' : opts.text
+                this.update()
+            } else if (opts.name === 'staff_id') {
+                // this.addList(evt, target)
+            } else if (opts.name === 'frontline' || opts.name === 'secondline') {
+                this.addList(evt, target)
+            }
+        }
+
+        this.restLoginText = (evt) => {
+            let inputValue = this.root.querySelector('input').value
+            if(this.parent.tableName === 'dat_reader' && opts.name === 'isParent'){
+                this.info = Number(inputValue) === 0 ? '请填写下面的主分站编号' : '' 
+                return this.update()
+            }
+            if ((this.parent.tableName === 'dat_card' && opts.ref === 'ident') || (this.parent.tableName === 'dat_shift' && (opts.ref === 'min_minutes' || opts.ref === 'start_time' || opts.ref === 'end_time'))) {
+                opts.onblur(evt, inputValue)
+            }
+            if (opts.idname !== 'username' && opts.idname !== 'userpwd') {
+                this.matchField(evt)
+            }
+            if (!inputValue) return
+            if (opts.idname === 'username' || opts.idname === 'userpwd') {
+                this.root.getElementsByTagName('svg')[0].style = `fill: #999;`
+                opts.idname === 'userpwd' ? this.labelText = '请输入您的密码...' : opts.text
+                opts.idname === 'username' ? this.labelText = '请输入您的帐号...' : opts.text
+                this.update()
+            }
+        }
+
+        this.matchField = (evt) => {
+            let lableEle = this.refs.labelField
+            let value = this.refs.inputField.value
+            if(value) value = trim(value)
+            let regEn = /[`~!@$%^&*()_+<>?:"{}\/'[\]]/im, regCn = /[·！￥（——）：；“”‘|《。》？【】[\]]/im
+            let numTest = /^[0-9]+.?[0-9]*$/img
+            if (!value && lableEle.classList.contains('mdc-text-field__label--float-above') && opts.name !== 'staff_id' && opts.name !== 'link_reader' && opts.name !== 'pt_data') {//这里输入的是非法值，只要填不对，value为空情况
+                switch (opts.type) {
+                    case 'date':
+                    case 'datetime-local':
+                        this.info = '请输入正确的日期'
+                        break
+                    case 'number':
+                        this.info = '请输入一个数值'
+                        break
+                    case 'text':
+                        this.info = this.tips ? '输入不能为空或包含特殊字符' : ''
+                        break
+                    default:
+                        this.info = '无效值'
+                        break
+                }
+            } else if (value && opts.name !== 'link_reader' && opts.name !== 'pt_data') {//之前输入的非法值，后来输入正确，或一开始输入正确
+                this.info = ''
+                if (opts.type === 'text') {
+                    if (regEn.test(value) || regCn.test(value)) {
+                        this.info = '输入不能包含特殊字符'
+                    }
+                } else if (opts.type === 'number') {
+                    if (isNaN(Number(value))) {
+                        this.info = '请输入一个数值'
+                    }
+                }
+            }
+            this.addBusinesslogic(value, evt)//增加的业务逻辑判断都可以在这个函数写
+        }
+
+        this.addBusinesslogic = (value, evt) => {
+            let needAddlogic = ['dat_rules', 'his_maintenance', 'dat_map_gis', 'dat_area', 'dat_ip_address', 'dat_workface_scheduling', 'his_regular_cycle_detail', 'his_startup_detail', 'dat_sensor', 'dat_lights_group', 'dat_month', 'dat_reader', 'dat_card_type'], curTableName = this.parent.tableName, readerTitles = ['enable_simulate_card', 'need_power_alarm']
+            const alias = this.parent.alias
+            if (needAddlogic.includes(curTableName)) {
+                switch (curTableName) {
+                    case 'dat_rules':
+                        if (opts.name === 'status' && value === "0" || value === "1") {
+                            this.info = ''
+                        } else if (opts.name === 'status') {
+                            this.info = '请输入0或1'
+                        }
+                        break
+                    case 'his_maintenance':
+                        if (opts.name === 'maintainer' || opts.name === 'maintain_leader') {
+                            let reg = /^[\u4e00-\u9fa5]{1,}$/g
+                            if (reg.test(value) || !value) {
+                                this.info = ''
+                            } else {
+                                this.info = '请输入正确姓名'
+                            }
+                        }
+                        break
+                    case 'dat_map_gis':
+                        if (opts.name === 'url' || opts.name === 'inner_url') {
+                            let reg = /^(https?|ftp|file):\/\/[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]/ig
+                            if (reg.test(value) || !value) {
+                                this.info = ''
+                            } else {
+                                this.info = '请输入正确的网址'
+                            }
+                        } else if (opts.name === 'layers') {
+                            let reg = /[a-zA-Z0-9:]/ig
+                            if (reg.test(value) || !value) {
+                                this.info = ''
+                            } else {
+                                this.info = '请输入正确的图层名'
+                            }
+                        }
+                        break
+                    case 'dat_area': 
+                        if (opts.name === 'path') {
+                            let reg = /[A-Za-z0-9,' ']/ig
+                            if (reg.test(value) || !value) {
+                                this.info = ''
+                            } else {
+                                this.info = '请输入正确的路径'
+                            }
+                        }
+                        break
+                    case 'dat_ip_address':
+                        if (opts.name === 'ip_begin' || opts.name === 'ip_end') {
+                            let reg = /[0-9.]/ig
+                            if (reg.test(value) || !value) {
+                                this.info = ''
+                            } else {
+                                this.info = '请输入正确的IP地址'
+                            }
+                        }
+                        break
+                    case 'dat_workface_scheduling':
+                        let now = `${new Date(new Date().getTime()).format('yyyy-MM-dd')} 00:00:00`
+                        if (opts.name === 'start_time' || opts.name === 'end_time') {
+                            if (new Date(value).getTime() < new Date(now).getTime()) {
+                                this.info = '不能修改早于今天的数据'
+                            } else {
+                                this.info = ''
+                            }
+                        } else if (opts.name === 'schedule_startup_time') {
+                            if (value <= 0 || value >= 24) {
+                                this.info = '请输入0-24小时内的数字'
+                            } else {
+                                this.info = ''
+                            }
+                        } else if (opts.name === 'schedule_tunnelling_times' || opts.name === 'schedule_mine_times') {
+                            if (value <= 0) {
+                                this.info = '请输入一个大于0的数'
+                            } 
+                            if (opts.name === 'schedule_tunnelling_times') {
+                                if (value > 15) {
+                                    this.info = '请输入小于15排的数值'
+                                } else {
+                                    this.info = ''
+                                }
+                            } else if (opts.name === 'schedule_mine_times') {
+                                if (value > 10) {
+                                    this.info = '请输入小于10刀的数值'
+                                } else {
+                                    this.info = ''
+                                }
+                            }
+                        }
+                        break
+                    case 'his_regular_cycle_detail': 
+                    case 'his_startup_detail':
+                        if (opts.name === 'start_time' || opts.name === 'end_time' || opts.name === 'start_up_time' || opts.name === 'shut_down_time') {
+                            let today = new Date(new Date(opts.riotValue).getTime()).format('yyyy-MM-dd')
+                            let inputValue = new Date(new Date(value).getTime()).format('yyyy-MM-dd')
+                            if (today != inputValue) {
+                                this.info = '输入的时间与修改时间不符'
+                            } else {
+                                this.info = ''
+                                opts.onblur(evt, value)
+                            }
+                        } 
+                        break
+                    case 'dat_sensor':
+                        if (opts.name === 'data_source') {
+                            if (/^[0-9]{1,}$/.test(value)) {
+                                this.info = ''
+                            } else {
+                                this.info = '请输入一个数值'
+                            }
+                        } else if (opts.name === 'driver_alarm_threshold' || opts.name === 'alarm_threshold') {
+                            if (value <= 0) {
+                                this.info = '请输入一个大于0的数'
+                            } else {
+                                this.info = ''
+                            }
+                        }
+                        break
+                    case 'dat_lights_group':
+                        if (opts.name === 'scope'){
+                            if (value < 0) {
+                                this.info = '请输入一个大于或等于0的数'
+                            } else {
+                                this.info = ''
+                            }
+                        }
+                        break
+                    case 'dat_month':
+                        if (opts.name === 'id'){
+                            if (value <= 0){
+                                this.info = '请输入一个大于0的数'
+                            }
+                        }else if (opts.name === 'start_time' || opts.name === 'end_time'){
+                            if (value <=0 || value > 31){
+                                this.info = '请输入1-31之间的数'
+                            }
+                        }
+                        break
+                    case 'dat_reader': 
+                        if (readerTitles.includes(opts.name)) {
+                            if (value == '是' || value == '否') {
+                                this.info = ''
+                            } else {
+                                this.info = '请输入是或否'
+                            }
+                        }
+                        break
+                    case 'dat_card_type': 
+                      if (opts.name === 'card_type_id') {
+                        if (value.length <= 3) {
+                          this.info = ''
+                        } else {
+                          this.info = '卡类型编号最多输入3位'
+                        }
+                      }
+                      break
+                    default:
+                        break
+                }
+            }
+            if (/^dat_/ig.test(curTableName) && !['occupation_info', 'dept_info'].includes(alias)) {
+                if (opts.name === 'name') {
+                    value = trim(value)
+                    let tablename = curTableName.slice(4)
+                    let table = xdata.metaStore.data[tablename]
+                    let isHas = table && Array.from(table.values()).some(item => item.name === value)
+                    let name = evt.item.field_value
+                    if (isHas && value != name) {
+                        this.info = '该名称已被注册'
+                    } else {
+                        this.info = ''
+                    }
+                }
+            }
+        }
+
+        this.enterForLogin = (evt) => {
+            let classList = evt.currentTarget.classList
+            let keyCode = evt.keyCode
+            let s = evt.target.value
+            if (keyCode === 13 && classList.contains('userpwd')) {
+                xbus.trigger('enter-login')
+            } else if (opts.name === 'staff_id' || opts.name === 'readers' || opts.name === 'drivers') {
+                // let target = evt.currentTarget
+                // this.addList(evt, target)
+                let matchs = fuse.search(s)
+                this.backResult = clone(matchs)
+                let dittoname = clone(matchs)
+                if (opts.name === 'staff_id') {
+                  dittoname.forEach(e => {
+                    e.name = `${e.staff_id}-${e.name}-${xdata.metaStore.getNameByID('dept_id', e.dept_id)}`
+                  });       
+                  this.result = dittoname   
+                } else {
+                  this.result = dittoname
+                }
+                this.isShowResultList = true
+                dittoname.length>0 ? this.hasresult = true : this.hasresult = false
+                if (s === '') {
+                    this.isShowResultList = false
+                }
+            } else if(opts.name === 'card_id'){
+                let cards = xdata.metaStore.data.card && Array.from(xdata.metaStore.data.card.values())
+                let card = null 
+                if(s.length<=10){
+                    card = cards.filter(item => item.ident === parseInt(s))
+                    this.result = card
+                }else{
+                    card = cards.filter(item => item.card_id === s)
+                    this.result = card
+                }
+                this.isShowResultList = true
+                card.length>0 ? this.hasresult = true : this.hasresult = false
+                if(s === ''){
+                    this.isShowResultList = false
+                }
+            }else {
+                return true
+            }
+        }
+        this.chooseItem = (evt) => {
+            evt.stopPropagation()
+            let t = evt.currentTarget
+            let v = t.getAttribute('data-index')
+            let i = v && parseInt(v, 10)
+            let self = this
+            this.isShowResultList = false
+            if(opts.name === 'readers' || opts.name === 'drivers'){
+                let type = opts.name === 'readers' ? 'reader_id' : 'staff_id'
+                let key = opts.name === 'readers' ? 'reader_id' : 'staff_id'
+                key = this.backResult[i][key]
+                let _value = opts.name === 'readers' ? `${this.backResult[i]['brief_name']}分站` : `${this.backResult[i]['name']}`
+                this.insertStore.set(key, this.backResult[i])
+                this.showStore.set(this.backResult[i][type], {
+                    key: _value,
+                    keyID: this.backResult[i][type]
+                })
+                this.root.querySelector('input').value = ''
+                this.lists = Array.from(this.showStore.values())
+                if(this.deleteStore.get(key)) this.deleteStore.delete(key)
+            }else{
+                let value = opts.name === 'card_id' ? this.backResult[i].card_id : this.backResult[i].name 
+                this.root.querySelector('input').value = value
+                let dataType = evt.target.getAttribute('data-type')
+                this.root.querySelector('input').setAttribute('data-type', dataType)
+            }      
+        }
+
+        /**
+         * @description: 删除分站 名字
+         */
+         this.deleteChoode = (evt) => {
+            let target = evt.currentTarget
+            let dataType = target.getAttribute('data-type')
+            dataType = parseInt(dataType, 10)
+            this.deleteStore.set(dataType,this.insertStore.get(dataType))
+            this.showStore.delete(dataType)
+            this.insertStore.delete(dataType)
+            this.lists = Array.from(this.showStore.values())
+            this.update()
+        }
+
+        /**
+         * @description:  显示隐藏 绑定分站 绑定司机输入框
+         */    
+        this.insert =()=>{
+            this.root.querySelector('input').value = ''
+            this.root.querySelector('input').classList.toggle('hide')
+        }
+
+        this.editAreaPath = () => {
+            let idRow = this.parent.rows[0]
+            let maxid = idRow.field_value
+            let eventName = this.parent.tableName === 'dat_goaf' ? 'MAP-GOAFEDIT' : 'MAP-AREAEDIT'
+            xbus.trigger('DIALOG-SHOW',{isShow: false})
+            xbus.trigger(eventName, {id: maxid})
+        }
+
+        this.showImg = () => {
+            let showImg = false
+            if (opts.name === 'path' && this.parent.cmd === 'UPDATE' && this.parent.parent.fromPage === 'monitor') {
+                showImg = true
+            }
+            return showImg
+        }
+    </script>
+</text-filed>

@@ -1,0 +1,223 @@
+<popuplabel-coalface>
+    <div class='box'>
+        <nav class="nav-general"> 概况
+            <span onclick={ close }>x</span>
+        </nav>
+        <div class= 'body-area'>
+            <nav class="nav-titles">
+                <span type='current' class="generalpre active" onclick={ showTitle }>当前概况</span>
+                <span type='shiftHis' class="generalpre" onclick={ showTitle }>班次概况</span>
+                <span type='history' class="generalpre" onclick={ showTitle }>综采趋势</span>
+            </nav>
+            <div class="content">
+                <div data-is='coalface-shift' if={ byshift }></div>
+                <div data-is='coalface-trend' if={ history }></div>
+                <article if={ current }>
+                    <div class="content-left">
+                        <!--<p>负责队组: { dept }</p>-->
+                        <p>综采面名称：{ title }</p>
+                        <p>负责队组: 采六队</p>
+                        <p>开采日期: { startTime }</p>
+                        <p>计划完成日期: { endTime }</p>
+                        <p 计划开采天数: { planDay }天</p>
+                            <p>实际开采天数: {realDay}天</p>
+                            <p>计划开采长度: { planDis}(m)</p>
+                            <p>已经开采长度: { realDis }(m)</p>
+                            <div class="plan-pro">
+                                <span>计划进度:</span>
+                                <span class="bg-pro">
+                            <span class="plan-bg"></span>
+                                </span>
+                                <span>{ planPro }</span>
+                            </div>
+                            <div class="real-pro">
+                                <span>实际进度:</span>
+                                <span class='bg-pro'>
+                            <span class='real-bg'></span>
+                                </span>
+                                <span>{ realPro }</span>
+                            </div>
+                    </div>
+                    <div class="content-right">
+                        <div class="draw-content">
+                            <div class="draw-top">
+                                <span class="base-line">{ width +'m' } 基准线</span>
+                                <span class="base-left">支巷</span>
+                                <span class="base-right">支巷</span>
+                                <div class="bgVehicle">
+                                    { verticalDistance }m
+                                    <span class="doatVehicle"></span>
+                                </div>
+                            </div>
+                            <div class="draw-footer">大巷</div>
+                        </div>
+                        <div class="draw-bottom">
+                            <!--<span>作业队组: { dept }</span>-->
+                            <span>作业队组：采六队</span>
+                            <span>班次: { begainTime }</span>
+                            <span>工作时长: { workTime }(h)</span>
+                            <span>当前状态: { state }</span>
+                            <span>采煤: { tun }</span>
+                            <!--<span>总出煤量: {  }</span>-->
+                            <span>当前位置: { curPos }m</span>
+                            <span>平均速度: { curSpeed }m/h</span>
+                            <span>最大速度: { moreSpeed }m/h</span>
+                            <span>电量:{ cardstate }</span>
+                            <span if={ judgeWarn } class="specialArea">特殊地质构造预警：{ warnMessage }</span>
+                            <span if={ !judgeWarn } class="specialArea AreaNormal">特殊地质构造预警：{warnMessage}</span>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </div>
+    <script>
+        import './coalface-shift.html'
+        import './coalface-trend.html'
+
+        this.current = true
+        this.history = false
+        this.byshift = false
+        this.judgeWarn = false
+        this.querySinglePage = true
+        this.width = ''
+
+        this.close = () => {
+          this.root.querySelector('.box').classList.add('hide')
+        }
+
+        this.showTitle = (evt) => {
+          let target = evt.target
+          let type = target.getAttribute('type')
+          let oSpan = this.root.querySelectorAll('.generalpre')
+          for (let i = 0, len = oSpan.length; i < len; i++) {
+            oSpan[i].classList.remove('active')
+          }
+          target.classList.add('active')
+
+          if (type === 'shiftHis') {
+            this.history = false
+            this.current = false
+            this.byshift = true
+          } else if (type === 'current') {
+            this.current = true
+            this.history = false
+            this.byshift = false
+          } else if (type === 'history') {
+            this.current = false
+            this.history = true
+            this.byshift = false
+          }
+          this.update()
+        }
+
+        this.initDefinition = (data) => { // 初始化参数
+          this.knifetun = data.knife_ton
+          this.width = data.base_line
+          this.knifelength = data.knife_length
+          this.title = data.name
+          this.startTime = new Date(data.start_time).format('yyyy-MM-dd')
+          this.endTime = new Date(data.plan_time).format('yyyy-MM-dd')
+          this.planDay = data.plan_day
+          this.planDis = data.plan_length
+          this.width = data.base_line
+          this.totalLength = data.totalLength
+          let time = Date.parse(new Date())
+          let lasttime = Date.parse(this.startTime)
+          this.realDay = parseInt((time - lasttime) / (1000 * 60 * 60 * 24))
+          this.planPro = (this.realDay / data.plan_day * 100).toFixed(1) + '%'
+          this.realPro = (this.realDis / this.totalLength * 100).toFixed(2) + '%'
+          this.root.querySelector('.plan-bg').style.width = this.planPro
+          this.root.querySelector('.real-bg').style.width = this.realPro
+        }
+
+        this.dealReaderData = () => { // 处理绑定分站数据
+          let readerData = xdata.metaStore.dataInArray.get('coalface_render')
+          readerData = readerData.filter(item => item.coalface_id === opts.id && item.is_base === 1)
+          if (readerData && readerData[0]) {
+            this.readerData = readerData[0]
+
+                // 此处需要写一个获取分站坐标，再定义一个基准点坐标，计算出分站垂直距离的函数
+                // this.countReaderDis()
+                //     this.realDis = data.totalLength - renderDataDis[0].vertical_distance
+                //     this.verticalDistance = renderDataDis[0].vertical_distance
+                //     this.root.querySelector('.bgVehicle').style.height = this.verticalDistance / data.totalLength * 100 + "%"
+          } else {
+            console.warn('未维护分站信息/工作面未绑定分站！')
+          }
+        }
+
+        this.setDoatVehiclePos = (data) => { // 设置车辆的位置
+          if (data) {
+            let parentWidth = this.root.querySelector('.doatVehicle').parentElement.offsetWidth
+            if (this.readerData.angle <= 90) {
+              this.root.querySelector('.doatVehicle').style.left = (data[14] / parentWidth) * 100 + '%'
+            } else {
+              this.root.querySelector('.doatVehicle').style.right = (data[14] / parentWidth) * 100 + '%'
+            }
+          } else {
+            console.warn('没有数据推送！')
+          }
+        }
+
+        this.dealReptData = (row) => { // 处理查询返回数据
+          this.root.querySelector('.box').classList.remove('hide')
+          if (row.length > 0) {
+            let data = row[0]
+            this.initDefinition(data)
+          } else {
+            console.warn('无相关数据！')
+          }
+        }
+
+        xbus.on('REPT-SHOW-RESULT', (msg) => { // 接受数据库数据
+          switch (msg.def.name) {
+            case 'coalFace':
+              let rows = msg.rows
+              rows && this.dealReptData(rows)
+              rows && this.dealReaderData()
+              this.storeData && this.renderCoalFace(this.storeData)
+              this.update()
+              break
+            default:
+              console.warn('无相关数据！')
+              break
+          }
+        })
+
+        this.on('mount', () => { // mount完毕执行查询结果
+          let coalface = xdata.metaStore.data.coalface_vehicle.get(opts.id)
+          let boundCard = coalface && coalface.vehicle_id
+          let vehicleData = xdata.metaStore.data.vehicle_extend.get(boundCard)
+          this.card_id = vehicleData && vehicleData.card_id
+          this.storeData = xdata.coaltunneller.coal.get(this.card_id)
+        })
+
+        xbus.on('COAL-CUTTING-START', (datas) => { // 监听实时数据
+          let data = datas.filter(item => item[0] === this.card_id)[0]
+          this.renderCoalFace(data)
+          this.update()
+        })
+
+        this.renderCoalFace = (data) => { // 渲染
+          let pushData = data
+          if (pushData) {
+            this.dept = xdata.metaStore.getNameByID('dept_id', pushData[8])
+            this.begainTime = this.getLocalTime(pushData[3])
+            this.workTime = pushData[5]
+            this.curSpeed = pushData[12]
+            this.moreSpeed = pushData[13]
+            this.curPos = pushData[14]
+            this.tun = (pushData[14] / Number(this.knifelength)).toFixed(2) + '刀\/' + ((pushData[14] / Number(this.knifelength)) * this.knifetun).toFixed(0) + 'T'
+            this.state = pushData[9] === 3 ? '采煤中' : '静止'
+            this.setDoatVehiclePos(pushData)
+          } else {
+            console.warn('请检查配置信息！')
+          }
+        }
+
+        this.getLocalTime = (nS) => {
+          return new Date(nS).format('hh:mm:ss')
+        }
+    </script>
+</popuplabel-coalface>

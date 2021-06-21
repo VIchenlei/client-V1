@@ -1,0 +1,266 @@
+<call-leave>
+  <div class="dlg-bg animated">
+    <div class="dlg-window xhint-dialog call-leave-dialog animated zoomIn">
+
+      <div class="dlg-body align-center">
+        <svg class="tips-icon xhint-icon-warn">
+          <use xlink:href="/icons/icons.svg#icon-exclamati"></use>
+        </svg>
+        <div class="xhint-tips">
+          <div>{ content }</div>
+        </div>
+        <p class="xhint-hint">{ tips }</p>
+      </div>
+
+      <div class="dlg-foot">
+        <button if={isShow} class="btn-sure" data-name="doInsert" onclick={ stop }>新增信息</button>
+        <button if={isShow} class="btn-sure" data-name="doUpdate" onclick={ stop }>修改信息</button>
+        <button if={!isShow} class="btn-sure" onclick={ stop }>确认</button>
+        <button class="btn-cancel" onclick={ close }>取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { callLeave } from '../../js/def/call_leave.js'
+    import {composeUpdateDBReq} from '../../js/utils/utils.js'
+    let isInitial = false // 用做判断选取分站覆盖范围点时 true进入分站编辑界面 false 初始化数据
+    this.ruleTips = () => {
+      let rules = xdata.metaStore.data.rules
+      let showRule = rules && Array.from(rules.values()).filter(item => item.name === 'filtercard')
+      if (showRule.length > 0) {
+        this.ruleID = showRule[0].rules_id
+        this.status = showRule[0].status
+        if (this.status === 0) { // 过滤规则生效
+          this.tips = '当前过滤规则为：被过滤标识卡不在系统中显示'
+        } else {
+          this.tips = '当前过滤规则为：被过滤标识卡仍在系统中显示'
+        }
+      }
+    }
+
+    this.init = (opts) => {
+      this.name = opts.name
+      this.insertSql = opts.insertSql ? opts.insertSql : ''
+      this.oldId = opts.oldId ? opts.oldId : ''
+      this.newId = opts.newId ? opts.newId : ''
+      this.callcardID = opts.cardID ? opts.cardID : ''
+      this.title = opts.title || callLeave[this.name].title
+      this.content = opts.content || callLeave[this.name].content
+      this.tips = opts.tips || callLeave[this.name].tips
+      this.userName = xdata.userName
+      this.isShow = opts.isShow
+      if (this.name === 'rule') {
+        this.ruleTips()
+      }
+    }
+    this.init(opts)
+
+    // this.on('mount', () => {
+    //   window.setDialogDraggable(this.root)
+    // })
+
+    this.callList = () => {
+      let readers = [{
+        stationid: 0
+      }]
+      let cards = [{
+        cardid: '0',
+        cardtype: 1
+      }]
+
+      let message = {
+        cmd: 'call_card_cancel_req',
+        data: {
+          call_type_id: 0,
+          user_name: this.userName,
+          call_time: new Date().getTime(),
+          stations: readers,
+          cards: cards
+        }
+      }
+      console.log(message)
+      xbus.trigger('CALL-REMOTE', message)
+    }
+
+    this.docall = () => {
+      let time = Number(new Date().getTime())
+      let cards = [{
+        cardid: this.callcardID,
+        cardtype: 1
+      }]
+      let message = {
+        cmd: 'call_card_req',
+        data: {
+          call_type_id: 1,
+          call_time_out: 5,
+          call_level_id: 1,
+          user_name: xdata.userName,
+          call_time: time,
+          stations: [{ stationid: 0 }],
+          cards: cards
+        }
+      }
+      // let key = this.callcardID + '-' + time
+      let key = `${xdata.userName}-${this.callcardID}`
+      xdata.callStore.selfcallCardList.set(key, cards)
+      xbus.trigger('CALL-CARD-START', message)
+    }
+
+    //呼叫所有人
+    this.docallAll = () => {
+      let cards = [{
+        cardid: '0',
+        cardtype: 1
+      }]
+      let message = {
+        cmd: 'call_card_req',
+        data: {
+          call_type_id: 0,// 全员呼叫:0 定员呼叫:1
+          call_time_out: 5, // 呼叫时长5分钟
+          call_level_id: 1,// 呼叫类型 一般呼叫:1 紧急呼叫:2
+          user_name: xdata.userName, // 呼叫人即登录者
+          call_time: Number(new Date().getTime()),// 呼叫时间戳
+          stations: [{ stationid: 0 }],// 分站 0为全员
+          cards: cards// 人员 0为全员
+        }
+      }
+      // let key = this.callcardID + '-' + time
+      let key = `${xdata.userName}-${this.callcardID}`
+      xdata.callStore.selfcallCardList.set(key, cards)
+      xbus.trigger('CALL-CARD-START', message)
+    }
+
+    this.leave = () => {
+      let message = { // 一键撤离(全员呼叫)，紧急呼叫2
+        cmd: 'call_card_req',
+        data: {
+          call_type_id: 0,
+          call_time_out: 5,
+          call_level_id: 2,
+          user_name: this.userName,
+          call_time: new Date().getTime(),
+          stations: [{
+            stationid: 0
+          }],
+          cards: [{
+            cardid: '0',
+            cardtype: 1
+          }]
+        }
+      }
+      // console.log(message)
+      xbus.trigger('CALL-CARD-START', message)
+    }
+
+    this.rule = () => {
+      let rulestatus = this.status === 0 ? 1 : 0
+      let sql = `UPDATE dat_rules SET status = ${rulestatus} where rules_id = ${this.ruleID};`
+      this.sqlname = 'rules'
+      let keyValue = this.ruleID
+      let req = composeUpdateDBReq('UPDATE', this.sqlname, keyValue, sql)
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+    }
+
+    this.cover = (table) => {//对换部门id和职务id
+      let updateStaffSql = `UPDATE dat_staff_extend s1 JOIN dat_staff_extend s2 on (s1.${table}_id = ${this.newId} AND s2.${table}_id = ${this.oldId}) OR (s1.${table}_id = ${this.oldId} AND s2.${table}_id = ${this.newId}) SET s1.${table}_id = s2.${table}_id, s2.${table}_id = s1.${table}_id;`
+      let insertSql = this.insertSql
+      let modifyObj = {
+        insertSql: insertSql,
+        updateStaffSql: updateStaffSql
+      }
+      if(table==='dept'){
+        let updateVehicleSql = `UPDATE dat_vehicle_extend s1 JOIN dat_vehicle_extend s2 on (s1.${table}_id = ${this.newId} AND s2.${table}_id = ${this.oldId}) OR (s1.${table}_id = ${this.oldId} AND s2.${table}_id = ${this.newId}) SET s1.${table}_id = s2.${table}_id, s2.${table}_id = s1.${table}_id;`
+        modifyObj.updateVehicleSql = updateVehicleSql
+      }
+      opts.currentTag.modifyFun(table, [this.newId, this.oldId], modifyObj)
+    }
+   
+    xbus.on('META-UPDATE-DB-RES', (res) => {
+      if (res.data.name === this.sqlname) {
+        let msg = {
+          value: res.code === 0 ? 'success' : 'failure',
+          tip: res.code === 0 ? '修改成功' : '修改失败'
+        }
+        window.hintip.open(msg)
+      }
+    })
+
+    this.stop = (evt) => { 
+      if (this.name === 'edit-reader') isInitial = true
+      let target = evt.currentTarget
+      let dataName = target.getAttribute('data-name')
+      this.close()
+      switch (this.name) {
+        case 'callList': // 一键取消呼叫
+          this.callList()
+          break
+        case 'docall': // 快捷:对单个人呼叫,一般呼叫1
+          this.docall()
+          break
+        case 'docallall': // 呼叫所有
+          this.docallAll()
+          break
+        case 'dodelete':
+          opts.currentTag.deleteMsg(opts.target)
+          break
+        case 'deleteAll': 
+          opts.currentTag.deleteAllMsg()
+          break
+        case 'updatemsg':
+          opts.currentTag.updatemsg(opts.value)
+          break
+        case 'metadata': // 拉取元数据
+          opts.currentTag.afreshMetadata()
+          break
+        case 'helpDone': // 处理呼救
+          opts.currentTag.stopHelp(opts.value)
+          break
+        case 'leave': // 一键撤离，紧急呼叫2
+          this.leave()
+          break
+        case 'rule': 
+          this.rule()
+          break
+        case 'dept': //对换部门id
+        case 'occupation': //对换职务id
+          this.cover(this.name)
+          break          
+        case 'doinsert':
+            opts.currentTag.doInsert(dataName)
+            break
+        case 'doImportData':
+          opts.currentTag.doImportData(opts.evt)
+          break
+        case 'edit-reader':
+            isInitial = true
+          break
+        case 'jump-realtime-interface':
+            //添加分站 红绿灯跳转至实时界面
+            opts.currentTag.jumpRealtimeInterface()
+          break
+        case 'delete-reader':
+            //删除分站吗
+            opts.currentTag.deleteMsg()
+          break
+        default:
+          break
+      }
+    }
+
+    this.close = (evt) => {
+      if(this.name === 'edit-reader'){
+        // 选取分站覆盖范围确认 取消
+        xbus.trigger('MAP-READER-INITIAL',isInitial)
+      }
+      let ele = this.root.querySelector('.dlg-window').classList
+      let dlBgEle = this.root.querySelector('.dlg-bg').classList
+      ele.remove('zoomIn')
+      ele.add('zoomOut')
+      dlBgEle.remove('zoomToOut')
+      dlBgEle.add('zoomNone')
+    }
+  </script>
+</call-leave>

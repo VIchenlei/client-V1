@@ -1,0 +1,495 @@
+<rugular-eff>
+	<div class="dept-analysis" if={ showAnalysis }>
+		<input class='write-analysis' type="text" ref = 'db_analysis' placeholder="请输入原因分析...">
+		<div class="old-analysis">{Analysis}</div>
+		<div class="time_warp">
+			<span>请输入修改时间</span>
+			<input type="date" ref = "save_time" value={ defaultTime }>
+		</div>
+		<div class="btn-warp">
+			<span class="btn-save" onclick={ saveData }>保存</span>
+			<span class="btn-off" onclick={ hide }>取消</span>
+		</div>
+	</div>
+	<div class="dept-rugular" style="width:100%;height:300px;"></div>
+	<div class="dept-button"><span onclick={ show }></span></div>
+	<span>{complexName}</span>
+    <div class="dept-rugular-factor" style="width:100%;height:350px;"></div>
+	<div class="total-rugular">{totalTime}</div>
+	<div class="carheader-rugular">{carHeader}</div>
+	<div class="carend-rugular">{carEnd}</div>
+    <script>
+			import echarts from 'echarts'
+			import {trim} from '../../js/utils/utils.js'
+ 			import { efficiencyLineDept,efficiencygas } from "../../js/def/graph_def.js"
+			let self = this
+			this.updateDay = false
+
+			this.counttime = (totalTime) => {
+				let leave1=totalTime%(24*3600*1000)
+				let hours=Math.floor(leave1/(3600*1000))
+				let leave2=leave1%(3600*1000)
+				let minutes=Math.floor(leave2/(60*1000))
+				let time = hours+"时"+minutes+"分";
+				return time;
+			}
+
+			this.echartDate = (rows, name, title) => {
+				let color = name === 'dept-rugular' ? '#0167ff' : '#26cc41'
+				let zIndex = name === 'dept-rugular' ? 3 : 2
+				let msg = {
+					id: name,
+					name: title,
+					data: rows,
+					type: 'line',
+					z: zIndex,
+					smooth: true,
+					showAllSymbol: true,
+					itemStyle: {
+						normal: {
+							color: color,
+							lineStyle: {
+								color: color,
+							}
+						}
+					}
+				}
+				return msg
+			}
+
+			this.initRugularCharts = (rows) => {
+				if (!rows) rows = new Map()
+				let initdom = this.root.querySelector('.dept-rugular')
+				if (!initdom) return
+				echarts.dispose(initdom)
+				let chart = echarts.init(initdom)
+				let data = Array.from(rows.values())
+				data.sort(function(a,b){return a[0]-b[0]}) // 假数据排序
+				let rugularAverage = this.rugularAverageRows && Array.from(this.rugularAverageRows.values()).sort(function(a,b){return a[0]-b[0]})
+				let dataArr = rugularAverage && data.map( item=> item[1]).concat(rugularAverage.map(item => item[1]))
+				let max = Math.max.apply(Math, dataArr)
+				let min = Math.min.apply(Math, dataArr)
+				max = max < 100 ? 100 : Math.ceil(max)
+				// min = min < 70 ? Math.floor(min) : 70
+				min = 0
+				let series = []
+				series.push(this.echartDate(data, 'dept-rugular', '正规循环率'))
+				series.push(this.echartDate(rugularAverage, 'rugular-average', '平均正规循环率'))
+				let msg = {
+					legend: ['正规循环率', '平均正规循环率'],
+					time :  this.parent.parent.time.split('-')[1],
+					title: '正规循环率',
+					series: series,
+					max : max,
+					min : min
+				}
+				let option = efficiencyLineDept(msg)
+				chart.setOption(option)
+				chart.on('click', function(param) {
+					if (param.seriesId !== 'dept-rugular') return
+					self.updateDay = true
+					self.parent.time = param.name
+					self.searchDB(param.name)
+				})
+			}
+
+			this.searchDB = (time) => {
+				let deptID = this.parent.deptID
+				let y = this.parent.parent.time.split('-')[0]
+				time = `${y}-${time}`
+				this.parent.getSql(deptID, time)
+			}
+
+			this.getPositionData = (displacement) => {
+				let positiondata = []
+				let dataArr = []
+				let dataMax = []
+				let dataMin = []
+				displacement.forEach(item => {	
+					let datas = item.position_data.split(';')
+					if (!!!datas[datas.length - 1]) {
+						datas.pop()
+					}
+					dataArr.push(item.avg_distance)
+					dataMax.push(item.max_distance)
+					dataMin.push(item.min_distance)
+					if (!!!datas) return
+					let data = datas[0].split(',')
+					if (data.length < 2) return
+					positiondata.push(data)
+					// datas.forEach(data => {
+					// 	if (!!!data) return
+					// 	data = data.split(',')
+					// 	// data[0] = trim(data[0]) 
+					// 	if (data.length < 2) return
+					// 	positiondata.push(data)
+					// 	// !isNaN(Number(data[1])) && dataArr.push(Number(data[1])) 
+					// })
+				})
+				let max = Math.max.apply(Math, dataArr)
+				let maxM = Math.max.apply(Math, dataMax)
+				max = maxM > max ? maxM : max + 5
+				max = this.totalLength ? this.totalLength : Math.ceil(max)
+				let min = Math.min.apply(Math, dataArr)
+				let minM = Math.min.apply(Math, dataMin)
+				min = minM !== 0 && minM < min ? minM : min
+				min = Math.floor(min) <= 5 ? 0 : Math.floor(min)
+				dataArr = null, dataMax = null, dataMin = null
+				return {
+					positiondata: positiondata,
+					max: max,
+					min: min
+				}
+			}
+
+			this.pushMsg = (rows, name, color, num, bool) => {
+				let msg = {
+					sampling: 'average',
+					name: name,
+					data: rows,
+					type: 'line',
+					yAxisIndex: num,
+					smooth: bool,
+					itemStyle: {
+						normal: {
+							color: color,
+							lineStyle: {
+									color: color,
+							}
+						}
+					}                
+				}
+				return msg
+			}
+
+			this.pushGasdata = (rows, color, id, name) => {
+				if (id === 'open') {
+					this.totalTime = (rows.length*1/60>>0) + "小时" + rows.length*1%60 + "分钟"
+				}
+				let msg = {
+					name:name,
+					// id: id,
+					type:'bar',
+					data: rows,
+					barWidth: 1,
+					itemStyle: {
+						normal: {
+							color: color
+						}
+					}
+				}
+				return msg
+			}
+
+			this.setGasData = (series, type, legend) => {
+				let gasData = this.parent.gasMsgData.get(type)
+				let keys = gasData && Array.from(gasData.keys())
+				if(type === 8)  keys && keys.sort()
+				keys && keys.forEach(key => {
+					let rows = gasData.get(key)
+					rows = Array.from(rows.values())
+					if (type === 1) {
+						let name = xdata.metaStore.data.sensor && xdata.metaStore.data.sensor.get(key)
+						name = name ? `${name.sensor_desc}(ID:${name.data_source})` : '瓦斯浓度'
+						legend.push(name)
+						let color = '#00FFFF'
+						let index = keys.indexOf(key)
+						if(keys.length > 1){
+							if (index === 0) color = '#00ffff'
+							if (index === 1) color = '#c300ff'
+							if (index === 2) color = '#ff9c00'
+						}else{
+							if (index === 0) color = '#c300ff'
+						}
+						series.push(this.pushMsg(rows, name, color, 0, false))
+					} else if (type === 8) {
+						let turnOffID = this.parent.turnOffID
+						let sensor = xdata.metaStore.data.sensor && xdata.metaStore.data.sensor.get(turnOffID)
+						let source = sensor ? sensor.data_source : ''
+						let color = key == 0 ? '#26cc41' : '#ff0000'
+						let seriesID = key == 0 ? 'open' : 'off'
+						let name = ''
+						if (this.vehicleTypeID === 26){
+							name = key == 0 ? `掘进机开(ID:${source})` : `掘进机停(ID:${source})`
+						} else{
+							name = key == 0 ? `采煤机开(ID:${source})` : `采煤机停(ID:${source})`
+						}
+						!legend.includes(name) && legend.push(name)
+						series.push(this.pushGasdata(rows, color, seriesID, name))
+					}
+				})
+				// this.selectLegend(legend)
+			}
+
+			this.selectLegend = (legend) => {
+				let msg = {}
+				switch (legend.length) {
+					case 3:
+						msg[`${legend[1]}`] = false
+					case 2:
+						msg[`${legend[0]}`] = false
+						break
+				}
+				return msg
+			}
+
+			this.turnCarSwitch = (rows, color, states) => {
+				if (states === 'open') {
+					this.totalTime = rows.reduce(function (preTotal,item) {
+					let sumTime = Date.parse(new Date(item[1])) - Date.parse(new Date(item[0]))
+					return preTotal+sumTime
+					},0)
+					this.totalTime = this.counttime(this.totalTime)
+				}
+				let msg = {
+					type: 'custom',
+					id: states,
+					renderItem: function renderItem(params, api) {
+					var yValue = api.value(2);
+					var start = api.coord([api.value(0), yValue]);
+					var size = api.size([api.value(1) - api.value(0), yValue]);
+					var style = api.style();   
+					return {
+						type: 'rect',
+						shape: {
+						x: start[0],
+						y: start[1],
+						width: size[0],
+						height: size[1]
+						},
+						style: style
+					};
+					},
+					dimensions: ['from', 'to', 'profit'],
+					encode: {
+					x: [0, 1],
+					y: 2,
+					itemName: 3
+					},
+					data: rows,
+					itemStyle: {
+					normal: {
+						color: color
+					}
+					}
+				}
+				return msg
+			}
+
+			this.initRugularFactor = (displacement) => { 
+				let rows = this.parent.bootswitch         
+				let initdom = this.root.querySelector('.dept-rugular-factor')
+				if (!initdom) return
+				echarts.dispose(initdom)
+				let chart = echarts.init(initdom)
+        let positionmsg = null		
+				let xdistance = chart.getWidth()-chart.getWidth()*0.12
+				if (displacement && displacement.length > 0) {
+					positionmsg = this.getPositionData(displacement)
+				}
+				let series = []
+				let legend = []
+				this.setGasData(series, 1, legend) // 瓦斯
+				let legendType = this.selectLegend(legend)
+				let posname = this.vehicleTypeID === 26 ? '掘进机位置(m)' : '采煤机位置(m)'
+				positionmsg && series.push(this.pushMsg(positionmsg.positiondata, posname, '#0167ff', 1, true))
+				
+				legend.push(posname)
+				this.setGasData(series, 8, legend) // 开关
+				// rows && rows.get('0') && series.push(this.turnCarSwitch(Array.from(rows.get('1').values()), '#26cc41', 'open'))
+      			// rows && rows.get('1') && series.push(this.turnCarSwitch(Array.from(rows.get('0').values()), '#ff0000', 'off'))
+				series.push({
+					type: 'line',
+					markLine:{
+						silent: true,
+						lineStyle:{
+							type: 'solid',
+							color: '#ff5454'	
+						},
+						symbolSize: [0, 0],
+					},
+					markArea: {
+						silent: true,
+						itemStyle: {
+							normal: {
+								color: '#d8d8d8',
+								opacity: 1
+							}
+						},
+						data: [[{
+							xAxis: 'min',
+							yAxis: 0
+						}, {
+							xAxis: 'max',
+							yAxis: 0.05
+						}]]
+					}
+				})
+                
+				let msg = {
+					legend: {
+							data: legend,
+							right: '5%',
+							icon: 'circle',
+							selected: legendType
+					},
+					title:'工作面综合数据',
+					time: this.parent.time ? this.parent.time : `${new Date().getMonth() + 1}-${new Date().getDate()}`,
+					series: series,
+					max : positionmsg && positionmsg.max,
+					min : positionmsg && positionmsg.min,
+					xdistance: xdistance,
+					year: this.parent.parent.time
+				}
+				let option = efficiencygas(msg)
+				chart.setOption(option)
+			}
+
+			this.getQuantity = () => {
+				let time = this.parent.time ? new Date(this.parent.time).getDate() : new Date().getDate()
+				let deptID = this.parent.deptID
+				let rugulars = this.parent.parent.deptMap && this.parent.parent.deptMap.get(deptID).get('rugular')
+				let data = rugulars && rugulars.get(time)
+				rugulars = rugulars && Array.from(rugulars.values())
+				let vehicleTypeID = rugulars && rugulars[0] && rugulars[0].vehicleTypeID
+				let workfaceID = rugulars && rugulars[0] && rugulars[0].workfaceID
+				let sumnum = data ? data.sumnum : 0
+				if (vehicleTypeID) this.complexName = vehicleTypeID === 2 ? `排数：${sumnum}` : `刀数：${sumnum}`
+				let face = vehicleTypeID === 2 ? xdata.metaStore.data[`drivingface`] : xdata.metaStore.data['coalface']
+				face = face && Array.from(face.values())
+				face = face && face.filter(item => item.vehicle_id === workfaceID)
+				face = face && face[0]
+				if (vehicleTypeID === 2) { // 掘进面进尺
+					let faceID = face && face[`drivingface_id`]
+					let unit = faceID && xdata.metaStore.data.drivingface && xdata.metaStore.data.drivingface.get(faceID)
+					unit = unit && unit.drifting_footage_unit
+					unit = unit && unit * sumnum
+					if (unit) this.complexName = `${this.complexName}`
+				} else if (vehicleTypeID === 1) {
+					let faceID = face && face['coalface_id']
+					let unit = faceID && xdata.metaStore.data.coalface && xdata.metaStore.data.coalface.get(faceID)
+					let carPositon = unit && unit.head_y_pos
+					let unitTotalLength = unit && unit.totalLength
+					this.totalLength = unitTotalLength * 1.1
+					this.carHeader = carPositon === 1 ? '机头' : '机尾'
+					this.carEnd = carPositon === 1 ?  '机尾' : '机头' 
+				}
+				this.vehicleTypeID = vehicleTypeID
+			}
+
+			this.splitData = (rows) => {
+				this.rugularAverageRows = new Map()
+				rows.forEach(row => {
+					let time = new Date(row.stime).getDate()
+					this.rugularAverageRows.set(time, [time, row.worktime])
+				})
+				let len =0
+				if(this.parent.parent.time < new Date(new Date().getTime()).format('yyyy-MM')){
+					len = 30
+				}else if(this.parent.parent.time == new Date(new Date().getTime()).format('yyyy-MM')){
+					len = new Date().getDate()
+				}				
+				for(let i=1; i<=len; i++){
+					if(!this.rugularAverageRows.get(i)){
+						this.rugularAverageRows.set(i,[i,0])
+					}
+				}
+			}
+
+			this.hide = () => {
+				this.showAnalysis = false
+			}
+
+			this.show = () => {
+				this.showAnalysis = true
+			}
+
+			this.saveData = () => {
+				this.showAnalysis = false
+				let oldArr = []
+				let updateArr = []
+				let CreateDateTime = this.refs.save_time.value
+				let NowTime = new Date().format('yyyy-MM-dd')
+				if (!CreateDateTime) {
+					window.hintip.open({
+					value: 'failure',
+					tip: '修改失败'
+					})
+					return
+				}
+				let CreatePersonal = this.d_name
+				let workface = []
+				let Rpt_Type = 2
+				let sql = ''
+				if (this.refs.db_analysis) {
+					updateArr.push(this.refs.db_analysis.value)
+					oldArr.push(this.Analysis)
+					workface.push(this.parent.workfaceID)
+				}else{
+					window.hintip.open({
+						value: 'failure',
+						tip: '修改失败'
+					})
+				}
+
+				if (NowTime !== CreateDateTime || JSON.stringify(oldArr) !== JSON.stringify(updateArr)){	
+					// if (this.ID){
+					// 	if (this.ID === null) {
+					// 		sql = `REPLACE into rpt_sanlv_daily_main (CreateDateTime,CreatePersonal,Rpt_Type) VALUES ('${CreateDateTime}','${CreatePersonal}',${Rpt_Type})`
+					// 	}else {
+					// 		sql = `REPLACE into rpt_sanlv_daily_main (CreateDateTime,CreatePersonal,Rpt_Type,ID) VALUES ('${CreateDateTime}','${CreatePersonal}',${Rpt_Type},${this.ID})`
+					// 	}
+					// } else{
+					// 	sql = `REPLACE into rpt_sanlv_daily_main (CreateDateTime,CreatePersonal,Rpt_Type) VALUES ('${CreateDateTime}','${CreatePersonal}',${Rpt_Type})`
+					// }
+					sql = `REPLACE into rpt_sanlv_daily_main (CreateDateTime,CreatePersonal,Rpt_Type) VALUES ('${CreateDateTime}','${CreatePersonal}',${Rpt_Type})`
+					let req = {
+						cmd: 'update', // update, CMD.META.UPDATE
+						data: {
+							op: 'INSERT', // INSERT, UPDATE, DELETE
+							name: 'rpt_sanlv_daily_main',
+							sql: sql,
+							updateArr: updateArr,
+							deptArr: workface
+						}
+					}
+					xbus.trigger('META-UPDATE-DB', {
+						req: req
+					})
+				}else {
+					window.hintip.open({
+						value: 'failure',
+						tip: '修改失败'
+					})
+				}
+				this.parent.getSql(this.parent.deptID)
+			}
+
+			xbus.on('META-UPDATE-DB-RES', (res) => {
+				let msg = {
+					value: res.code === 0 ? 'success' : 'failure',
+					tip: res.code === 0 ? '修改成功' : '修改失败'
+				}
+				window.hintip.open(msg)
+			})
+
+			this.init = (rugularrows, displacement, rugularAverage, rugularAnalysis) => {
+				this.defaultTime = new Date().format('yyyy-MM-dd')
+				this.totalLength = null
+				this.complexName = ''
+				this.totalTime = ''
+				this.carHeader = ''
+				this.carEnd = ''
+				this.showAnalysis = false
+				this.Analysis = rugularAnalysis[0] ? rugularAnalysis[0].Analysis : ''
+				this.ID = rugularAnalysis[0] ? rugularAnalysis[0].MainID : null
+				this.d_name = xdata.metaStore.getNameByID('user_id', xdata.userName)
+				// rugularAverage = rugularAverage ? rugularAverage : []
+				rugularAverage && this.splitData(rugularAverage)
+				this.initRugularCharts(rugularrows)
+				this.getQuantity()
+				this.initRugularFactor(displacement)		
+				this.update()
+			}
+    </script>
+</rugular-eff>

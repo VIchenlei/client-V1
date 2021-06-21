@@ -1,0 +1,194 @@
+<worktime-eff>
+    <div class="dept-analysis" if={ showAnalysis }>
+      <input class='write-analysis' type="text" ref = 'db_analysis' placeholder="请输入原因分析...">
+      <div class="old-analysis">{Analysis}</div>
+      <div class="time_warp">
+        <span>请输入修改时间</span>
+        <input type="date" ref = "save_time" value={ defaultTime }>
+      </div>
+      <div class="btn-warp">
+        <span class="btn-save" onclick={ saveData }>保存</span>
+        <span class="btn-off" onclick={ hide }>取消</span>
+      </div>
+    </div>
+  <div class="dept-worktime" style="width:100%;height:300px;"></div>
+  <div class="dept-button"><span onclick={ show }></span></div>
+  <script>
+    import echarts from 'echarts'
+    import { efficiencyLineDept } from "../../js/def/graph_def.js"
+    let self = this
+
+    this.barCharts = (rows, color, id, name) => {
+      return {
+        id: id,
+        name: name,
+        data: rows,
+        type: 'bar',
+        barGap: '5%',
+        yAxisIndex: 1,
+        itemStyle: {
+          normal: {
+            color: color
+          }
+        }
+      }
+    }
+    
+    this.initWorktimeCharts = (rows, faceworktime, roadworktime) => {
+      if (!rows) rows = new Map()
+      let initdom = this.root.querySelector('.dept-worktime')
+      if (!initdom) return
+      echarts.dispose(initdom)
+      let chart = echarts.init(initdom)
+      let data = Array.from(rows.values())
+      data.sort(function(a,b){return a[0]-b[0]})
+      let dataArr = data.map( item=> item[1])
+      let max = Math.max.apply(Math, dataArr)
+      let min = 0
+      let faceworktimeArr = faceworktime && faceworktime.concat(roadworktime).map( item=> item[1])
+      let rightMax = Math.max.apply(Math, faceworktimeArr)
+      let series = []
+      series.push({
+        id: 'dept-worktime',
+        name: '工时利用率',
+        data: data,
+        type: 'line',
+        barWidth: '8px',
+        showAllSymbol: true,
+        itemStyle: {
+          normal: {
+            color: '#26cc41'
+          }
+        }
+      })
+      series.push(this.barCharts(faceworktime, '#26cc41', 'faceworktime', '平均有效时长'))
+      series.push(this.barCharts(roadworktime, '#d7f20c', 'roadworktime', '平均无效时长'))
+      let msg = {
+        time :  this.parent.parent.time.split('-')[1],
+        legend: ['工时利用率', '平均有效时长', '平均无效时长'],
+        title:'工时利用率',
+        series: series,
+        max : max,
+        min : min,
+        isShow : true,
+        rightMax: rightMax
+      }
+      let option = efficiencyLineDept(msg)
+      chart.setOption(option)
+      chart.on('click', function (params) {
+        if (self.shiftWorktime) {
+          self.shiftWorktime.unmount(true)
+        }
+        let date = params.data[0]
+        let currentWholeworktime = self.parent.deptRows.get('wholeworktime').get(date)
+        let rateID = currentWholeworktime.rate_id
+        self.shiftWorktime = riot.mount('dialog-show', {
+          riotTag: 'worktime-shift',
+          deptID: self.parent.deptID,
+          time: `${self.parent.parent.time.split('-')[0]}-${params.name}`,
+          title: '平均工时明细表',
+          rateID: rateID
+        })[0]
+      })
+    }
+
+    this.splitData = (rows) => {
+      let arr = []
+      rows.forEach(row => {
+        let time = Number(new Date(new Date(row.stime).getTime()).format('d'))
+        arr.push([time, row.worktime])
+      })
+      return arr
+    }
+    
+    this.hide = () => {
+      this.showAnalysis = false
+    }
+
+    this.show = () => {
+      this.showAnalysis = true
+    }
+
+    this.saveData = () => {
+      this.showAnalysis = false
+			let oldArr = []
+			let updateArr = []
+      let CreateDateTime = this.refs.save_time.value
+      let NowTime = new Date().format('yyyy-MM-dd')
+      if (!CreateDateTime) {
+        window.hintip.open({
+          value: 'failure',
+          tip: '修改失败'
+        })
+        return
+      }
+			let CreatePersonal = this.d_name
+			let workface = []
+			let Rpt_Type = 3
+			let sql = ''
+			if (this.refs.db_analysis) {
+        updateArr.push(this.refs.db_analysis.value)
+        oldArr.push(this.Analysis)
+        workface.push(this.parent.workfaceID)
+			}else{
+				this.attTips('checkData')
+			}
+
+			if (NowTime !== CreateDateTime || JSON.stringify(oldArr) !== JSON.stringify(updateArr)) {	
+				// if (this.ID){
+				// 	if (this.ID === null) {
+				// 			sql = `REPLACE into rpt_sanlv_daily_main (CreateDateTime,CreatePersonal,Rpt_Type) VALUES ('${CreateDateTime}','${CreatePersonal}',${Rpt_Type})`
+				// 		}else {
+				// 			sql = `REPLACE into rpt_sanlv_daily_main (CreateDateTime,CreatePersonal,Rpt_Type,ID) VALUES ('${CreateDateTime}','${CreatePersonal}',${Rpt_Type},${this.ID})`
+				// 		}
+				// } else{
+				// 	sql = `REPLACE into rpt_sanlv_daily_main (CreateDateTime,CreatePersonal,Rpt_Type) VALUES ('${CreateDateTime}','${CreatePersonal}',${Rpt_Type})`
+        // }
+        sql = `REPLACE into rpt_sanlv_daily_main (CreateDateTime,CreatePersonal,Rpt_Type) VALUES ('${CreateDateTime}','${CreatePersonal}',${Rpt_Type})`
+        let req = {
+          cmd: 'update', // update, CMD.META.UPDATE
+          data: {
+            op: 'INSERT', // INSERT, UPDATE, DELETE
+            name: 'rpt_sanlv_daily_main',
+            sql: sql,
+            updateArr: updateArr,
+            deptArr: workface
+          }
+        }
+        xbus.trigger('META-UPDATE-DB', {
+          req: req
+        })
+			}else {
+				window.hintip.open({
+          value: 'failure',
+          tip: '修改失败'
+        })
+      }
+
+      this.parent.getSql(this.parent.deptID)
+    }
+
+		xbus.on('META-UPDATE-DB-RES', (res) => {
+      let msg = {
+        value: res.code === 0 ? 'success' : 'failure',
+        tip: res.code === 0 ? '修改成功' : '修改失败'
+      }
+      window.hintip.open(msg)
+    })
+
+    this.init = (worktimerows, faceworktime, roadworktime, worktimeAnalysis) => {
+      this.defaultTime = new Date().format('yyyy-MM-dd')
+      this.showAnalysis = false
+      this.Analysis = worktimeAnalysis[0] ? worktimeAnalysis[0].Analysis : ''
+      this.ID = worktimeAnalysis[0] ? worktimeAnalysis[0].MainID : null
+      this.d_name = xdata.metaStore.getNameByID('user_id', xdata.userName)
+      // faceworktime = faceworktime ? this.splitData(faceworktime) : this.faceworktime
+      // roadworktime = roadworktime ? this.splitData(roadworktime) : this.roadworktime
+      faceworktime = faceworktime && this.splitData(faceworktime)
+      roadworktime = roadworktime && this.splitData(roadworktime)
+      this.faceworktime = faceworktime
+      this.roadworktime = roadworktime
+      this.initWorktimeCharts(worktimerows, faceworktime, roadworktime)
+    }
+  </script>
+</worktime-eff>

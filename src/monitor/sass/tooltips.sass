@@ -1,0 +1,143 @@
+@import '../../sass/defs'
+
+.tool-tips-container
+  position: absolute
+  // border: 1px solid rgba(0, 0, 0, 0.15)
+  box-shadow: 0 2px 10px rgba(0,0,0,.5)
+  // box-shadow: 0 0 4px #f0f0f0
+  width: 285px
+  font-size: .8125rem
+  z-index: 999
+  //opacity: 0.9
+  .closeTips
+    margin-left: 196px
+    cursor: pointer
+    &:hover,&.active
+      color: red
+  div:nth-child(1)
+    min-width: 20rem
+    // border: 1px solid #e3e3e3
+    // border-top: none
+
+  &.hide
+    display: none
+
+  // &.show
+  //   display: ''
+
+  .tips-title
+    @include align-middle
+    background: #09F
+    height: 2rem
+
+    .tips-title-text
+      color: #FFF
+      margin: 0px 5px 0px 20px
+
+  .tips-content,.patrol-tips
+    position: relative
+    background: #ebebeb
+    padding: 0 1rem .5rem 1rem
+    display: flex
+    flex-direction: column
+    .op-button:hover
+        background: #009fff
+        color: #fff
+    .showland
+      justify-content: space-around
+      border-top: 1px solid $border-line
+      //padding: .5rem 编辑、删除按钮挤出去了
+    p
+      @include font-color($fontsize-s,$minor-color)
+      margin: 0
+      height: 1.6rem
+      display: flex
+      &.light-content-line
+        justify-content: space-between
+        align-items: center
+        span.light-ctr
+          display: flex
+          width: 50%
+          cursor: pointer
+          justify-content: space-between
+        img,.curCtlImg
+          height: 1.3rem
+        .label-span
+          @include align-middle-between
+          width: 26%
+          input,label
+            cursor: pointer
+      &.light-content-title
+          font-weight: 600
+          border-bottom: 1px solid #DDD
+          margin-bottom: .3rem
+      &.button-area
+          justify-content: space-around
+          margin-top: .5rem
+
+      .lable
+        // display: inline-block
+        //width: 6rem 分站基本信息最后两行文字太长不够用
+        line-height: 1.6rem
+        text-align: left
+        white-space: nowrap
+      .value
+        // display: inline-block
+        flex: auto
+        line-height: 1.6rem
+        text-align: right
+        overflow: hidden
+        text-overflow: ellipsis
+        white-space: nowrap
+  .patrol-tips
+    @include align-middle-between
+    flex-direction: row
+    div
+      min-width: 3rem
+  .op-panel
+    height: 40px
+    background: #eeeeee
+    @include align-end
+    justify-content: space-around
+    padding: 0 5px
+
+    .tab-icon
+      @include align-center-middle
+      flex: auto
+      height: 100%
+      cursor: pointer
+      color: $minor-color
+
+      svg
+        display: inline-block
+        width: 24px
+        height: 24px
+        fill: $active-bg
+
+    .active
+      border-bottom: 2px solid #009fff
+      color: #009fff
+
+      svg
+        fill: $main-color
+
+  .op-button
+    height: 40px
+    margin: 5px
+    @include align-center-middle
+    border-radius: $control-radius
+    background: $minor-bgcolor
+    color: $minor-color
+    cursor: pointer
+
+    .icon
+      fill: $disabled-color
+      margin-right: 1rem
+
+    &.activated
+      background: #009fff
+      color: $active-ft
+
+      .icon
+        fill: $active-ft
+

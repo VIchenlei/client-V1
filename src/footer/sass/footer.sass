@@ -1,0 +1,50 @@
+@import '../../sass/defs'
+
+.connected
+  fill: $color-green
+
+.disconnected
+  fill: #ff5454
+
+
+.page-foot
+  @include align-middle-between
+  flex: 0 0 3rem
+  background: $body-bg
+  border-top: 1px solid $body-sp
+  min-width: 50rem
+  font-size: $fontsize-s
+
+  @media screen and (max-width: $width-medium)
+    @include wh(20rem,1.4rem)
+    position: absolute
+    bottom: .1rem
+    min-width: 0
+    background: $mask-bg
+    border-radius: 0 1rem 1rem 0
+    border: 0
+    color: $head-ft
+  @media screen and (max-width: $width-medium) and (orientation: landscape)
+    bottom: 0.1rem
+
+  .foot-right
+    @include align-middle
+
+    .page-footer__network-status
+      flex: 2 2 auto
+      padding: 0 1rem
+      @include align-middle
+
+    .page-footer__last-update
+      @include align-middle
+      padding: 0 1rem
+
+      span
+        padding: 0 .2rem
+
+  .foot-left
+    @include align-middle
+
+    .current-leaders
+      padding: 0 .5rem
+      @include align-middle

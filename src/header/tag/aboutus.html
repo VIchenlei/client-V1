@@ -1,0 +1,41 @@
+<aboutus >
+  <div class="dlg-bg animated">
+    <div class="dlg-window aboutus-dialog animated zoomIn" onclick={ stopPropagation }>
+      <dialog-head title="关于..."></dialog-head>
+      <div class="dlg-body about-content">
+          <span class="system-title">{sysInfo.name}</span>
+        <p>
+          <span>{sysInfo.version[0]}</span>
+          <span>{sysInfo.version[1]}</span>
+        </p>
+        <p>
+          <span>{sysInfo.time[0]}</span>
+          <span>{sysInfo.time[1]}</span>
+        </p>
+        <p>
+          <span>{sysInfo.author[0]}</span>
+          <span>{sysInfo.author[1]}</span>
+        </p>
+        <p><a href="http://www.beijingyongan.com" target="_blank">联系我们</a></p>
+        <!-- <p><a href="openIE:local.beijingyongan.com:9000/v.html" target="_blank">联系我们</a></p> -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import '../sass/aboutus.sass'
+    import { sysInfo } from '../../js/def/sysinfo.js'
+
+    this.sysInfo = sysInfo
+
+    this.mixin('EventMixin')
+
+    this.on('mount', () => {
+      window.setDialogDraggable(this.root)
+    })
+
+    this.hide = (evt) => {
+      this.unmount(true)
+    }
+  </script>
+</aboutus>

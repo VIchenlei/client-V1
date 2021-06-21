@@ -1,0 +1,116 @@
+<checkbox-role>
+  <checkbox-list if={tableTitle === 'menus'} data-title="可用菜单：" data-list={menuList} data-checked={checkedMenus} data-key="menu_id" class="role menus" placeholder='请输入菜单名称、拼音'></checkbox-list>
+  <checkbox-list if={tableTitle === 'menus'} data-title="可用快捷按钮：" data-list={fastList} data-checked={checkedMenus} data-key="menu_id" class="role menus" placeholder='请输入快捷按钮名称、拼音'></checkbox-list>
+  <checkbox-list if={tableTitle !== 'menus'} data-title={opts.dataTitle} data-list={lists} data-checked={checkedMenus} data-key={opts.dataKey} class="role" placeholder={opts.placeholder} data-all={opts.dataAll}></checkbox-list>
+
+  <script>
+    import './checkbox-list.html'
+    import {AREABUSINESS} from '../js/area_business.js'
+    let self = this
+    const LISTTITLE = {
+      'depts': 'dept',
+      'business_type': 'area_business',
+      'access_id': 'dept'
+    }
+
+    const LISTINDEX = {
+      'menus': 3,
+      'depts': 2,
+      'business_type': 3,
+      'access_id': 5
+    }
+
+    this.updateSelect = (selectIndex) => {
+      let selectbusiness = AREABUSINESS[selectIndex]
+      this.tags['checkbox-list'].updateSelect(selectbusiness)
+    }
+
+    this.getBusiness = () => {
+      let value = []
+      for (let i = 0; i < this.lists.length; i++) {
+        let list = this.lists[i]
+        let key = list.area_business_id
+        let input  = this.root.querySelector(`.list${key}`)
+        let checked = input.checked ? 1 : 0
+        value.push(checked)
+      }
+      value = value.reverse().join('')
+      value = parseInt(value, 2)
+      return value
+    }
+
+    this.storeMenu = (evt) => {
+      let target = evt.target
+      let nodeName = target.nodeName
+      let input = null
+      if (nodeName === 'LABEL') {
+        input = evt.target.nextElementSibling
+      } else if (nodeName === 'INPUT') {
+        input = target
+      }
+      if (!input) return
+      let isChecked = input.checked
+      // let checkID = this.tableTitle === 'menus' ? input.id : parseInt(input.id, 10)
+      let checkID = input.id
+      isChecked ? this.menus.set(checkID, true) : this.menus.delete(checkID)
+    }
+
+    this.checkMenus = () => {
+      let parent = this.parent
+      let index = LISTINDEX[this.tableTitle]
+      let menus = parent.rows[index].field_value
+      if (this.tableTitle === 'menus') {
+        let value = parent.rows[2].field_value
+        if (value !== 2) return
+      }
+      if (this.tableTitle === 'menus' || this.tableTitle === 'depts' || this.tableTitle === 'access_id') {
+        menus = menus && menus.toString().split(';')
+        menus && menus.forEach(menu => {
+          self.menus.set(menu, true)
+        })
+      } else if (this.tableTitle === 'business_type') {
+        menus = menus && menus.toString(2).padStart(12, 0).split('').reverse()
+        let selectIndex = parent.selectedIndex
+        this.selectbusiness = AREABUSINESS[selectIndex]
+      }
+      this.checkedMenus = menus
+    }
+
+    this.init = (opts) => {
+      this.menus = new Map()
+      this.tableTitle = opts.ref
+      this.isDisabled = opts.disabled
+      if (LISTTITLE.hasOwnProperty(this.tableTitle)) {
+        this.root.classList.remove('hide')
+        let listname = LISTTITLE[this.tableTitle]
+        let lists = xdata.metaStore.data[listname]
+        lists = lists && Array.from(lists.values())
+        if (!lists) return
+        this.lists = lists
+      } else if (this.tableTitle === 'menus') {
+        let menuList = new Map(), fastList = new Map()
+        let menus = xdata.metaStore.data.menu
+        menus = menus && Array.from(menus.values())
+        if (!menus) return
+        menus.forEach(menu => {
+          let menuID = menu.menu_id
+          if (/^KJ/.test(menuID)) {
+            fastList.set(menuID, menu)
+          } else {
+            menuList.set(menuID, menu)
+          }
+        })
+        this.menuList = Array.from(menuList.values())
+        this.fastList = Array.from(fastList.values())
+      }
+      this.checkMenus()
+      this.update()
+    }
+    this.init(opts)
+
+    this.on('unmount', () => {
+      this.menus = null
+      this.checkedMenus = null
+    })
+  </script>
+</checkbox-role>

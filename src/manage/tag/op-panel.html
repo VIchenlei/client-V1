@@ -1,0 +1,98 @@
+<op-panel>
+  <div class="op-panel" id={ name === 'leader_arrange' ? 'leaderArrange' : '' }>
+    <div if={ name === 'leader_arrange' }>
+        <span class="leader_title">排班日期：</span>
+        <input class="datainput" type="date" placeholder={ currentmonth } value={ inputDateVal }>
+        <button onclick={ searchLeaderArrange }>查询</button>
+    </div>
+    <span>
+      <span class="hint--bottom-left" aria-label="添加信息" onclick={ insert }>
+        <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-add"></use></svg>
+      </span>
+      <span if={name === 'leader_arrange'} class="hint--bottom-left" aria-label="批量导入" onclick={ importFile }>
+        <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-import"></use></svg>
+      </span>
+      <span if={name === 'leader_arrange'} class="printButton hint--bottom-left" aria-label="打印" name="printPDF" onclick={askFile}>
+        <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-printer"></use></svg>
+      </span>
+      <span onclick={ askFile } name="csv" class="hint--bottom-left icon" aria-label="批量导出">
+        <img class='pointImg' src="/img/export.png" alt="">
+      </span>
+    </span>
+  </div>
+  <script>
+    import {getRows, getMessage} from '../../js/utils/utils.js'
+    let parentag = null
+    let self = this
+    this.init =(opts) =>{
+      let msg = opts.msg
+      this.name = opts.msg.def.name
+      this.def = msg.def
+      this.maxid = msg.maxid
+      this.rows = msg.rows
+      this.inputDateVal = opts.inputDateVal
+      parentag = opts.parentag
+    }
+    this.init(opts)
+    this.searchLeaderArrange = (evt) => {
+      let target = evt.currentTarget
+      this.inputDateVal = target.previousElementSibling.value
+      let sql = null
+      if (this.inputDateVal) {
+        // this.root.querySelector('.datainput').value = this.inputDateVal 
+        this.parent.inputDateVal = this.inputDateVal
+        sql = `select duty_date, dst.shift_type_id, dla.shift_id, ds.staff_id as staff_id from his_leader_arrange dla, dat_shift_type dst, dat_shift s, dat_staff ds WHERE dla.staff_id = ds.staff_id and dla.shift_id = s.shift_id and s.shift_type_id = dst.shift_type_id and dla.duty_date = '${this.inputDateVal}'`
+        let sqlname = 'leader_scheduling'
+        let countSql = `select count(1) as total from his_leader_arrange dla, dat_shift_type dst, dat_shift s, dat_staff ds WHERE dla.staff_id = ds.staff_id and dla.shift_id = s.shift_id and s.shift_type_id = dst.shift_type_id and dla.duty_date = '${this.inputDateVal}'`
+        parentag.inquireDB(sqlname, sql, countSql)
+      } else {
+        parentag.searchLeader()
+      }
+      // this.opts.parentag.leaderDate = this.inputDateVal
+    }
+
+    this.insert = (evt) => {
+      parentag.insert()
+    }
+
+    this.importFile = (evt) => {
+      let rows = getRows(null, this.def, this.maxid)
+      let msg = this.composeImportDataMessage('IMPORT-DATA', rows)
+      this.opts.parentag.parentag.trigger('META-IMPORT-DATA', msg)
+    }
+
+    this.composeImportDataMessage = (cmd, rows) => {
+      return {
+        cmd: cmd,
+        def: this.def,  // field definition
+        maxid: this.maxid,
+        rows: rows
+      }
+    }
+
+    this.askFile = (evt) => {
+      let opName = evt.currentTarget.getAttribute('name')
+      let earlyMonth = parentag.earlyMonth
+      let endMonth = parentag.endMonth
+      let sqlAskFile = `select date_format(duty_date, '%Y-%m-%d') as duty_date,dst.name as shift_type_id, s.name as shift_id, ds.name as staff_id from his_leader_arrange dla, dat_shift_type dst, dat_shift s, dat_staff ds WHERE dla.staff_id = ds.staff_id and dla.shift_id = s.shift_id and s.shift_type_id = dst.shift_type_id and duty_date >= '${earlyMonth}' and duty_date < '${endMonth}' order by duty_date desc`            
+      let inputDateValue = this.root.querySelector('.datainput').value
+      if(inputDateValue){//根据查询来，页面上显示什么，打印什么
+        sqlAskFile = `select date_format(duty_date, '%Y-%m-%d') as duty_date,dst.name as shift_type_id, s.name as shift_id, ds.name as staff_id from his_leader_arrange dla, dat_shift_type dst, dat_shift s, dat_staff ds WHERE dla.staff_id = ds.staff_id and dla.shift_id = s.shift_id and s.shift_type_id = dst.shift_type_id and duty_date = '${inputDateValue}' order by duty_date desc`  
+      }
+      let msg = {
+        cmd: 'file',
+        exprList: [],
+        fileType: opName,
+        labels: this.def.fields.labels,
+        name: '',//driver
+        namesInShort: this.def.fields.names,
+        title: '领导排班',
+        reptIndex: new Date().getTime(),
+        types: ["DATE", "STRING", "STRING", "STRING"],//this.def.fields.types,
+        sql: sqlAskFile,
+        userName: xdata.userName
+      }
+      xbus.trigger('REPT-FETCH-FILE', msg)
+    }
+  </script>
+</op-panel>

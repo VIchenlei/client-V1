@@ -1,0 +1,48 @@
+<driveface-reader>
+    <div class="driverReader">
+        <img each={ reader in readers } src="/img/reader.png" alt="" type={reader.id} style="top: {reader.x}px; right: {reader.y}px;">
+    </div>
+    <script>
+        this.setPosition = (x, y) => {
+          let charX = Math.abs(x - this.basicCoord[0]) // 车辆距离基准点x的距离
+          let charY = Math.abs(y - this.basicCoord[1]) // 车辆距离基准点y的距离
+          let readerX = charX * this.measuringScale * this.scale // （ iconX - 基准点X ）* 2 * 屏幕比例
+          let readerY = charY * 2 * this.measuringScale // ((iconY - 基准点Y) * 2 + 巷道口显示20米) * 屏幕比例 + 伸缩层20px 其中 rightLength = 巷道口20米 * 屏幕比例 + 伸缩层20px
+          let screenReaderX = readerX - 40 / 2
+          let screenReaderY = readerY + this.rightLength + 40 / 2
+          return {screenReaderX, screenReaderY}
+        }
+
+        this.readerPosition = (basicCoordinate) => {
+          this.basicCoord = basicCoordinate
+          this.measuringScale = this.parent.measuringScale // 屏幕比例
+          this.rightLength = this.parent.rightLength // 巷道口20米 * 屏幕比例 + 伸缩层20px
+          this.scale = this.parent.scale // 地图比例
+
+          let reader = xdata.metaStore.data.reader && Array.from(xdata.metaStore.data.reader.values())
+          let driverfaceID = this.parent.parent.opts.id
+          let areaID = xdata.metaStore.data.drivingface_vehicle && xdata.metaStore.data.drivingface_vehicle.get(driverfaceID) && xdata.metaStore.data.drivingface_vehicle.get(driverfaceID).area_id
+          let driverfaceReaders = reader && reader.filter(item => item.area_id === areaID)
+          // 掘进面二维定位分站
+          driverfaceReaders = driverfaceReaders && driverfaceReaders.filter(item => item.dimension === 2)
+          if (driverfaceReaders.length > 0) {
+            let readers = []
+            for (let i = 0; i < driverfaceReaders.length; i++) {
+              console.log(driverfaceReaders)
+              let driverfaceReader = driverfaceReaders[i]
+              let x = driverfaceReader.x
+              let y = driverfaceReader.y
+              let coord = this.setPosition(x, y)
+              let msg = {
+                id: driverfaceReader.reader_id,
+                x: coord.screenReaderX,
+                y: coord.screenReaderY
+              }
+              readers.push(msg)
+            }
+            this.readers = readers
+            this.update()
+          }
+        }
+    </script>
+</driveface-reader>

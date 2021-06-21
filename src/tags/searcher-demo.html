@@ -1,0 +1,31 @@
+<searcher-demo>
+  <div id="fuzzysearch2" class="search-bar"></div>
+
+  <script>
+    import './fuzzy-search2.html'
+
+    this.on('mount', () => {
+      this.init()
+    })
+    this.getResult = (result) => {
+      console.log(result)
+    }
+
+    let typeDef = {
+      name: 'staff',
+      label: '人员',
+      placeholder: '请输入姓名或姓名首字母...',
+      cb: this.getResult  // the callback when select an item.
+    }
+
+    let dataSet = {
+      desc: 'c',  // 显示结果集时，显示的字段：一般为描述字段
+      keys: ['a', 'b'],  // 参与搜索的列名称
+      data: [{ 'a': '101', 'b': '102', 'c': 'xxxx' }, { 'a': '100', 'b': '200', 'c': 'yyyy' }]
+    }
+
+    this.init = () => {
+      riot.mount('div#fuzzysearch2', 'fuzzy-search2', { typeDef: typeDef, dataSet: dataSet, searchIcon: true })[0]
+    }
+  </script>
+</searcher-demo>

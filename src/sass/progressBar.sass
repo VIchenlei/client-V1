@@ -1,0 +1,32 @@
+@import defs
+
+.progressBar
+    @include wh(60%,2%)    
+    margin: 0rem 10rem 0rem 10rem
+    background: #C0C0C0
+    border-radius: 1rem
+    display: flex
+    flex-flow: row nowrap
+
+    .progess-done-left
+        background: #bdcb13
+        border-top-left-radius: 1rem
+        border-bottom-left-radius: 1rem
+    .progess-done-middle
+        background: #bdcb13
+    .progess-done-right
+        background: #bdcb13
+        border-top-right-radius: 1rem
+        border-bottom-right-radius: 1rem
+
+    .progess-fail-left
+        background: #ed6d34
+        border-top-left-radius: 1rem
+        border-bottom-left-radius: 1rem
+    .progess-fail-middle
+        background: #ed6d34
+    .progess-fail-right
+        background: #ed6d34
+        border-top-right-radius: 1rem
+        border-bottom-right-radius: 1rem
+        

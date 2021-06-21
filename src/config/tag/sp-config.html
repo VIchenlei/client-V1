@@ -1,0 +1,365 @@
+<sp-config>
+  <aside data-is="side-bar" name="META" menus="{menuDef}" id="meta-menu" class="sidebar"></aside>
+  <div class="back">
+    <div class="back-homepage hide" onclick={backHomepage}>
+      <img src="/img/back.png" alt="">
+    </div>
+  </div>
+  
+  <div name="META" menus="{menuDef}" id="config-menu" class="homepage"></div>
+  <div class="configTableWarp">
+    <div class="query-newexprs" def={ tab } name="operate_log"></div>
+    <div id="config-table" class="meta-canvas" reptname={name}></div>
+  </div>
+
+  <script>
+    import menuDef from '../../js/def/meta_menu.js'
+    import reptQuery from '../../js/def/rept_query.js'
+    import {config} from '../../js/def/config_def.js'
+    import { getInfo, getReaderMsg, getModifyReaderMsg, getReaderCoord, getIdx } from '../utils.js'
+    import {manages} from '../../js/def/manage_def.js'
+    import { getMessage, judgeAreaIsneedDisplay } from '../../js/utils/utils.js'
+    import '../../tags/side-bar.html'
+    import '../../tags/transfer-menu.html'
+    import './meta-table.html'
+    import './sensor-table.html'
+    import './role-table.html'
+    import './meta-dialog.html'
+    import './manager-dialog.html'
+    import './swap-dialog.html'
+    // import './check-tree.html'
+    import './sensor-dialog.html'
+    import './role-dialog.html'
+    import './reader-dialog.html'
+    import '../../report/tag/rept-table.html'
+    import '../../report/tag/query-newexprs.html'
+
+    import '../../tags/file-dialog.html'
+    import '../../tags/import-file-dialog.html'
+    import '../../tags/meta-select.html'
+    import '../sass/text-choose.sass'
+    import '../../tags/rept-print/rept-print.html'
+    // import '../sass/role.sass'
+
+    const MENU = {
+      'sensor': 'sensor',
+      'role': 'role',
+      'access': 'role',
+      'area': 'role',
+      'operate_log': 'rept',
+      'his_staff_change': 'rept',
+      'user': 'role',
+      'reader_manager': 'manager'
+    }
+
+    const REPTS = ['operate_log', 'his_staff_change']
+
+    this.menuDef = menuDef
+    // if(reptQuery.hasOwnProperty('operate_log') || reptQuery) this.tab = reptQuery['operate_log']
+
+    this.on('mount', () => {
+      if (this.sidebar) {
+        this.sidebar.unmount(true)
+      }
+      this.root.querySelector('.homepage').classList.remove('hide')
+      this.sidebar = riot.mount('div#config-menu', 'transfer-menu', {
+        name: 'META',
+        menus: menuDef
+      })[0]
+      this.init()
+    })
+
+    this.init = () => {
+      xbus.on('NET-RESPONSE', (data) => {
+        let name = 'reader_manager'
+        let table = {
+          def: manages[name],
+          rows: data
+        }
+        this.mountTable(table, name)
+      })
+
+      xbus.on('META-SWITCH-MENU', (msg) => {
+        this.switchTopic(msg.menuname)
+      })
+
+      this.on('META-INSERT-ROW', (msg) => {
+        if(msg.name === 'reader'){
+            this.showReaderDialog(msg)
+        }else {
+            this.showMetaDialog(msg)
+        }
+      })
+      this.on('META-IMPORT-DATA', (msg) => {
+        this.showImportFileDialog(msg)
+      })
+
+      this.on('META-UPDATE-ROW', (msg,info) => {
+        if (info) {
+          msg.alias = info
+        }
+        if (msg.name === 'reader') {
+            let value = msg.rows[0].field_value
+            let key = msg.key
+            let amessage = getInfo(this.atable, value, msg.cmd, key)
+            let pmessage =  getInfo(this.ptable, value, msg.cmd, key)
+            if (amessage.length === 0) { //编辑  之前未配置天线  给予默认的天线展示
+                let amsg1 = getReaderMsg(this.atable.def,this.atable.maxid)
+                let amsg2 = getReaderMsg(this.atable.def,this.atable.maxid+1)
+                amessage.push(getModifyReaderMsg(msg,amsg1,1))
+                amessage.push(getModifyReaderMsg(msg,amsg2,2))
+                let rindex_x = getIdx(msg,'x')  //分站的x坐标下标
+                let rindex_y = getIdx(msg,'y')
+                let aindex_x = getIdx(amessage[0],'x') //天线的x坐标下标
+                let aindex_y = getIdx(amessage[0],'y')
+                let values = getReaderCoord(msg.rows[rindex_x].field_value, msg.rows[rindex_y].field_value, 2, 0)  //默认的天线坐标
+                amessage.forEach(e => {
+                    e.rows[aindex_x].field_value = values.x
+                    e.rows[aindex_y].field_value = values.y
+                })
+            } else if (amessage.length === 1) {
+                let amsg1 = getReaderMsg(this.atable.def,this.atable.maxid)
+                amessage.push(getModifyReaderMsg(msg,amsg1,2))
+                let idx = getIdx(amessage[0],'idx')
+                let rindex_x = getIdx(msg,'x')  //分站的x坐标下标
+                let rindex_y = getIdx(msg,'y')
+                let aindex_x = getIdx(amessage[0],'x') //天线的x坐标下标
+                let aindex_y = getIdx(amessage[0],'y')
+                let values = getReaderCoord(msg.rows[rindex_x].field_value, msg.rows[rindex_y].field_value, 2, 0)  //默认的天线坐标
+                amessage[1].rows[aindex_x].field_value = values.x
+                amessage[1].rows[aindex_y].field_value = values.y
+                amessage[0].rows[idx].field_value = 1
+                amessage[1].rows[idx].field_value = 2
+            }
+            this.showReaderDialog(msg,amessage,pmessage)
+        }else
+        //  if(msg.name === 'lights_group'){
+        //     let value = msg.rows[0].field_value
+        //     let key = msg.key
+        //     let amessage = null
+        //     let pmessage =  getInfo(this.ptable, value, msg.cmd, key)
+        //     this.showReaderDialog(msg,amessage,pmessage)
+        // }else
+        {
+            this.showMetaDialog(msg)
+        }
+      })
+
+      this.on('META-DELETE-ROW', (msg) => {
+        if(msg.name === 'reader'){
+            let value = msg.rows[0].field_value
+            let key = msg.key
+            let amessage = getInfo(this.atable, value, msg.cmd, key)
+            let pmessage =  getInfo(this.ptable, value, msg.cmd, key)
+            // return
+            this.showReaderDialog(msg,amessage,pmessage)
+        }else {
+            this.showMetaDialog(msg)
+        }
+      })
+
+      xbus.on('FILE-MODIFY', (msg) => {
+        this.showFileDialog(msg)
+      })
+    }
+
+    this.backHomepage = () => {
+      if (this.configTable) {
+        this.configTable.unmount(true)
+      }
+      if (this.sidebar) {
+        this.sidebar.unmount(true)
+      }
+      this.root.querySelector('.homepage').classList.remove('hide')
+      this.sidebar = riot.mount('div#config-menu', 'transfer-menu', {
+        name: 'META',
+        menus: menuDef
+      })[0]
+      this.root.querySelector('.back-homepage').classList.add('hide')
+      this.root.querySelector('.configTableWarp').classList.add('hide')
+    }
+
+    this.concatAreaReader = () => {
+      let areas = xdata.metaStore.dataInArray.get('area')
+      let readers = xdata.metaStore.data.reader && Array.from(xdata.metaStore.data.reader.values())
+      readers = readers && JSON.parse(JSON.stringify(readers))
+      let rows = []
+      for (let i = 0; i < areas.length; i++) {
+        let area = areas[i]
+        let areaID = area.area_id
+        if (xdata.isCheck === 1 && area.need_display === 0) continue
+        if (areaID !== 0) {
+          let areaReaders = ''
+          readers.forEach((reader, index) => {
+            let readerAreaID = reader.area_id
+            if (areaID === readerAreaID) {
+              let readerID = reader.reader_id
+              areaReaders += `;${readerID}`
+            }
+          })
+          areaReaders = areaReaders.replace(';', '')
+          rows.push({
+            area_id: areaID,
+            name: area.name,
+            readers: areaReaders
+          })
+        }
+      } 
+      return rows
+    }
+
+    this.switchTopic = (name) => {
+      this.name = name
+      let self = this
+      let searchname = name
+      let tab = null
+      let table = {}
+      if (this.queryNew) this.queryNew.unmount(true)
+      if (REPTS.includes(name)) {
+        if(reptQuery) tab = reptQuery[name]
+        this.queryNew = riot.mount('.query-newexprs', 'query-newexprs', {
+          def: tab,
+          parentag: self
+        })[0]
+        // this.root.querySelector('.homepage').classList.add('hide')
+        // this.root.querySelector('.meta-canvas').classList.add('hide')
+      }
+      this.update()
+      this.root.querySelector('.back-homepage').classList.remove('hide')
+      this.root.querySelector('.configTableWarp').classList.remove('hide')
+      if (!REPTS.includes(name)) {
+        let store = xdata.metaStore
+        if (name === 'occupation_info') searchname = 'occupation'
+        if (name === 'dept_info') searchname = 'dept'
+
+        if (name === 'font_size' || name === 'number_bars') {
+          table = {
+            def: config[name].def,
+            rows: JSON.parse(window.localStorage.getItem('fontDataNumber'))
+          }
+        } else if (name === 'shift_setting') {
+          table = {
+            def: manages[name],
+            rows: Array.from(xdata.metaStore.data.shift_setting.values())
+          }
+        } else if (name === 'area_reader') {
+          let rows = this.concatAreaReader()
+          table = {
+            def: manages[name],
+            rows: rows
+          }
+        } else if (name === 'reader_manager') {
+          xbus.trigger('GET-NET-IP')
+          return
+        } else {
+          // searchname = searchname === 'dept_ck' && xdata.isCheck === 1 ? 'dept' : searchname
+          if (searchname === 'dept_ck' && xdata.isCheck === 1) searchname = 'dept'
+          let rows = Array.from(store.data[searchname].values())
+          if (searchname === 'reader' || searchname === 'landmark') {
+            rows = rows.filter(item => judgeAreaIsneedDisplay(item))
+          }
+          if ((searchname === 'area' || searchname === 'goaf') && xdata.isCheck === 1) {
+            rows = rows.filter(item => item.need_display != 0)
+          }
+          table = {
+            def: store.defs[searchname],
+            rows: rows,
+            maxid: store.maxIDs[searchname],
+            alias: /_info/.test(name) && name
+          }
+          if (name === 'dept_ck' && xdata.isCheck === 1) {
+            table.def.table = 'dat_dept_ck'
+            table.def.name = 'dept_ck'
+          }
+          if(name === 'reader'){
+              this.atable = {
+                  def: store.defs['antenna'],
+                  rows: store.dataInArray.get('antenna'),
+                  maxid: store.maxIDs['antenna']
+              }
+              this.ptable = {
+                  def: store.defs['reader_path_tof_n'],
+                  rows: store.dataInArray.get('reader_path_tof_n'),
+                  maxid: store.maxIDs['reader_path_tof_n']
+              }
+          }
+
+          if (name === 'lights_group') {
+            this.ptable = {
+              def: store.defs['light'],
+              rows: store.dataInArray.get('light'),
+              maxid: store.maxIDs['light']
+            }
+          }
+        }
+      }
+
+      this.mountTable(table, name)
+    }
+
+    this.mountTable = (table, name) => {
+      let self = this
+      table['parentag'] = self
+      if (this.sidebar) {
+        this.root.querySelector('.homepage').classList.add('hide')
+        this.sidebar.unmount(true)
+      }
+      if (this.configTable) {
+        this.configTable.unmount(true)
+      }
+      
+      if (name === 'reader_manager') name = 'reader'
+      this.configTable = MENU[name] ? riot.mount('#config-table', `${MENU[name]}-table`, table)[0] : riot.mount('#config-table', 'meta-table', table)[0]
+      this.root.querySelector('.meta-canvas').classList.remove('hide')
+    }
+
+    this.showMetaDialog = (msg) => {
+      if (this.metaDialog) {
+        this.metaDialog.unmount(true)
+      }     
+      //部门、职务对换用swap-dialog展示信息
+      if (msg.hasOwnProperty('alias')) {
+        this.metaDialog = riot.mount('swap-dialog', { message: msg })[0]
+      } else {        
+        if (this.name === 'area_reader') {
+          msg['tag-name'] = 'check-tree'
+          msg['title'] = `${msg.rows[1].field_value}分站列表`
+          msg['origin'] = 2 // 数据源的index
+        }  
+        this.metaDialog = MENU[msg.name] ? riot.mount(`${MENU[msg.name]}-dialog`, {message: msg})[0] : riot.mount('meta-dialog', { message: msg })[0]
+      }
+    }
+
+    this.showFileDialog = (msg) => {
+      if (this.fileDialog) {
+        this.fileDialog.unmount(true)
+      }
+      this.fileDialog = riot.mount('file-dialog', msg)[0]
+    }
+
+    this.showImportFileDialog = (msg) => {
+      if (this.importFileDialog) {
+        this.importFileDialog.unmount(true)
+      }
+
+      this.importFileDialog = riot.mount('import-file-dialog', msg)[0]
+    }
+
+    this.showReaderDialog = (msg, amsg, pmsg) =>{
+        if (this.readerDialog) {
+            this.readerDialog.unmount(true)
+        } 
+        this.readerDialog =  msg.name ==='lights_group' ? riot.mount('reader-dialog', { message: msg, papa: opts.papa, pmessage: pmsg})[0] : riot.mount('reader-dialog', { message: msg, papa: opts.papa, amessage: amsg, pmessage: pmsg})[0]
+    }
+
+    xbus.on('TABLE-CONFIG-UPDATE', (msg) => {
+        let name = msg.msg.def.name
+        if(name === 'reader_path_tof_n' || name === 'light'){
+            this.ptable = msg.msg
+        }
+        if(name === 'antenna'){
+            this.atable =msg.msg
+        }
+    })
+  </script>
+</sp-config>

@@ -1,0 +1,139 @@
+@import defs
+
+.symbol-label
+	fill: #FFF
+	font-size: $fontsize-s
+
+.symbol-label-bg
+	width: 8rem
+	fill: rgba(100,100,100,.7)
+	stroke: $disabled-bdcolor
+	stroke-width: 1px
+	vector-effect: non-scaling-stroke
+
+.icon-device
+	@include wh(32px,32px)
+	display: inline-block
+	fill: #00F
+	cursor: pointer
+	transition: all 0.8s
+	pointer-events: none
+
+	&:hover
+		fill: #000
+	&.state-disconnected
+		fill: #666
+	&.state-connected
+		fill: #0C0
+	&.state-callcomfirmed
+		fill: #00C
+	&.state-calling
+		fill: #EA0
+	&.state-helpme
+		fill: #F00
+
+.icon-card
+	display: inline-block
+	@include wh(32px,32px)
+	fill: #0C0
+	cursor: pointer
+	transition: all 0.8s
+	pointer-events: none
+
+	&:hover
+		fill: #F00
+	&.card-update
+		fill: #E60
+	&.card-add
+		fill: #0C0
+	&.card-delete
+		fill: #F00
+
+//------------- line-points --------------
+.start-point
+	fill: #000
+	stroke: #000
+
+.middle-point
+	fill: #FFF
+	stroke: #666
+	stroke-width: 5px
+
+.track
+	stroke: #00F
+	stroke-width: 5px
+	stroke-linecap: round
+	stroke-linejoin: round
+
+//---------------------------
+
+.round-icon
+	@include wh(90px,90px)
+	display: inline-block
+	font-size: 0px
+	cursor: pointer
+	margin: 15px 30px
+	border-radius: 50%
+	text-align: center
+	position: relative
+	z-index: 1
+	color: #fff
+
+.ripple-icon
+	background: rgba(0, 255, 0, 0.1)
+	transition: transform ease-out 0.1s, background 0.2s
+
+	&:after
+		@include wh(100%,100%)
+		@include absolute(0,0)
+		content: 'WHO'
+		padding: 0
+		z-index: -1
+		pointer-events: none
+		border-radius: 50%
+		box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.1)
+		opacity: 0
+		transform: scale(0.96)
+
+	&:hover
+		background: rgba(0, 255, 0, 0.6)
+		transform: scale(0.9)
+		color: #000
+
+		&:after
+			animation: sonarEffect 1.3s ease-out infinite
+			animation-fill-mode: both
+
+
+@keyframes sonarEffect
+	0%
+		opacity: 0.3
+
+	40%
+		opacity: 0.5
+		box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.5), 0 0 5px 5px #FFF, 0 0 0 10px rgba(0, 255, 0, 0.1)
+		// transform: scale(1.5)
+
+	100%
+		box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.5), 0 0 5px 5px #FFF, 0 0 0 10px rgba(0, 255, 0, 0.1)
+		transform: scale(1.5)
+		opacity: 0
+
+
+
+.spin-icon
+	box-shadow: 0 0 0 4px rgba(0,0,0,1)
+	transition: background 0.2s, color 0.2s
+
+.spin-icon:hover
+	background: rgba(0,0,0,1)
+	color: #F00
+
+.spin-icon:hover:before
+	animation: spinAround 2s linear infinite
+
+@keyframes spinAround
+	from
+		transform: rotate(0deg)
+	to
+		transform: rotate(360deg)

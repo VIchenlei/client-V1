@@ -1,0 +1,406 @@
+<rept-page onclick={hideSelect}>
+  <div class="tab-bar">
+    <ul class="tab-container" if="{ this.tabDefs.length>0 }">
+      <li each={tab in tabDefs} class="tab" id="REPT_TITLE_{ tab.name }" onclick={ switchTab }>
+        <span>{ tab.label }</span>
+        <img src="/img/close.png" data-name={ tab.name } onclick={ close } alt="">
+      </li>
+    </ul>
+  </div>
+  <div each={tab in tabDefs} id="REPT_CONTENT_{tab.name}" ref="REPT_CONTENT_{tab.name}" class="tab-content"
+    if="{ this.tabDefs.length>0 }">
+    <div def={ tab } name={tab.name} data-is="query-newexprs"></div>
+    <div id="QGraph_{tab.name}" ref="QGraph_{tab.name}" graphname={ tab.name } data-is="rept-graph"></div>
+    <div if={tab.name==='efficiency_overview' } graphname={tab.name} data-is="efficiency-overview"
+      class="efficiency-overview"></div>
+    <div id="QResult_{tab.name}" reptname={ tab.name } if={!unresult.includes(tab.name)} data-is="rept-table"
+      reptindex={ tab.reptIndex } class="table_container report-table"></div>
+    <div if={ tab.name==='v_vehicle_day' } data-is='rept-special' reptindex={ tab.reptIndex }></div>
+    <div if={ tab.name==='efficiency_manage' } data-is='efficiency-manage' reptindex={ tab.reptIndex }></div>
+    <div if={tab.name==='worktime_dept_shift' } data-is="worktime-dept-shift" reptindex={ tab.reptIndex }
+      class="table_container report-table"></div>
+    <div if={ tab.name==='rugular_total' } data-is='rugular-total' reptindex={ tab.reptIndex }></div>
+    <div if={tab.name==='person_s_dept_month' || tab.name==='person_s_dept_day' } data-is="rept-dept-month" reptindex={
+      tab.reptIndex }></div>
+  </div>
+  <div if={ this.tabDefs.length==0 } id="rept-menu" class="homepage"></div>
+
+  <script>
+    import '../../tags/transfer-menu.html'
+    import reptMenu from '../../js/def/rept_menu.js'
+    import {
+      getAccessSql,
+      getDisplaySql,
+      getAreaDisplaySql,
+      dealMonth,
+      getSqlByIsCheck,
+      getMon
+    } from '../../js/utils/utils.js'
+    // import { getTime, getDayTime, getDay, getMon, getDat, getMonth, getHour, getWeek, curretTime, intervalTime } from '../../js/def/rept_query_untils.js'
+    import reptQueryUntils from '../../js/def/rept_query_untils.js'
+    import {
+      reptNames
+    } from '../js/report_defs.js'
+    import {
+      reptPageGetPageSize
+    } from '../js/report_utils.js'
+    const GRAPHNAME = ['v_vehicle_month', 'person_month', 'driver_dept_month'] // 暂时屏蔽人员考勤月报图表，没有过滤黑名单
+    // const GRAPHNAME = ['v_vehicle_month', 'driver_dept_month']
+    this.unresult = ['efficiency_overview', 'v_vehicle_day', 'person_s_dept_month', 'worktime_dept_shift',
+      'efficiency_manage', 'rugular_total', 'person_s_dept_day'
+    ]
+    this.reptNames = reptNames
+    this.tabDefs = []
+    this.tabNameList = []
+    this.activeTabName = null
+    this.on('mount', () => {
+      this.mountReptMenu()
+    })
+
+    /**
+     * @description: 接收OPEN-TAB事件，
+     * @param {type} tabDef
+     * @return: 
+     */
+    this.on('OPEN-TAB', (tabDef) => {
+      // debugger
+      if (!this.tabNameList.includes(tabDef.name)) {
+        this.tabDefs.unshift(tabDef)
+        this.tabNameList.unshift(tabDef.name)
+      } else {
+        let index = this.tabNameList.indexOf(tabDef.name)
+        this.tabDefs[index] = tabDef
+      }
+      this.update()
+      if (tabDef.autoExec) {
+        if (tabDef.name === 'efficiency_manage' || tabDef.name === 'worktime_dept_shift' || tabDef.name ===
+          'rugular_total' || tabDef.name === 'efficiency_overview') {
+          let sqlTime = this.getDefultTime()
+          let tagName = tabDef.name.replace(/\_/g, '-')
+          let defTime = tabDef.name === 'efficiency_overview' ? '' : new Date().format('yyyy-MM-dd')
+          this.tags[tagName] && this.tags[tagName].doQuery(tabDef, defTime, 'meta')
+        } else {
+          tabDef.sqlTmpl = getSqlByIsCheck(tabDef.name, tabDef.sqlTmpl)
+          tabDef.name === 'person_time' ? this.doQuerySpecial(tabDef) : this.doQuery(tabDef)
+        }
+      }
+      this.gotoTab(tabDef.name)
+    })
+
+    this.on('update', () => {
+      if (!this.tabDefs || this.tabDefs.length === 0) {
+        xbus.off(`REPT-SHOW-RESULT`) // 如果所有 tab 都关闭了，则注销全局事件
+      }
+    })
+
+    this.doQuerySpecial = (tabDef) => {
+      window.xhint.showLoading()
+      let list = tabDef.exprList
+      let funName = list[0].value.funName
+      let funFields = list[0].value.funFields
+      let str = reptQueryUntils[funName](...funFields)
+      let sqlString = tabDef.sqlTmpl.replace('{resultFields}', tabDef.fields.names.join(','))
+      // let countSql = tabDef.sqlTmpl.replace('{resultFields}', 'count(1) as total').replace('{exprString1}', str
+      //   .exprString1).replace('{exprString2}', str.exprString2).replace('{exprString}', '')
+      // sqlString = sqlString.replace('{exprString1}', str.exprString1).replace('{exprString2}', str.exprString2)
+      //   .replace('{exprString}', '')
+      let countSql = tabDef.sqlTmpl.replace('{resultFields}', 'count(1) as total').replace('{exprString1}', str.exprString1).replace('{exprString}', '')
+      sqlString = sqlString.replace('{exprString1}', str.exprString1).replace('{exprString}', '')
+      this.sqlString = sqlString
+      this.countSql = countSql
+      let page_size = reptPageGetPageSize(tabDef.name)
+      this.message = {
+        cmd: 'query',
+        data: {
+          reptName: tabDef.name,
+          pageSize: page_size,
+          pageIndex: 0,
+          sql: sqlString,
+          total: -1,
+          countSql: countSql
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: this.message,
+        def: tabDef
+      })
+    }
+
+    /**
+     * @description: 查询数据函数
+     * @param {type} tabDef
+     * @return: 
+     */
+    this.doQuery = (tabDef) => {
+      window.xhint.showLoading()
+      let exprString = ''
+      let objRange = xdata.objRange
+      let isCheck = xdata.isCheck
+      let list = tabDef.exprList ? tabDef.exprList : []
+      let shift = xdata.metaStore.data.shift && xdata.metaStore.data.shift.get(1)
+      let shiftime = shift ? shift.start_time : '23:59:59'
+      let beforeTime = new Date() - 24 * 60 * 60 * 1000
+      let theDay = new Date().format('yyyy-MM-dd')
+      beforeTime = new Date(beforeTime).format('yyyy-MM-dd')
+      this.stime = `${theDay} 00:00`
+      this.etime = new Date().format('yyyy-MM-dd hh:mm')
+      if (tabDef.name === 'v_vehicle_day') {
+        xbus.trigger('SEND-START-TIME', {
+          sTime: this.stime,
+          eTime: this.etime
+        })
+      }
+      let lessSearchtime =
+        `((start_time between '${beforeTime} ${shiftime}' and '${beforeTime} 23:59:59' and shift_id = 1) or (start_time between '${theDay} 00:00:00' and '${theDay} ${shiftime}') or (start_time between '${theDay} ${shiftime}' and '${theDay} 00:00:00' and shift_id != 1))`
+      for (let i = 0; i < list.length; i++) {
+        let str = ''
+        let funName = list[i].value.funName
+        let funFields = list[i].value.funFields
+        if (typeof list[i].value === 'string') {
+          str = list[i].value
+        } else if (funName) {
+          if (funFields) {
+            str = reptQueryUntils[funName](...funFields)
+          } else {
+            str = reptQueryUntils[funName]()
+          }
+        } else {
+          str = funFields[0]
+        }
+        if (i === 0) {
+          exprString += 'and ' + str
+        } else {
+          exprString += ` ${list[i].logicValue} ${str}`
+        }
+      }
+      if (tabDef.sign && tabDef.sign == 1) {
+        let accessSql = getAccessSql(tabDef.name)
+        exprString += accessSql
+      }
+      if ((objRange === 1 || isCheck === 1) && tabDef.needDisplay && tabDef.needDisplay == 1) {
+        let displaySql = getDisplaySql(tabDef.name)
+        exprString += displaySql
+      }
+
+      if (isCheck === 1 && tabDef.areaDisplay && tabDef.areaDisplay == 1) {
+        let areaDisplaySql = getAreaDisplaySql(tabDef.name)
+        exprString += areaDisplaySql
+      }
+      let sqlString = tabDef.sqlTmpl.replace('{resultFields}', tabDef.fields.names.join(','))
+      let countSql = tabDef.sqlTmpl.replace('{resultFields}', 'count(1) as total').replace('{exprString}', exprString)
+      let page_size = reptPageGetPageSize(tabDef.name)
+      if (tabDef.name === 'worktime_dept_shift') {
+        sqlString = sqlString.replace('{exprString}',
+          `and date(hwd.start_work_time) = '${new Date().format('yyyy-MM-dd')}'`)
+      } else if (tabDef.name === 'person_absence' || tabDef.name === 'vehicle_no_updown_mine') {
+        sqlString = sqlString.replace('{noexprString}', '').replace('{exprString}', exprString)
+        countSql = countSql.replace('{noexprString}', '')
+      } else if (tabDef.name === 'worktime_detail_table') {
+        let beforeTime = new Date() - 24 * 60 * 60 * 1000
+        beforeTime = new Date(beforeTime).format('yyyy-MM-dd')
+        let shift = xdata.metaStore.data.shift && xdata.metaStore.data.shift.get(1)
+        let shiftime = shift ? shift.start_time : '23:59:59'
+        let searchtime = `between '${beforeTime} ${shiftime}' and '${new Date().format('yyyy-MM-dd')} 23:59:59'`
+        let theDay = new Date().format('yyyy-MM-dd')
+        searchtime =
+          `((start_work_time between '${beforeTime} ${shiftime}' and '${beforeTime} 23:59:59' and shift_id = 1) or (start_work_time between '${theDay} 00:00:00' and '${theDay} ${shiftime}') or (start_work_time between '${theDay} ${shiftime}' and '${theDay} 00:00:00' and shift_id != 1))`
+        lessSearchtime =
+          `((start_time between '${beforeTime} ${shiftime}' and '${beforeTime} 23:59:59' and shift_id = 1) or (start_time between '${theDay} 00:00:00' and '${theDay} ${shiftime}') or (start_time between '${theDay} ${shiftime}' and '${theDay} 00:00:00' and shift_id != 1))`
+        sqlString = sqlString.replace('{exprString}', searchtime).replace('{exprStringDept}', '').replace(
+          '{exprStringLess}', lessSearchtime)
+        countSql = tabDef.sqlTmpl.replace('{resultFields}', 'count(1) as total').replace('{exprString}', searchtime)
+          .replace('{exprStringDept}', '').replace('{exprStringLess}', lessSearchtime)
+      } else if (tabDef.name === 'person_day') {
+        sqlString = sqlString.replace('{exprString}', exprString)
+        countSql = `select count(1) as total from (${sqlString}) aa`
+      } else if (tabDef.name === 'person_month') {
+        sqlString = sqlString.replace('{exprString}', '').replace('{exprStringTime}', exprString)
+        countSql =  tabDef.sqlTmpl.replace('{resultFields}', 'count(1) as total').replace('{exprString}', '').replace('{exprStringTime}', exprString)
+      } else {
+        sqlString = sqlString.replace('{exprString}', exprString)
+        if (['person', 'person_special', 'person_card_battery_alarm', 'person_well_overtime'].includes(tabDef.name)) {
+          let stime = new Date(new Date(this.etime) - 30*24*60*60*1000).format('yyyy-MM-dd hh:mm')
+          sqlString = sqlString.replace('{batlogExprString}', `and time >= '${stime}' and time <= '${this.etime}'`)
+          countSql = countSql.replace('{batlogExprString}', `and time >= '${stime}' and time <= '${this.etime}'`)
+        }
+      }
+      console.log('打印sqlString',sqlString)
+      this.sqlString = sqlString
+      this.countSql = countSql
+      this.message = {
+        cmd: 'query',
+        data: {
+          reptName: tabDef.name,
+          pageSize: page_size,
+          pageIndex: 0,
+          sql: sqlString,
+          total: -1,
+          countSql: countSql
+        }
+      }
+      this.graphMsg = {
+        name: tabDef.name,
+        type: (GRAPHNAME.includes(tabDef.name) || tabDef.name == 'whole_status') ? 'MONTH' : 'DATE',
+        time: GRAPHNAME.includes(tabDef.name) ? [String(getMon()), String(getMon())] : [String(this.stime), String(this.etime)]
+      }
+      if (this.reptNames.includes(this.graphMsg.name)) {
+        this.showGraph(this.graphMsg)
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: this.message,
+        def: tabDef
+      })
+    }
+
+    /**
+     * @description: 显示图形函数
+     * @param {type} graphMsg
+     * @return: 
+     */
+    this.showGraph = (graphMsg) => {
+      let name = 'QGraph_' + graphMsg.name
+      let childtag = this.refs[name]
+      childtag.getGraphData(graphMsg)
+      childtag.existgraph = true
+      childtag.update()
+    }
+
+    /**
+     * @description: 点击切换tab函数
+     * @param {type} 
+     * @return: 
+     */
+    this.switchTab = (evt) => {
+      let item = evt.item
+      let tabName = item.tab.name
+      let arr = this.parent.tags['side-bar'].activateItem(tabName)
+      this.gotoTab(tabName)
+      this.update()
+    }
+
+    /**
+     * @description: 跳转tab函数
+     * @param {type} tabName
+     * @return: 
+     */
+    this.gotoTab = (tabName) => {
+      if (this.activeTabName == tabName) {
+        return
+      }
+      this.setTabVisibility(this.activeTabName, false)
+      this.activeTabName = tabName
+      this.setTabVisibility(this.activeTabName, true)
+      if (tabName === 'v_vehicle_day_detail') {
+        this.root.querySelector('#QBuilder_v_vehicle_day_detail').classList.add('hide')
+      }
+    }
+
+    /**
+     * @description: 设置tab是否显示
+     * @param {type} tabName，visible
+     * @return: 
+     */
+    this.setTabVisibility = (tabName, visible) => {
+      let oTitle = this.root.querySelector(`#REPT_TITLE_${tabName}`)
+      let oContent = this.root.querySelector(`#REPT_CONTENT_${tabName}`)
+      if (oTitle && oContent) {
+        if (visible) {
+          oTitle.classList.add('active')
+          oContent.classList.remove('hide')
+        } else {
+          oTitle.classList.remove('active')
+          oContent.classList.add('hide')
+        }
+      }
+    }
+
+    /**
+     * @description: 关闭函数
+     * @param {type} 
+     * @return: 
+     */
+    this.close = (evt) => {
+      evt.stopPropagation() // stop the event to propagate
+      let item = evt.item
+      let tabName = item.tab.name
+      this.closeTab(tabName)
+      this.update()
+      this.mountReptMenu()
+    }
+
+    /**
+     * @description: 关闭tab
+     * @param {type} tabName
+     * @return: 
+     */
+    this.closeTab = (tabName) => {
+      for (let i = 0; i < this.tabNameList.length; i++) {
+        if (this.tabNameList[i] == tabName) {
+          this.tabNameList.splice(i, 1)
+          this.tabDefs.splice(i, 1)
+          if (this.activeTabName == tabName && this.tabNameList.length > 0) {
+            let nextActiveIndex = this.tabNameList[i] ? i : i - 1
+            let nextAtiveTabName = this.tabNameList[nextActiveIndex]
+            this.gotoTab(nextAtiveTabName)
+          }
+          return
+        }
+      }
+    }
+
+    this.stopIndex = false
+
+    xbus.on('STOP-CLICK-FOR-CLOSE-EXPR', () => {
+      this.stopIndex = true
+    })
+
+    this.root.onclick = (evt) => {
+      if (this.stopIndex) {
+        this.stopIndex = false
+        return
+      }
+      if (!window.isPC) return
+      let target = evt.target
+      let expr = this.root.parentElement.querySelector('.expr-builder')
+      if (expr && target !== expr && !Array.from(expr.childNodes).includes(target)) {
+        xbus.trigger('CLOSE-EXPR')
+      }
+    }
+
+    /**
+     * @description: 触发HIDE-SELECT-CHOOSE，模拟失焦事件，隐藏select
+     * @param {type} 
+     * @return: 
+     */
+    this.hideSelect = (evt) => {
+      let target = evt.target
+      xbus.trigger('HIDE-SELECT-CHOOSE')
+    }
+    /**
+     * @description: mount报表菜单
+     * @param {type} empty
+     * @return: 
+     */
+    this.mountReptMenu = () => {
+      if (this.tabDefs.length == 0) {
+        this.reptMenu = riot.mount('div#rept-menu', 'transfer-menu', {
+          name: 'REPT',
+          menus: reptMenu
+        })[0]
+      }
+    }
+
+    /**
+     * @description: 获取默认时间
+     * @param {type} empty
+     * @return: 'yyyyy-mm-dd'
+     */
+    this.getDefultTime = () => {
+      let year = new Date().getFullYear()
+      let month = new Date().getMonth() + 1
+      let day = new Date().getDate() - 1
+      return year + '-' + month + '-' + day
+    }
+
+  </script>
+</rept-page>

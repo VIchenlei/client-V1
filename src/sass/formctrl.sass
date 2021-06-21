@@ -1,0 +1,119 @@
+@import defs
+
+
+//---------------- button --------------
+
+button
+    outline: 0
+
+    min-width: 4rem
+    height: 2rem
+
+    text-align: center
+    text-decoration: none
+    text-rendering: optimizeLegibility
+
+    font-size: $fontsize-s
+
+    background: $btn-bg
+    color: $btn-color
+
+    // box-shadow: $button-shadow
+    border: none
+    border-radius: 2px
+
+    transition: $transition
+    cursor: pointer
+    // margin-right: 1rem
+
+    &:hover
+        background-color: $btn-active-bg
+        color: $btn-active-color
+
+        box-shadow: $button-shadow
+        // transform: translate3d(0,-1px,0)
+
+    &:invalid, &:disabled
+        background: $btn-invalid-bg
+
+.button-cancel:hover
+    background: #bfbfbf
+    border: 1px solid #bfbfbf
+.button-delete:hover,.delete:hover
+    background: $btn-del-color
+    border: 1px solid $btn-del-color
+.btn-sure:hover
+    background: $make-sure 
+.btn-cancel:hover
+    background: $make-default
+
+.ripple-span
+    @include wh(100%,2rem)
+    display: flex
+    position: absolute
+    background: $active-sure
+    transform: scale(0)
+    transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms
+//---------------- input --------------
+input
+    height: $control-height
+    padding: 0 .2rem
+    border-radius: $control-radius
+    // border: 1px solid $body-sp
+    background: none
+    border: 0
+    border-bottom: $border-current
+    position:absolute     
+
+input:required
+    border-color: $active-bg
+// input:invalid, input:out-of-range
+//     border-color: #F00
+input:read-only
+    background: none
+    border: none !important
+input:focus
+    border: none
+    outline: none
+
+.file-input
+    cursor: pointer
+.datetime-input
+    cursor: pointer
+
+.checkbox
+    @include wh(1rem,1rem)
+
+//---------- select component ------------
+select
+    display: inline-block
+    @include wh(100%,2rem)
+    padding: 7px 24px 7px 8px
+    vertical-align: middle
+    background: #fff url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAMAAACzvE1FAAAADFBMVEUzMzMzMzMzMzMzMzMKAG/3AAAAA3RSTlMAf4C/aSLHAAAAPElEQVR42q3NMQ4AIAgEQTn//2cLdRKppSGzBYwzVXvznNWs8C58CiussPJj8h6NwgorrKRdTvuV9v16Afn0AYFOB7aYAAAAAElFTkSuQmCC) no-repeat right 8px center
+    background-size: 8px 10px
+    // box-shadow: inset 0 -1px 2px rgba(0, 0, 0, 0.075)
+    appearance: none
+    padding-right: 8px
+    background-image: none
+    border: none
+    border-bottom: $border-current
+    // border: 1px solid $minor-bgcolor
+    font-size: 0.9rem
+
+select:focus
+    outline: none
+
+//---------- nav-title ------------
+.nav-title
+    display: flex
+    justify-content: space-around
+    height: 2rem
+    line-height: 2rem
+
+//--------- triangle --------------
+.triangle
+    position: absolute
+    border-bottom: 10px solid $active-ft
+    border-left: 7px solid transparent
+    border-right: 5px solid  transparent

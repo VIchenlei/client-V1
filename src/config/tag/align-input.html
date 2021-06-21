@@ -1,0 +1,252 @@
+<align-input>
+  <span class="title-input">
+    <span>{title}</span>
+    <img if={opts.name === 'route_planning'} src="/img/jump_icon.png" alt="" onclick={setPersonPath}>
+    <img if={opts.name === 'reader_planning'} src="/img/add_icon.png" alt="" onclick={addReader}>
+  </span>
+  <ul if={opts.name === 'over_speed_vehicle'} class="align-input-ul">
+    <li each={list in lists} data-id={list.key} ref={list.spy}>
+      <span>{list.title}</span>
+      <input type="text" value={list.value} data-oldValue={list.value} readonly={opts.readonly}>
+    </li>
+  </ul>
+  <ul if={opts.name === 'route_planning'} each={list in lists} ref="{opts.name}" class="align-input-ul {opts.name}">
+    <li each={item in list} data-id="" class={item.name}>
+      <span>{item.label}</span>
+      <input type="text" ref="{item.name}{item.key}" value={item.value} readonly={opts.readonly}>
+    </li>
+  </ul>
+  <ul if={opts.name === 'reader_planning'} each={ reader,index in readers } ref="{opts.name}" class="align-input-ul {opts.name}">
+    <li each={item in reader} data-id="" class={item.name}>
+      <span>{item.label}</span>
+      <input type="{item.text}" ref="{item.name}{item.key}" value={item.value} data-index={item.key} data-name="{item.name}{item.key}" readonly={opts.readonly} onclick={show}>
+      <div class="{item.name}{item.key} popup-list hide"></div>
+    </li>
+    <li><img class="delete-icon" src="/img/delete.png" data-index={index} onclick={deleteReaderPlan}></li>
+  </ul>
+  
+  
+  <script>
+    import { clone } from '../../js/utils/utils.js'
+    let tagMonitor = this.parent.parent.tagMonitor
+    let self = this
+    let vehicleCate = xdata.metaStore.data.vehicle_category
+    this.isShowResultList = false
+    let speeds = [
+      {key: 1, title: '人车速度', spy: 'rcspeed', value: vehicleCate ? vehicleCate.get(1).over_speed : 0},
+      {key: 2, title: '料车速度', spy: 'lcspeed', value: vehicleCate ? vehicleCate.get(2).over_speed : 0},
+      {key: 3, title: '特种车速度', spy: 'tzcspeed', value: vehicleCate ? vehicleCate.get(3).over_speed : 0}
+    ]
+
+    let routePlans = []
+    let routePlan = [
+      {name: 'id', label: '路径编号', value: ''},
+      {name: 'stay_time', label: '停留时长 ', value: ''},
+      {name: 'b_x', label: '起始点x', value: ''},
+      {name: 'b_y', label: '起始点y', value: ''},
+      {name: 'e_x', label: '结束点x', value: ''},
+      {name: 'e_y', label: '结束点y', value: ''},
+    ]
+    let readerPlan = [
+      {name: 'id', label: '分站编号', value: '', text: 'text', key: '0'},
+      {name: 'plan_one_time', label: '计划到达时间1', value: '', text: 'time', key: '0'},
+      {name: 'plan_two_time', label: '计划到达时间2', value: '', text: 'time', key: '0'},
+    ]
+    
+    this.show = (evt) => {
+      if (evt.item.item.name !== 'id') return
+      this.index = evt.target.dataset.index
+      evt.stopPropagation()
+      let target = evt.currentTarget
+      let tagName = evt.target.dataset.name
+      let parentTarget = this.parent.parent.root.querySelector('.role-dialog')
+      if (this.callList) {
+        this.callList.unmount(true)
+      }
+
+      this.callList = riot.mount(`.${tagName}`, 'popup-list', {
+        target: target,
+        name: 'reader',
+        self: self,
+        parentTarget: parentTarget
+      })[0]
+    }
+
+    this.insertChoosed = (target, name) => {
+      let root = this.refs[`id${this.index}`]
+      let dataType = target.getAttribute('data-type')
+      root.value = dataType
+    }
+
+    //添加分站计划
+    this.addReader = () => {
+      let datas = clone(readerPlan)
+      for (let j = 0; j < datas.length; j++) {
+        datas[j].key = this.readers.length
+      }
+      routePlans.push(datas)
+      this.readers = routePlans
+    }
+
+    //删除分站计划
+    this.deleteReaderPlan = (evt) => {
+      let index = evt.target.dataset.index
+      index = Number(index)
+      this.readers.splice(index,1) 
+      for (let i = 0; i < this.readers.length; i++) {
+        for (let j = 0; j < this.readers[i].length; j++) {
+          this.readers[i][j].key = i
+        }
+      }
+      this.update()
+    }
+
+    this.setPersonPath = () => {
+      xbus.trigger('DIALOG-SHOW',{isShow: false})
+      if (tagMonitor) {
+        tagMonitor.gotoPage('sp_monitor', null, 'edit-route-planning')
+      } else {  
+        xbus.trigger('MAP-DRAW-ROUTEPLAN', {
+          mapID: this.mapID,
+          mapType: this.mapType,
+          isEdit: true
+        })
+      }  
+    }
+
+    this.getFormatTime = (time) => {
+      let values = ''
+      let times = time.split(':')
+      for (let i = 0; i < times.length; i++) {
+        if (i < times.length-1) {
+          values+= i === 0 ? `${times[i]}` : `:${times[i]}`
+        }
+      }
+      return values
+    }
+
+    this.initValue = (key) => {
+      if (this.values) {
+        let values = this.values
+        if (isNaN(this.values)) {
+          values = opts.name === 'reader_planning' ? values.split(',') : values.split(';')
+        }
+        if (opts.name === 'over_speed_vehicle') {
+          for (let i = 0; i < this.lists.length; i++) {
+            let speed = values[i]
+            speed = isNaN(this.values) ? speed.split(',')[1] : values
+            this.lists[i].speed = parseInt(speed, 10)
+          }
+        } else if (opts.name === 'route_planning') {
+          for (let i = 0; i < values.length; i++) {
+            if (values[i] === "") continue
+            let value = values[i].split(',')
+            let datas = clone(routePlan)
+            datas = i === 0 || i === values.length-1 ? datas : datas = datas.slice(0,2)
+            for (let j = 0; j < datas.length; j++) {
+              datas[j].value = datas[j].name === 'stay_time' ? Number(value[j])/60 : value[j]
+              datas[j].key = i
+            }
+            routePlans.push(datas)
+            this.lists = routePlans
+          }
+        } else {
+          if (opts.name === 'reader_planning') {
+            for (let i = 0; i < values.length; i++) {
+              let value = values[i].split('&')
+              let datas = clone(readerPlan)
+              for (let j = 0; j < datas.length; j++) {
+                datas[j].value = value[j]
+                if (['plan_one_time', 'plan_two_time'].includes(datas[j].name) && value[j] !== undefined) {
+                  datas[j].value = this.getFormatTime(value[j])
+                }
+                datas[j].key = i
+              }
+              routePlans.push(datas)
+              this.readers = routePlans
+            }
+          }
+        }
+      } else {
+        if (opts.name === 'reader_planning') {
+          let datas = clone(readerPlan)
+          routePlans.push(datas)
+          this.readers = routePlans
+        }
+      } 
+    }
+
+    this.getValue = () => {
+      let values = ''
+      if (opts.name === 'over_speed_vehicle') {
+        this.lists.forEach(list => {
+          let root = self.refs[list['spy']]
+          let input = root.querySelector('input')
+          let key = list.key
+          let value = input.value
+          values += `;${key},${value}`
+        })
+        values = values.replace(';', '')
+      } else if (opts.name === 'route_planning') {
+        for (let i = 0; i < this.lists.length; i++) {
+          let list = this.lists[i]
+          list = i === 0 || i === this.lists.length-1 ? list : list.slice(0,2)
+          for (let j = 0; j < list.length; j++) {
+            let input = self.refs[`${list[j].name}${i}`]
+            let value = input.value
+            if (list[j].name === 'stay_time') value = Number(value)*60
+            values += j < list.length-1 ? `${value},` : `${value}${i < this.lists.length-1 ? ';' : ''}`            
+          }
+        }
+      } else if (opts.name === 'reader_planning') {
+        for (let i = 0; i < this.readers.length; i++) {
+          let reader = this.readers[i]
+          for (let j = 0; j < reader.length; j++) {
+            let input = self.refs[`${reader[j].name}${i}`]
+            let value = input.value
+            let inputReader = self.refs[`${reader[0].name}${i}`]
+            let inputTime1 = self.refs[`${reader[1].name}${i}`]
+            let inputTime2 = self.refs[`${reader[2].name}${i}`]
+            if (inputReader.value !== '' && inputTime1.value === '' && inputTime2.value === '') {
+              return null
+            }
+            if (inputReader.value === '' && (inputTime1.value !== '' || inputTime2.value !== '')) {
+              return null
+            }
+            if (['plan_one_time', 'plan_two_time'].includes(reader[j].name) && value !== '') {
+              value += ':00'
+            }
+            console.log(value,'-----------------')
+            if (value !== null) {
+              values += j < reader.length-1 ? `${value}${self.refs[`${reader[j+1].name}${i}`].value === '' ? '' : '&'}` : `${value}${i < this.readers.length-1 && values ? ',' : ''}` 
+            }      
+          }
+        }
+       }
+      return values
+    }
+
+    this.updateData = (msg) => {
+      this.lists = null
+      routePlans = []
+      this.values = msg.values
+      this.initValue()
+      this.update()
+    }
+
+    this.init = (opts) => {
+      this.title = opts.name === 'over_speed_vehicle' ? '车速上限(Km/h)' : opts.text
+      let values = opts.dataValue
+      this.values = values
+
+      if (opts.name === 'reader_planning') {
+        this.readers = routePlans
+      } else {
+        this.lists = opts.name === 'over_speed_vehicle' ? speeds : routePlans
+      }
+
+      this.initValue()
+    }
+    this.init(opts)
+  </script>
+</align-input>

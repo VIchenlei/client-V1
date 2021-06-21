@@ -1,0 +1,286 @@
+<group-list class="group-list-container">
+  <div class="group-panel">
+    <div class="group-list group-list-title">
+      <span each={ label in topic.label.group }>{ label }</span>
+    </div>
+    <div each={ group in groups }>
+      <p class="group-list group-list-item { group[0] == currentGroupID ? 'active' : ''}" data-groupid={ group[0] }  ondblclick={ toggleLocateAll }>
+        <span data-groupid={ group[0] } onclick={ switchGroup }>{ group[2] }</span>
+        <span data-groupid={ group[0] } onclick={ showDetailTable }>{ group[1] }</span>
+      </p>
+      <div if={ group[0] == currentGroupID } class="detail-panel">
+        <p class="detail-list detail-list-title">
+          <span each={ label in topic.label.detail}>{ label }</span>
+        </p>
+        <div if={ currentGroup && currentGroup.cards } each={ row in currentGroup.cards } class="detail-list detail-list-item" id = { row[0] }>
+          <p>
+            <span>{ row[1] }</span>
+            <span class={ topic.type == 1 ? 'staff-topic-date' : 'vehicle-topic' }>{ row[2] }</span>
+            <span calss={ topic.type == 1 ? 'staff-topic-null' : 'vehicle-topic-speed' }>
+              <virtual if={ topic.type == 2 && !currentGroup.isSpecial }>{ Math.abs(row[3]).toFixed(1) }</virtual>
+            </span>
+            <span>
+              <card-opbar cardid={row[0]} cardtypeid={topic.type} isspecial={ currentGroup.isSpecial } needhide="0"></card-opbar>
+            </span>
+          </p>
+          <p>{ topic.type==2 ? row[4] : row[3] }</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div data-is="blank-message" message="没有相关记录！" class="blank-message" if={ !hasData }></div>
+
+  <script>
+    import { CARD } from '../../js/def/state.js'
+    import { OD, ST } from '../../js/def/odef.js'
+    import { TOPIC } from '../../js/def/topic_def.js'
+    import leftCount from '../../js/def/left_area.js'
+    import { compare } from '../../js/utils/utils.js'
+
+    import './call-leave.html'
+    import './card-opbar.html'
+
+    //  当前展开的区域
+    this.currentGroupID = -1
+    this.currentGroup = null
+    this.hasData = false
+
+    let self = this
+    this.staffTopic = false
+
+    // 当前显示的主题
+    this.topic = leftCount[TOPIC.VEHICLE_BY_AREA]
+
+    // 由外部通过 update 传入参数来切换 topic
+    this.on('update', (topicName) => {
+      let target = leftCount[topicName]
+      if (target) { // 父标签里已经判断过切换类别时，是否一样，这里不需要判断
+      // if (target && target !== this.topic) {
+        this.topic = target
+        // 切换类别时，默认收拢该类别的所有统计组（即不显示详细列表）
+        this.currentGroupID = -1
+
+        this.updateData()  // 注意： 不要再 this.update()，否则会循环
+      }
+    })
+
+    // 数据刷新通过事件
+    xbus.on('CARD-STATE-CHANGED', () => {
+      this.refresh()
+    })
+
+    // 显示详情
+    this.showDetailTable = (evt) => {
+      let target = evt.currentTarget
+      let groupID = target.getAttribute('data-groupid')
+      let msg = {
+        type: 'card',
+        subTypeID: this.topic.type,
+        statType: this.topic.groupName,
+        groupID: parseInt(groupID, 10)
+      }
+      window.showDetailDialog(msg)
+    }
+
+    // 设置一个对象的 active 状态
+    this.setActive = (obj, isActive) => {
+      if (obj) {
+        let cl = obj.classList
+        isActive ? cl.add('active') : cl.remove('active')
+      }
+    }
+
+    // 切换活跃组，并展开对应类别的详细信息
+    this.switchGroup = (evt) => {
+      // riot.mount('card-opbar',{})
+      let el = evt.currentTarget
+      let sid = el.getAttribute('data-groupid')
+      if (sid) {
+        let groupID = parseInt(sid, 10)
+        if (groupID === self.currentGroupID) { // 关闭 tab
+          self.currentGroupID = -1
+          self.currentGroup = null
+        } else {
+          self.updateDetailData(groupID)
+        }
+      }
+    }
+
+    // 判断是否是特殊区域，该逻辑仅适用于区域
+    this.isSpecial = (id) => {
+      let ret = false
+      let areaTypeID = null
+      if (id !== 0) {
+        areaTypeID = xdata.metaStore.data.area.get(id) && xdata.metaStore.data.area.get(id).area_type_id
+      }
+      if (this.topic.groupName === ST.AREA) {
+        ret = id === 0 || areaTypeID == 1000
+      }
+      return ret
+    }
+
+    // 刷新
+    this.refresh = () => {
+      this.updateData()
+      this.update()
+    }
+
+    this.judgeAreaNeedDisplay = (data, areas) => {
+      let group = []
+      data && data.filter(item => {
+        let areaID = item[0]
+        let area = areas.get(areaID)
+        if (area && area.need_display !== 0) group.push(item)
+      })
+      return group
+    }
+
+    this.hideWorkFaceV = (data) => {
+      let group = []
+      data && data.filter((item) => {
+        if (item[0] !== 28 && item[0] !== 29) {
+          group.push(item)
+        }
+      })
+      return group
+    }
+
+    this.updateData = () => {
+      let rows = xdata.cardStore.getStat(self.topic.type, self.topic.groupName)
+      // if (this.topic.groupName === 'area') { // 对区域进行排序
+      //   rows = rows && rows.sort(function (x, y) {
+      //     return x[3] - y[3]
+      //   })
+      // } else 
+      if (this.topic.groupName === 'occupation_level') {
+        rows = rows && rows.sort(function (x, y) {
+          return x[0] - y[0]
+        })
+      } else {
+        rows = rows && rows.sort(function (x, y) {
+          return x[2].toString().localeCompare(y[2].toString())
+        })
+      }
+      self.groups = rows || null
+      // if (self.topic.type === 2 && self.topic.groupName === 'area') {
+      //   self.groups = this.hideWorkFaceV(self.groups)// 隐藏工作面车卡数据
+      // }
+      if (xdata.isCheck === 1 && self.topic.groupName === 'area') {
+        let areas = xdata.metaStore.data.area
+        self.groups = this.judgeAreaNeedDisplay(self.groups, areas)
+      }
+
+      if (self.groups && self.groups.length > 0) {
+        self.hasData = true
+        if (self.currentGroupID > 0) {
+          self.updateDetailData(this.currentGroupID)
+        }
+      } else {
+        self.hasData = false
+      }
+    }
+
+    // 根据 groupID，更新明细数据,groupID为区域
+    this.updateDetailData = (groupID) => {
+      let cards = xdata.cardStore.getDetail(self.topic.type, self.topic.groupName, groupID)
+      let data = null
+      if (cards && cards.length > 0) {
+        data = self.formatDetailData(cards)
+      }
+      self.currentGroup = {
+        cards: data,
+        isSpecial: self.isSpecial(groupID)
+      }
+      self.currentGroupID = groupID
+    }
+
+    // 将数据格式化为显示需要的数组
+    this.formatDetailData = (cards) => {
+      let data = []
+
+      if (self.topic.type === OD.VEHICLE) {
+        for (let i = 0, len = cards.length; i < len; i++) {
+          let row = []
+          let card = cards[i]
+          let stateDef = xdata.cardStore.stateDefs['vehicle']
+          let state = xdata.metaStore.formatStateArray(stateDef, card, null)
+          let vname = card[CARD.object_id]
+          let driver = xdata.metaStore.getVehicleDriver(vname)
+          let dname = driver ? driver.name : ''
+          let speed = card[CARD.speed]
+          let land = state[16]
+          row = [card[0], vname, dname, speed, land]
+
+          data.push(row)
+        }
+      } else {
+        for (let i = 0, len = cards.length; i < len; i++) {
+          let row = []
+          let card = cards[i]
+          let stateDef = xdata.cardStore.stateDefs['staff']
+          let state = xdata.metaStore.formatStateArray(stateDef, card, null)
+          let sname = card[CARD.object_id]
+          let t = card[CARD.down_time]
+          let dtime = t ? new Date(t).format('MM-dd hh:mm:ss') : ''
+          let land = state[16]
+          row = [card[0], sname, dtime, land]
+
+          data.push(row)
+        }
+      }
+
+      return data
+    }
+
+    this.toggleLocateAll = (evt) => {
+      self.switchGroup(evt)
+      let localcards = []
+      // let localareas = []
+      let el = evt.currentTarget
+      let sid = el.getAttribute('data-groupid')
+      if (sid) {
+        let groupID = parseInt(sid, 10)
+        let cards = xdata.cardStore.getDetail(self.topic.type, self.topic.groupName, groupID)
+        // console.log(cards)
+        for (let i = 0, len = cards.length; i < len; i++) {
+          let card = cards[i]
+          let cardID = card[CARD.card_id]
+          let areaID = card[CARD.area_id]
+          let areaTypeID = xdata.metaStore.data.area.get(areaID).area_type_id
+          if (areaTypeID < 1000) {
+            localcards.push(cardID)
+          }
+        }
+        if (localcards.length > 0) {
+         // xbus.trigger('CARD-LOCATING-TOGGLE', { cards: localcards })
+          window.triggerLocating({ cards: localcards })
+        }
+        // if (localareas.length > 0) {
+        //   xbus.trigger('MAP-SHOW-AREA', {
+        //     areas: localareas,
+        //     mapID: 5,
+        //     mapType: 'MONITOR',
+        //     type: 'location',
+        //     isVisible: 'true'
+        //   })
+        // }
+      }
+    }
+
+    this.toggleLocate = (evt) => {
+      let target = evt.currentTarget
+      let id = target.getAttribute('id')
+      let tags = this.tags['card-opbar']
+      if (!tags.length) {
+        this.tags['card-opbar'].toggleLocate(evt)
+      } else {
+        for (let i = 0, len = tags.length; i < len; i++) {
+          let tag = tags[i]
+          if (tag.cardid === id) {
+            tag.toggleLocate(evt)
+          }
+        }
+      }
+    }
+  </script>
+</group-list>

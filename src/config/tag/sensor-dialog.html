@@ -1,0 +1,221 @@
+<sensor-dialog>
+    <div class="dlg-bg animated">
+      <div name="meta_dialog" ref="meta_dialog" class="dlg-window meta-dialog animated">
+        <div name="meta_title" ref="meta_title" class="dlg-head">
+          <span class="dlg-title">
+            <grip type="grip-horizontal"></grip>{ tableTitle }
+          </span>
+        </div>
+        <div class="dlg-body">            
+          <div data-is="dialog-table" class="dialog-table content-panel" data={ data }></div>
+       </div>
+        <div class="dlg-foot">
+          <button op-name="save-update" class="btn-sure" onclick={ save }>{cmd == 'DELETE' ? '删除' : '保存'}</button>
+          <button op-name="cancel-update" class="btn-cancel" onclick={ close }>取消</button>
+        </div>
+      </div>
+    </div>
+  <script>
+    // import './text-choose.html'
+    import './dialog-table.html'
+    import {trim, composeUpdateDBReq, show} from '../../js/utils/utils.js'
+    import {metaUpdateRes,formatFieldValue,testUnenableNullData,testForm,isReadonly,isDisabled} from '../utils.js'
+    let msg = opts.message
+    this.tableTitle = msg.title
+    this.tableKeyName = msg.key
+    this.tableName = msg.table
+    this.topicName = msg.name
+    this.rows = msg.rows
+    this.cmd = msg.cmd
+    this.data = msg
+    this.data.from = 'sensor'
+
+    this.doBelongInsert = (keyValue, name) => {
+      let rows = this.tags['dialog-table'].refs[name] && this.tags['dialog-table'].refs[name].insertStore
+      rows = rows && Array.from(rows.keys())
+      let insertMsg = ''
+      if (rows && rows.length > 0) {
+        for (let i = 0; i < rows.length; i++) {
+          insertMsg += `,(${keyValue}, ${rows[i]})`
+        }
+        insertMsg = insertMsg.replace(',', '')
+        return name === 'readers' ? `INSERT INTO dat_sensor_reader_map (sensor_id, reader_id) VALUES ${insertMsg}` : `INSERT INTO dat_sensor_driver_map (sensor_id, staff_id) VALUES ${insertMsg}`
+      }
+    }
+
+    this.doBelongUpdate = (keyValue, name, fieldname) => {
+      let insertSql = this.doBelongInsert(keyValue, name)
+      let deleteSql = null
+      let rows = this.tags['dialog-table'].refs[name] && this.tags['dialog-table'].refs[name].deleteStore
+      rows = rows && Array.from(rows.keys())
+      let deleteMsg = ''
+      if (rows && rows.length > 0) {
+        for (let i = 0; i < rows.length; i++) {
+          deleteMsg += `or (sensor_id = ${keyValue} and ${fieldname} = ${rows[i]})`
+        }
+        deleteMsg = deleteMsg.replace('or', '')
+        deleteSql = name === 'readers' ? `DELETE FROM dat_sensor_reader_map where ${deleteMsg}` : `DELETE FROM dat_sensor_driver_map WHERE ${deleteMsg}`
+      }
+      return {
+        insertSql: insertSql,
+        deleteSql: deleteSql
+      }
+    }
+
+    this.registerGlobalEventHandlers = () => {
+      xbus.on('META-UPDATE-DB-RES', (res) => {
+        let updateRes = metaUpdateRes(res, this.topicName, this.cmd)
+        if (updateRes) {
+          this.close()
+        } 
+      })
+    }
+
+    this.doInsert = () => {
+      let keyValue = null
+      let readerSql = null
+      let driverSql = null
+      let fields = ''
+      let values = ''
+      for (let i = 0; i < this.tags['dialog-table'].rows.length; i++) {
+        let row = this.tags['dialog-table'].rows[i]
+        let fieldName = row['field_name']
+        let fieldValue = null
+        let ele = this.tags['dialog-table'].refs[fieldName].root?this.tags['dialog-table'].refs[fieldName].root.querySelector('input'):undefined
+        let value = ele && ele.value
+        if (this.tags['dialog-table'].rows[i].field_type === 'SELECT') {
+          fieldValue = this.tags['dialog-table'].root.querySelector('.' + fieldName+ ' select').getAttribute('value')
+          fieldValue = this.tags['dialog-table'].root.querySelector('.' + fieldName+ ' select').value
+          if (!fieldValue || !fieldValue.match(/\d/ig)) {
+            fieldValue = 0
+          }
+        } else {
+          fieldValue = value
+          fieldValue = formatFieldValue(this.tags['dialog-table'].rows[i].field_type, fieldValue)
+        }
+        if(this.tags['dialog-table'].refs[fieldName].tips && !fieldValue){//如果是必填字段但是没有值时          
+          return testUnenableNullData()
+        }
+        if (i === 0) {
+          keyValue = fieldValue
+        }
+        if (fieldName === 'readers') {
+          readerSql = this.doBelongInsert(keyValue, 'readers')
+        } else if (fieldName === 'drivers') {
+          driverSql = this.doBelongInsert(keyValue, 'drivers')
+        } else {
+          fields += ','
+          values += ','
+          fields += fieldName
+          values += fieldValue
+        }
+      }
+      fields = fields.replace(',', '')
+      values = values.replace(',', '')
+      let sql = {
+        'sensor': `INSERT into ${this.tableName} (${fields}) VALUES(${values})`
+      }
+      if (readerSql) sql['sensor_reader'] = readerSql
+      if (driverSql) sql['sensor_driver'] = driverSql
+      this.metaUpdate('INSERT', keyValue, sql)
+    }
+
+    this.doUpdate = () => {
+      let sql = '', readerSql = null, driverSql = null
+      let keyele = this.tags['dialog-table'].refs[this.tableKeyName].root.querySelector('input')
+      let keyValue = keyele && keyele.value
+      for (let i = 0; i < this.tags['dialog-table'].rows.length; i++) {
+        let fieldName = this.tags['dialog-table'].rows[i].field_name
+        let inputValue = null
+        let ele = this.tags['dialog-table'].refs[fieldName].root?this.tags['dialog-table'].refs[fieldName].root.querySelector('input'):undefined
+        let value = ele && ele.value
+        if (this.tags['dialog-table'].rows[i].field_type === 'SELECT') {
+          value = this.tags['dialog-table'].refs[fieldName].root.querySelector('select').value
+        }
+        if(this.tags['dialog-table'].refs[fieldName].tips && !value){//如果是必填字段但是没有值时
+          return testUnenableNullData()
+        }
+        if (fieldName === 'readers') {
+          readerSql = this.doBelongUpdate(keyValue, 'readers', 'reader_id')
+        } else if (fieldName === 'drivers') {
+          driverSql = this.doBelongUpdate(keyValue, 'drivers', 'staff_id')
+        } else if (this.tags['dialog-table'].rows[i].field_value != value) {
+          inputValue = formatFieldValue(this.tags['dialog-table'].rows[i].field_type, value)
+          sql += `,${fieldName}=${inputValue}`
+        } 
+      }
+      if (!sql && !readerSql.insertSql && !readerSql.deleteSql && !driverSql.insertSql && !driverSql.deleteSql) {
+        this.dlg_tips = '数据没有修改，请确认后再提交！'
+        let msg = {
+          value: 'nochange',
+          tip: this.dlg_tips
+        }
+        window.hintip.open(msg)
+        return
+      } else {
+        let msg = {}
+        if (sql !== '') {
+          sql = sql.replace(',', '')
+          msg['sensor'] = `UPDATE ${this.tableName} set ${sql} where ${this.tableKeyName}=${keyValue}`
+        }
+        if (readerSql.insertSql) msg['readerinsert'] = readerSql.insertSql
+        if (readerSql.deleteSql) msg['readerdelete'] = readerSql.deleteSql
+        if (driverSql.insertSql) msg['driverinsert'] = driverSql.insertSql
+        if (driverSql.deleteSql) msg['driverdelete'] = driverSql.deleteSql
+        this.metaUpdate('UPDATE', keyValue, msg)
+      }
+    }
+
+    this.deleteMsg = () => {
+      let keyele = this.tags['dialog-table'].refs[this.tableKeyName].root.querySelector('input')
+      let keyValue = keyele && keyele.value
+      let msg = {}
+      msg['sensor'] = `DELETE FROM ${this.tableName} WHERE ${this.tableKeyName}=${keyValue}`
+      msg['readerdelete'] = `DELETE FROM dat_sensor_reader_map WHERE ${this.tableKeyName}=${keyValue}`
+      msg['driverdelete'] = `DELETE FROM dat_sensor_driver_map WHERE ${this.tableKeyName}=${keyValue}`
+      this.metaUpdate('DELETE', keyValue, msg)
+    }
+    this.deletePopup = (evt) => { //弹窗提醒删除
+        let self = this
+        if (this.activePanel) {
+            this.activePanel.unmount(true)
+        }
+        this.activePanel = riot.mount('call-leave', { 
+            name: 'dodelete',
+            currentTag: self
+        })[0]
+    }
+    this.deleteRole = () => {
+      this.deletePopup(this.tableName)
+      return
+     // this.deleteMsg()
+    }
+
+    this.save = () => {
+      if(testForm('保存失败，请核对正确保存！',this.root)) return 
+      if (this.cmd === 'INSERT') this.doInsert()
+      if (this.cmd === 'UPDATE') this.doUpdate()
+      if (this.cmd === 'DELETE') this.deleteRole()
+    }
+
+    this.on('mount', () => {
+      show(this.root)
+      window.setDraggable({
+        target: this.refs.meta_dialog,
+        handle: this.refs.meta_title
+      })
+      this.registerGlobalEventHandlers()
+    })
+
+    this.close = () => {
+      this.unmount(true)
+    }
+
+    this.metaUpdate = (cmd,value,sql) => {
+      let req = composeUpdateDBReq(cmd, this.topicName, value, sql)
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+    }
+  </script>
+</sensor-dialog>

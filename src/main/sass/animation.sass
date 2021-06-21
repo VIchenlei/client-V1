@@ -1,0 +1,62 @@
+
+.cubeLeftOut
+    transform-origin: 100% 50%
+    animation: rotateCubeLeftOut 1s both ease-in
+
+.cubeLeftIn
+    transform-origin: 0% 50%
+    animation: rotateCubeLeftIn 1s both ease-in
+    // height: 100%
+
+.cubeRightOut
+    transform-origin: 0% 50%
+    animation: rotateCubeRightOut 1s both ease-in
+
+.cubeRightIn
+    transform-origin: 100% 50%
+    animation: rotateCubeRightIn 1s both ease-in
+    // height: 100%
+
+@keyframes rotateCubeLeftOut
+    50%
+        animation-timing-function: ease-out
+        transform: translateX(-50%) translateZ(-200px) rotateY(-45deg)
+
+    100%
+        opacity: 0
+        transform: translateX(-100%) rotateY(-90deg)
+
+@keyframes rotateCubeLeftIn
+    0%
+        opacity: 0.3
+        transform: translateX(100%) rotateY(90deg)
+
+    50%
+        opacity: 1
+        animation-timing-function: ease-out
+        transform: translateX(50%) translateZ(-200px) rotateY(45deg)
+
+    100%
+        transform: translateX(0%) translateZ(0px) rotateY(0deg)
+
+@keyframes rotateCubeRightOut
+    50%
+        animation-timing-function: ease-out
+        transform: translateX(50%) translateZ(-200px) rotateY(45deg)
+
+    100%
+        opacity: 0
+        transform: translateX(100%) rotateY(90deg)
+
+@keyframes rotateCubeRightIn
+    0%
+        opacity: 0.3
+        transform: translateX(-100%) rotateY(-90deg)
+
+    50%
+        opacity: 1
+        animation-timing-function: ease-out
+        transform: translateX(-50%) translateZ(-200px) rotateY(-45deg)
+
+    100%
+        transform: translateX(0%) translateZ(0px) rotateY(0deg)

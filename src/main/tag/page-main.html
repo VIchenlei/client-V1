@@ -1,0 +1,193 @@
+<page-main>
+  <header class="page-head hide-on-mb" data-is="page-head"></header>
+  <div class="page-body">
+    <section id="sp_monitor" class="sub-page node-hide"></section>
+    <section id="sp_history" class="sub-page node-hide"></section>
+    <section id="sp_rate" class="sub-page node-hide"></section>
+    <section id="sp_report" class="sub-page node-hide"></section>
+    <section id="sp_manage" class="sub-page node-hide"></section>
+    <section id="sp_config" class="sub-page node-hide"></section>
+    <!-- <section id="sp_3dgis" class="sub-page node-hide"></!-->
+  </div>
+  <footer data-is="page-foot" class="page-foot hide-on-mb"></footer>
+  <foot-nav class="foot-nav hide-on-pc" data-is="foot-nav"></foot-nav>
+
+  <script>
+    import { DEFAULT_MAP_ID } from '../../js/def/map_def.js'
+
+    // import '../sass/page-main.sass'
+    // import '../../header/sass/header.sass'
+    // import '../sass/animation.sass'
+
+    import '../../header/tag/page-head.html'
+    import '../../footer/tag/page-foot.html'
+    import '../../footer/tag/foot-nav.html'
+
+    import '../../monitor/tag/sp-monitor.html'
+    import '../../player/tag/sp-history.html'
+    import '../../report/tag/sp-rate.html'
+    import '../../report/tag/sp-report.html'
+    import '../../manage/tag/sp-manage.html'
+    import '../../config/tag/sp-config.html'
+    import '../../3dgis/tag/sp-3dgis.html'
+
+    let tagMonitor = null
+    let tagHistory = null
+    let tagRate= null
+    let tagReport = null
+    let tagManage = null
+    let tagConfig = null
+    let tag3dGis = null
+    let tagProfile = null
+
+    let activeSubPageName = null
+
+    this.isPC = window.isPC
+    this.opts = opts
+
+    this.on('mount', () => {
+      this.tagHeader = this.tags['page-head']
+      this.tagFooter = this.tags['page-foot']
+
+      this.tagMainNav = this.tagHeader && this.tagHeader.tags['main-nav']
+      this.tagFootNav = this.tags['foot-nav']
+    })
+
+    xbus.on('REPORT-FAST-OPEN', (msg) => {
+      this.gotoPage('sp_report', msg)
+      xbus.trigger('SHOW-REPORT', (msg))
+    })
+
+    xbus.on('TRACK-FAST-OPERATE', (msg) => {
+      msg && this.gotoPage('sp_history', msg)
+    })
+
+    this.on('mount', () => {
+      let roleID = this.opts.roleId
+      if (roleID === 100) {
+        activeSubPageName = 'sp_report'
+        let mountPage = 'sp-report'
+        riot.mount(`section#${activeSubPageName}`, `${mountPage}`, {roleID: roleID})[0]
+      } else {
+        tagMonitor = riot.mount('section#sp_monitor', 'sp-monitor', { papa: this, mapID: DEFAULT_MAP_ID })[0]
+        activeSubPageName = 'sp_monitor'
+      }
+    })
+    
+    xbus.on('REPT-SHOW-RESULT', (ds) => {
+        if (ds.def.name === 'three-credentials') {
+          this.ratemsg = ds.rows
+        }
+      })
+    // subpage goto
+    this.gotoPage = (spName, msg, editname) => {
+      xbus.trigger('HIDE-ALL-POPUP')// 切换的时候隐藏card-tips
+
+      // switch the main and foot navigator menu
+
+      switch (spName) {
+        case 'sp_monitor':
+          if (!tagMonitor) {
+            tagMonitor = riot.mount('section#sp_monitor', 'sp-monitor', { papa: this, mapID: DEFAULT_MAP_ID })[0]
+          } else {
+            if(editname === 'edit-reader'){
+                tagMonitor.getReaderInfo(msg)  
+                xbus.trigger('MAP-CHANGE-TOOLTIPS',{isToolTip: false}) //增加判断 实时界面编辑定位拖动分站时不显示 toopitp 弹窗    
+            }else if(editname === 'edit-light'){
+                tagMonitor.getLightInfo(msg)  
+            } else if (editname === 'edit-route-planning') {
+              tagMonitor.getRoutePlanInfo()
+            }
+          }
+          break
+        case 'sp_history':
+          if (!tagHistory) {
+            tagHistory = riot.mount('section#sp_history', 'sp-history', {papa: this})[0]
+          }
+
+          if (msg && msg.id) {
+            tagHistory.update({cardID: msg.id,numberId: msg.numberId,name: msg.name, time: msg.start_time, endTime: msg.end_time})
+          }
+          break
+        case 'sp_rate':
+          if (!tagRate) {
+            tagRate = riot.mount('section#sp_rate', 'sp-rate', { papa: this, msg: this.ratemsg})[0]
+          }
+          break
+        case 'sp_report':
+          if (!tagReport) {
+            tagReport = riot.mount('section#sp_report', 'sp-report', {papa: this, msg: msg})[0]
+          }
+          break
+        case 'sp_manage':
+          if (!tagManage) {
+            tagManage = riot.mount('section#sp_manage', 'sp-manage', {papa: this})[0]
+          }
+          break
+        case 'sp_config':
+          if (!tagConfig) {
+            tagConfig = riot.mount('section#sp_config', 'sp-config', {papa: this})[0]
+          }
+          break
+        case 'sp_3dgis':
+          if (!tag3dGis) {
+            tag3dGis = riot.mount('section#sp_3dgis', 'sp-3dgis', {papa: this})[0]
+          }
+          break
+        case 'sp_profile':
+          if (!tagProfile) {
+            tagProfile = riot.mount('user-profile', {username: xdata.username})[0]
+          }
+          break
+        default:
+          console.warn('UNKNOWN subpage name : ', spName)
+          break
+      }
+
+      window.transer.spTransfer(spName)
+      this.tagMainNav && this.tagMainNav.setActiveItemByName(spName)
+      this.tagFootNav && this.tagFootNav.setActiveItemByName(spName)
+      // if (spName === 'sp_monitor') {
+      //   window.xhint.showLoading()
+      //   window.setTimeout(function(){
+      //     window.xhint.close()
+      //   }, 1000)
+      // }
+
+      this.sendChangeRoomReq(activeSubPageName, spName)
+      activeSubPageName = spName
+    }
+    // 告警等触发导航
+    xbus.on('TOUCH-NAV', (data) => {
+      if(data){
+        this.gotoPage(data.spName,data.msg)
+      }
+    })
+     // 切换 room
+    this.sendChangeRoomReq = (fromSpName, toSpName) => {
+      let op = null
+
+      if (toSpName === fromSpName) {
+        return
+      }
+
+      if (fromSpName === 'sp_monitor' && toSpName !== 'sp_3dgis') {
+        op = 'enter'
+        xdata.maptype = 'HISTORY'
+      } else if (toSpName === 'sp_monitor') {
+        op = 'leave'
+        xdata.needMove = true
+        xdata.maptype = 'MONITOR'
+      }
+
+      if (op) {
+        xbus.trigger('USER', {
+          cmd: 'STANDBY',
+          op: op
+        })
+        console.log('Send change room request: ' + op + ' standby room.')
+      }
+    }
+  </script>
+</page-main>
+

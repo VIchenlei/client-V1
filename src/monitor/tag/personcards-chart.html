@@ -1,0 +1,128 @@
+<personcards-chart>
+  <div class="dlg-bg animated">
+    <div class="dlg-window call-person-dialog animated zoomIn">
+      <div data-is="dialog-head" title="一人带多卡折线图" closer="yes"></div>
+      <div class="chartcont" style="width:700px;height:400px;"></div>
+    </div>
+  </div>
+  <script>
+    import echarts from 'echarts'
+    import {smoothLineOption} from '../../js/def/graph_def.js'
+    this.getName = (key) => {
+      let firstcard = key.split('&')[0]
+      let secard = key.split('&')[1]
+      let firstname = xdata.metaStore.getCardBindObjectInfo(firstcard) ? xdata.metaStore.getCardBindObjectInfo(firstcard).name : firstcard
+      let secname = xdata.metaStore.getCardBindObjectInfo(secard) ? xdata.metaStore.getCardBindObjectInfo(secard).name : secard
+      return {
+        first: firstname,
+        sec: secname
+      }
+    }
+
+    this.initChart = () => {
+      let initdom = this.root.querySelector('.chartcont')
+      echarts.dispose(initdom)
+      let alarmchart = echarts.init(initdom)
+      let alarms = Array.from(this.alarmgroup.keys())
+      let title = null
+      let series = []
+      for (let i = 0; i < alarms.length; i++) {
+        let alarm = alarms[i]
+        let lineStyle = null
+        let names = this.getName(alarm)
+        let name = `${names.first}和${names.sec}`
+        let data = this.alarmgroup.get(alarm).get('data')
+        if (alarm === this.row.obj_id) {
+          title = name
+        } else {
+          lineStyle = {
+            normal: {
+              type: 'dashed'
+            }
+          }
+        }
+        series.push({
+          name: `${name}@${alarm}`,
+          data: data,
+          type: 'line',
+          smooth: true,
+          lineStyle: lineStyle
+        })
+      }
+      let msg = {
+        title: title,
+        time: this.time,
+        mintime: new Date(this.row.cur_time).format('hh:mm'),
+        maxtime: new Date(this.row.cur_value).format('hh:mm'),
+        series: series,
+        row: this.alarmgroup
+      }
+      let option = smoothLineOption(msg)
+      alarmchart.setOption(option)
+    }
+
+    this.setData = (item) => {
+      let cards = `${item.uwb_cardone}&${item.uwb_cardtwo}`
+      if (!this.alarmgroup.get(cards)) {
+        let ret = new Map()
+        let data = []
+        ret.set('data', data)
+        this.alarmgroup.set(cards, ret)
+      }
+      let curAlarm = this.alarmgroup.get(cards)
+      curAlarm.set(item.atime, item)
+      curAlarm.get('data').push([item.atime, item.result])
+    }
+
+    this.initData = (rows) => {
+      rows.forEach((item) => {
+        this.setData(item)
+        this.time.push(item.atime)
+      })
+    }
+
+    xbus.on('REPT-SHOW-RESULT', (msg) => {
+      if (msg.def.name === this.name) {
+        window.xhint.close()
+        this.initData(msg.rows)
+        this.initChart()
+      }
+    })
+
+    this.queryDB = (firstcard, secard, curtime, endtime) => {
+      // let sql = `select uwb_cardone, uwb_cardtwo, uwb_timestamp, date_format(uwb_timestamp, '%H:%i') as atime, uwb_totaldis, uwb_ctindex, TRUNCATE(uwb_totaldis / uwb_ctindex, 2) as result from (select * from uwb_more_card_info where uwb_timestamp >= '${curtime}' and uwb_timestamp <= '${endtime}') a where uwb_cardone = ${firstcard} or uwb_cardtwo = ${firstcard} or uwb_cardone = ${secard} or uwb_cardtwo = ${secard} order by uwb_timestamp;`
+      let sql = `SELECT uwb_cardone, uwb_cardtwo, uwb_timestamp, DATE_FORMAT(uwb_timestamp, '%H:%i') AS atime, uwb_totaldis, uwb_ctindex, TRUNCATE(uwb_totaldis / uwb_ctindex, 2) AS result FROM uwb_more_card_info WHERE uwb_cardone IN(${firstcard}, ${secard}) AND uwb_cardtwo IN(${secard},${firstcard}) AND uwb_timestamp >= '${curtime}' and uwb_timestamp <= '${endtime}' ORDER BY uwb_timestamp;`
+
+      this.name = 'alarmchart'
+      let message = {
+        cmd: 'query',
+        data: {
+          name: this.name,
+          sql: sql
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: this.name
+        }
+      })
+    }
+
+    this.getData = () => {
+      this.firstcard = this.row.first_card
+      this.secard = this.row.sec_card
+      this.curtime = new Date(this.row.limit_value).format('yyyy-MM-dd hh:mm:ss')
+      this.endtime = new Date(this.row.cur_value).format('yyyy-MM-dd hh:mm:ss')
+      this.queryDB(this.firstcard, this.secard, this.curtime, this.endtime)
+      window.xhint.show()
+    }
+
+    this.on('mount', () => {
+      this.row = opts.row
+      this.time = []
+      this.alarmgroup = new Map()
+      this.getData()
+    })
+  </script>
+</personcards-chart>

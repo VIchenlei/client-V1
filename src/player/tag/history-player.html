@@ -1,0 +1,175 @@
+<history-player>
+  <view-change if={ window.isPC }></view-change>
+  <player-map mapid={mapID}></player-map>
+  <track-list if={ window.isPC }></track-list>
+  <player-ctrl></player-ctrl>
+  <div class="query-switcher hide-on-pc" onclick={ showQueryPanel }>
+    <svg class="icon"><use xlink:href="/icons/icons.svg#icon-back"></use></svg>
+  </div>
+
+  <script>
+    // import {DEFAULT_MAP_ID} from '../../js/def/map_def.js'
+    import Ticker from '../Ticker.js'
+    import './player-map.html'
+    import './player-ctrl.html'
+    import './track-list.html'
+    import './view-change.html'
+    import '../sass/track-listleft.sass'
+
+    let isPC = window.isPC
+
+    // TODO: remove the hardcode
+    // this.mapID = DEFAULT_MAP_ID
+    this.mapID = xdata.metaStore.defaultMapID
+    this.mapType = 'HISTORY'
+    // this.mapService = null
+
+    this.map = null
+    this.ctrl = null
+    this.ticker = null
+
+    this.isDataLoaded = false
+
+    this.on('mount', () => {
+      this.map = this.tags['player-map']
+      this.ctrl = this.tags['player-ctrl']
+
+      this.ticker = new Ticker(this)
+
+      // 重置 map
+      xbus.on('MAP-HISTORY-RESET', this.reset)
+
+     // xbus.on('REPT-SHOW-RESULT', this.processTrackData)
+      // xbus.on('REPT-SHOW-RESULT', (msg) => {
+      //   console.log('+++++++++', msg)
+      // })
+    })
+    // xbus.on('REPT-SHOW-RESULT', (msg) => {
+    //   console.log('+++++++++', msg)
+    // })
+    xbus.on('TRACK-DATA-UPDATE', (msg) => {
+      this.processTrackData(msg)
+    })
+
+    this.on('unmount', () => {
+      this.ticker.stopTimer()
+    })
+
+    // Called by the outside player
+    // 初始状态，没有加载 track 的情况
+    this.initPlayer = (msg) => { // 场景重现
+      this.reset()
+      this.ticker.initTrack(msg)
+      this.ctrl.initTrack(msg)
+    }
+
+    // 加载了 track 的情况
+    this.initTrack = (msg) => {
+      this.map.initTrack(msg)
+      this.ticker.initTrack(msg)
+      this.ctrl.initTrack(msg)
+    }
+
+    // 不加载地图、轨迹数据的状态
+    this.reset = () => {
+      // console.log('this.ctrl', this.ctrl)
+      this.ticker.stopPlay()
+      this.ctrl && this.ctrl.reset()
+      this.map && this.map.reset()
+    }
+
+    this.showQueryPanel = () => {
+      if (!isPC) {
+        this.ticker.stopTimer()
+        this.parent.tagQuery.root.classList.remove('hide')
+      }
+    }
+
+    this.processTrackDataTime = (ds) => {
+      if (ds && ds[0]) {
+        let smapID = ds[0]['map_id']
+        let mapID = smapID ? parseInt(smapID, 10) : -1
+
+        if (mapID > 0) {
+          // let trackGroup = this.mtracks.get(this.trackName)
+          // let trackRec = trackGroup && trackGroup[this.trackIndex]
+
+          let cardID = ds[0]['card_id']
+
+          // TODO: get track startTime and endTime
+          let count = ds.length
+          let startTime = ds[0]['cur_time']
+          let endTime = ds[count - 1]['end_time']
+
+          let msg = {
+            cardID: cardID,
+            mapID: mapID,
+            rows: ds,
+            startTime: new Date(startTime).getTime(),  // ms
+            endTime: new Date(endTime).getTime()  // ms
+          }
+          this.initTrack(msg)
+          // if (!isPC) {
+          this.parent.tagQuery.root.classList.add('hide')
+          // }
+          window.xhint.close()
+        } else {
+          window.xhint.showHint(`当前系统中没有编号为 ${mapID} 的地图。`, '请与系统管理员确认后再试。')
+          console.warn('NO map data for mapID : ', mapID)
+        }
+      } else {
+        window.xhint.showHint('系统中没有对应的轨迹数据。', '请确认您的查询条件后再试。')
+        console.warn('NO track data fetched.')
+      }
+    }
+
+    this.processTrackDataCheckout = (ds) => {
+      if (ds && ds.rows && ds.rows[0]) {
+        let smapID = ds.rows[0]['map_id']
+        let mapID = smapID ? parseInt(smapID, 10) : -1
+
+        if (mapID > 0) {
+          // let trackGroup = this.mtracks.get(this.trackName)
+          // let trackRec = trackGroup && trackGroup[this.trackIndex]
+
+          let cardID = ds.rows[0]['card_id']
+
+          // TODO: get track startTime and endTime
+          let count = ds.rows.length
+          let startTime = ds.rows[0]['cur_time']
+          let endTime = ds.rows[count - 1]['end_time']
+
+          let msg = {
+            cardID: cardID,
+            mapID: mapID,
+            rows: ds.rows,
+            startTime: new Date(startTime).getTime(),  // ms
+            endTime: new Date(endTime).getTime()  // ms
+          }
+          this.initTrack(msg)
+          // if (!isPC) {
+          this.parent.tagQuery.root.classList.add('hide')
+          // }
+          window.xhint.close()
+        } else {
+          window.xhint.showHint(`当前系统中没有编号为 ${mapID} 的地图。`, '请与系统管理员确认后再试。')
+          console.warn('NO map data for mapID : ', mapID)
+        }
+      } else {
+        window.xhint.showHint('系统中没有对应的轨迹数据。', '请确认您的查询条件后再试。')
+        console.warn('NO track data fetched.')
+      }
+    }
+
+    this.processTrackData = (ds) => {
+      // console.log('ds', ds)
+      // if (ds.def.name !== 'TrackData') {
+      //   return
+      // }
+      // 先停止正在播放的轨迹
+      this.ticker.stopPlay()
+      this.isCheckout = this.parent.tags["history-querypc"].checkoutWork
+      this.isCheckout ? this.processTrackDataCheckout(ds) : this.processTrackDataTime(ds)
+    }
+  </script>
+</history-player>

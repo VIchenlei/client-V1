@@ -1,0 +1,23 @@
+@import '../../sass/defs'
+.addIndex
+    z-index: 999 !important
+.reduceIndex
+    z-index: -1 !important
+camera-area
+    @include wh(25rem,20rem)
+    position: absolute
+    display: flex
+    flex-direction: column
+    @media screen and (max-width: $width-medium)
+        width: 21rem
+    .tips-title
+        @include align-middle-between
+        background: $active-bg
+        height: 2rem
+        padding: 5px 1rem
+        cursor: move
+        color: $color-white
+    .content-body
+        background: #ebebeb
+        padding: 1rem 
+        height: 100%

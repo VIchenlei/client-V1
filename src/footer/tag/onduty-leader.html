@@ -1,0 +1,25 @@
+<onduty-leader class="current-leaders hint--top-right" aria-label="当前带班领导">
+  <svgicon icon="icon-leader-staff"></svgicon>
+  <span each={ leader in leaders }>{ leader.name }</span>
+
+  <script>
+  xbus.on('CURRENT-LEADER-ARRANGE', (msg) => {
+    let leaderList = []
+    if (msg) {
+      for (let i = 0, len = msg.length; i < len; i++) {
+        let cardID = msg[i].card_id
+        let staff = xdata.metaStore.getCardBindObjectInfo(cardID) && xdata.metaStore.getCardBindObjectInfo(cardID).name
+        leaderList.push({
+          name: staff
+        })
+      }
+    } else {
+      leaderList.push({
+        name: ''
+      })
+    }
+    this.leaders = leaderList
+    this.update()
+  })
+  </script>
+</onduty-leader>

@@ -1,0 +1,258 @@
+@import '../../sass/defs'
+.report-canvas,.query-field
+	font-size: .7rem
+.report-canvas
+	width: 100%
+	display: flex
+	flex-flow: column nowrap
+	overflow-x: hidden
+
+	.tab-bar
+		.tab-container .tab
+			&.active
+				color: #999
+	.tab-content
+		flex-flow: column nowrap
+		flex: auto
+		padding: 0 10px
+		background: #f2f2f2
+		
+	.query-bar
+		@include align-middle
+		font-size: $fontsize-s
+		flex-flow: column nowrap
+		justify-content: flex-start
+		color: #000
+		min-width: 800px
+		min-height: 50px
+		flex: 0 0 auto
+
+.report-canvas-print
+	overflow-y: hidden
+	
+.expr-list
+	@include align-middle
+	float: left
+	min-height: 40px
+	padding: 0 5px
+	flex-flow: row wrap
+	justify-content: flex-start
+	white-space: nowrap
+
+	.op-link
+		color: #999
+		background: none
+		justify-content: flex-start
+		margin-left: 0.5rem
+		font-size: $fontsize-m
+		font-weight: bolder
+
+		.icon
+			fill: #999
+		&:hover
+			color: #000
+
+			.icon
+				fill: #000
+
+	span
+		@include align-middle
+		cursor: pointer
+
+	.expr-item
+		height: 38px
+		@include align-middle
+
+		span
+			height: 2rem
+			@include align-middle
+
+		.logic-op
+			padding: 0 5px
+			height: 1.5rem
+			margin: 0 .5rem
+			color: #999
+			border: 1px dotted #ccc
+
+		.fixed
+			background: #009fff
+			text-align: center
+
+
+		.editable
+			background: #009fff
+
+		.logic-op__blank, .expr-tag__blank
+			background: none
+			border: 1px dashed #ccc
+			padding: 0 5px
+			border-radius: 0.875rem
+
+		.logic-op__blank
+			@include wh(2rem,1.5rem)
+			margin-left: 0.5rem
+
+		.expr-tag__blank
+			@include wh(10rem,1.8rem)
+
+		.expr-tag
+			padding: 0 5px
+			color: #fff
+			height: 1.8rem
+			text-align: center
+			.expr-icon
+			  .icon
+			  	  border-radius: 8px
+			      fill: #999
+
+			  .icon:hover
+			      fill: red
+
+		.expr-tag:nth-child(1)
+			span:nth-child(1)
+			    color: #fff
+
+			span:first-child
+				padding: 0 5px 0 10px
+
+			.icon
+				@include wh(12px,12px)
+				fill: #FF0
+
+				&:hover
+					fill: #F00
+
+
+.report-table
+	flex: auto
+	width: 100%
+	display: flex
+	flex-flow: column
+	margin-top: 1rem
+
+	.op-bar
+		flex: 0 0 42px
+		background: none
+		margin: 0
+
+	.oplink
+		color: #00F
+		cursor: pointer
+
+	input
+		width: 100%
+	::-webkit-input-placeholder
+		text-align: center
+	:-moz-placeholder 	
+		text-align: center
+	::-moz-placeholder	
+		text-align: center
+	:-ms-input-placeholder 
+		text-align: center
+
+.expr-builder
+	@include align-middle
+	flex-flow: column nowrap
+	justify-content: flex-start
+	background: #fff
+	width: 17rem
+	position: absolute
+	border: 1px solid #ccc
+	border-radius: 3px
+	box-shadow: 0 2px 10px rgba(0,0,0,.5)
+	line-height: 2rem
+	padding: 1rem
+	top: 6rem
+	z-index: 9
+	icon-input
+		width: 7rem
+	.hightips
+		color: red
+
+.expr-builder::before, .expr-builder::after
+	@include absolute(8.1rem,-0.8rem)
+	@include wh(0,0)
+	content: ""
+	display: block
+	border: 6px transparent solid
+	border-bottom-color: #ccc
+
+.expr-builder::after
+	border-bottom-color: #fff
+	top: -0.75rem
+
+.expr-builder__select, .expr-builder__input, .expr-builder__button
+	width: 100%
+	margin: 0.5rem 0
+@media screen and (max-width: $width-medium)
+	.expr-builder__input
+		height: 2rem
+		//width: 19.5rem
+		border: 1px solid #27ca41
+		padding: 0.8rem 0.67rem
+
+.expr-builder__button
+  cursor: pointer
+  background: #5af
+  color: #eee
+  &:hover
+    background: #09f
+    color: #fff
+
+.query-frame
+	display: flex
+	flex-flow: row nowrap
+	margin-top: 1rem
+	font-size: .9rem
+	justify-content: space-between
+	.query-msg, .query
+		@include align-end
+	.query-msghigh
+		@include align-middle
+	.search
+		cursor: pointer
+		&:hover
+		    color: #009fff
+	.query-high-select
+		cursor: pointer
+	#queryFrame
+		display: flex
+		flex-flow: row nowrap
+		font-size: medium
+		& > span 
+			margin-right: 10px
+			height: 3.7rem
+					
+
+	button
+		background: #eee
+		color: #333
+		min-width: 60px
+		margin: 0
+		&:hover
+			background: #09f
+			color: #fff
+
+	.query-field
+		padding-right: 8px
+		display: inline-block
+		margin-bottom: 0.4rem
+	.search-bar
+		right: 0
+		padding: 0.2rem 0
+		margin-right: 1rem
+		border-radius: 0
+		.search-box
+			@include wh(8rem,1.6rem)
+			padding: 0
+			border-radius: 0rem
+	select, input
+		display: block
+		padding: 0
+		width: 10.2em
+		
+
+.goback
+	cursor: pointer
+	font-size: .9rem
+

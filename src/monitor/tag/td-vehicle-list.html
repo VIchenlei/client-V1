@@ -1,0 +1,123 @@
+<td-vehicle-list>
+  <div class="dlg-bg">
+    <div class="dlg-window tdVehicle">
+      <dialog-head title="当天出车列表"></dialog-head>
+      <div class="tableBody" if={hasdata}>
+        <table>
+          <thead>
+            <tr>
+              <th each={label in labels}>{label}</th>
+            </tr>
+          </thead>
+          <tbody class="tdVehicle">
+            <tr each={row in subrows}>
+              <td each={name, i in names}>{xdata.metaStore.getNameByID(name, row[name])}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" data-is="pagination" totalpage={ totalPage } pageindex={ pageIndex } tablename={ name } if={hasdata}></div>
+      <div data-is="blank-message" message="没有符合条件结果" class="blank-message" if={ !hasdata }></div>
+    </div>
+  </div>
+
+  <script>
+    import tdvehcie from '../../js/def/td_vehicle_def.js'
+    this.hasdata = false
+
+    this.getDetail = () => {
+      this.sql = `select ra.vehicle_id, dda.name, date_format(ra.start_time, "%m-%d %H:%i") as start_time, date_format(ra.end_time, "%m-%d %H:%i") as end_time,format((TIMESTAMPDIFF(MINUTE, ra.start_time, ra.end_time)/60.0), 1) as work_time from (select * from rpt_att_vehicle rav where rav.vehicle_id = ${this.vehicleID} and rav.att_date = '${this.today}') ra left join dat_driver_arrange dda on ra.vehicle_id = dda.vehicle_id and ra.att_date = dda.driver_date and ra.shift_id = dda.shift_id order by ra.end_time desc;`
+      this.name = 'tdVehicle'
+      this.countSql = `select count(1) as total from (select * from rpt_att_vehicle rav where rav.vehicle_id = ${this.vehicleID} and rav.att_date = '${this.today}') ra left join dat_driver_arrange dda on ra.vehicle_id = dda.vehicle_id and ra.att_date = dda.driver_date and ra.shift_id = dda.shift_id order by ra.end_time desc;`
+      console.log(this.sql)
+      this.searchDB(this.name, this.sql, this.countSql)
+    }
+
+    this.searchDB = (name, sql, countSql) => {
+      let message = {
+        cmd: 'query',
+        data: {
+          name: name,
+          sql: sql,
+          pageSize: PAGE_SIZE,
+          pageIndex: 0,
+          total: -1, // 默认
+          countSql: countSql
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: name
+        }
+      })
+    }
+
+    this.initPagination = (total) => {
+      this.totalPage = Math.ceil(total / PAGE_SIZE)
+      this.pageIndex = this.pageIndex ? this.pageIndex : 0
+      this.update()
+    }
+
+    this.dopagechangeDB = (msg) => {
+      this.pageIndex = msg ? msg.pageIndex : 0
+      let message = {
+        cmd: 'query',
+        data: {
+          reptName: this.name,
+          pageSize: PAGE_SIZE,
+          pageIndex: msg.pageIndex,
+          total: msg.total,
+          sql: this.sql,
+          countSql: this.countSql
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: this.name
+        }
+      })
+    }
+
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+      msg.total = this.total
+      if (msg.name === this.name) {
+        this.dopagechangeDB(msg)
+      }
+    })
+
+    xbus.on('REPT-SHOW-RESULT', (ds) => {
+      if (ds.def.name === this.name) {
+        window.xhint.close()
+        console.log(ds)
+        this.subrows = ds.rows
+        if (this.subrows.length > 0) {
+          this.hasdata = true
+        } else {
+          this.hasdata = false
+        }
+        this.total = ds.total
+        this.pageIndex = ds.pageIndex
+        this.initPagination(ds.total)
+        this.update()
+      }
+    })
+
+    this.on('mount', () => {
+      if (window.isPC) {
+        window.setDialogDraggable(this.root)
+      }
+      this.vehicleID = opts.vehicleID
+      this.today = new Date().format('yyyy-MM-dd')
+      this.labels = tdvehcie.fields.labels
+      this.names = tdvehcie.fields.names
+      this.getDetail()
+    })
+
+    this.close = () => {
+      this.unmount(true)
+      this.parent.root.classList.remove('hide')
+    }
+  </script>
+</td-vehicle-list>

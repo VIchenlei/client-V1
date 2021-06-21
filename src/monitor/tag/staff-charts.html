@@ -1,0 +1,47 @@
+<staff-charts>
+  <div class="chartcont" style="width:960px;height:400px;"></div>
+  <!-- <div data-is="blank-message" message="当前无数据！" class="blank-message" if={ !hasdata }></div> -->
+  <script>
+    import echarts from 'echarts'
+    import {staffcharts} from '../../js/def/graph_def.js'
+
+    this.on('mount', () => {
+      this.initData()
+    })
+
+    this.initCharts = (num) => {
+      this.numtype = num
+      let initdom = this.root.querySelector('.chartcont')
+      initdom && echarts.dispose(initdom)
+      let staffCharts = echarts.init(initdom)
+      let chartsMsg = {
+        record: this.chartsData.recordtime,
+        data: this.chartsData[num]
+      }
+      let option = staffcharts(chartsMsg)
+      staffCharts.setOption(option)
+      // staffCharts.off('click')
+      // staffCharts.on('click', function (params) {
+      //   let time = params.name
+      //   if (isNaN(new Date(time).getTime())) {
+      //     time = `${new Date().format('yyyy-MM-dd')} ${time}:00`
+      //   } else {
+      //     time = new Date(time).format('yyyy-MM-dd hh:mm:ss')
+      //   }
+
+      // })
+    }
+
+    this.initData = (msg) => { 
+      this.chartsData = this.opts.parentag.staffdata
+      this.numtype = this.opts.parentag.type
+      this.chartsData && this.initCharts(this.numtype)
+    }
+
+    this.changeCharts = (type) => {
+      if (this.numtype !== type) {
+        this.initCharts(type)
+      }
+    }
+  </script>
+</staff-charts>

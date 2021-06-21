@@ -1,0 +1,120 @@
+<duration-selectpc>
+    <div class="duration-time">
+        <div>
+            <span>开始时间：</span>
+            <input type="datetime-local" ref="tstart_time" id="tstart_time" placeholder="开始时间"></input>
+        </div>
+        <div>
+            <span>结束时间：</span>
+            <input type="datetime-local" ref="tend_time" id="tend_time" placeholder="结束时间" onfocus={ customEndTime }></input>
+        </div>
+    </div>
+    <div class="duration-selector">
+        <span ref="H01" data-value="1" onclick={setEndTime} class="active">一小时</span>
+        <span ref="H06" data-value="6" onclick={setEndTime}>六小时</span>
+        <span ref="H24" data-value="24" onclick={setEndTime}>一天</span>
+        <span ref="H00" data-value="-1" onclick={setEndTime}>自定义</span>
+    </div>
+
+    <script>
+        this.activeDurationTag = null
+
+        this.startTimeInput = null
+        this.endTimeInput = null
+
+        this.on('mount', () => {
+            this.activeDurationTag = this.refs.H01
+
+            this.startTimeInput = this.refs.tstart_time
+            this.endTimeInput = this.refs.tend_time
+
+            // let now = Date.now()
+            this.setInputTime(this.startTimeInput, -2)
+            this.setInputTime(this.endTimeInput, 0)
+        })
+
+        this.setTime = (time, endtime) => {
+            this.setInputTime(this.startTimeInput, 0, time)
+            this.setInputTime(this.endTimeInput, 0, endtime)
+        }
+
+        // -------------------- datetime process ------- begin
+        // startTime: 开始时间, ms。如果为空，则默认为 now
+        // hours : 离当前时间的小时数，往前为负，如现在之前的一小时，hours = -1
+        this.setInputTime = (inputNode, hours, startTime) => {
+            let startMs = startTime || Date.now()
+            inputNode.value = new Date(startMs + hours * 60 * 60 * 1000).format('yyyy-MM-ddThh:mm:ss')
+        }
+
+        this.setEndTime = (evt) => {
+            // document.getElementById('tend_time').type = 'datetime-local'
+            evt.preventUpdate = true
+
+            let node = evt.currentTarget
+            this.setActiveDurationTag(node)
+
+            let s = node.getAttribute('data-value')
+            let hours = parseInt(s, 10)
+            if (hours <= 0) {
+                return
+            }
+
+            // let inputedStartTime = this.startTimeInput.value
+            // let startMs = new Date(inputedStartTime).getTime()
+            let inputedEndTime = this.endTimeInput.value
+            let endMs = new Date(inputedEndTime).getTime()
+            this.setInputTime(this.startTimeInput, hours * -1, endMs)
+        }
+
+        this.customEndTime = () => {
+            let node = this.refs.H00
+            this.setActiveDurationTag(node)
+        }
+
+        this.setActiveDurationTag = (node) => {
+            if (node !== this.activeDurationTag) {
+                this.activeDurationTag && this.activeDurationTag.classList.remove('active')
+                this.activeDurationTag = node
+                this.activeDurationTag.classList.add('active')
+            }
+        }
+
+        this.getLocaleTime = (str) => {
+            let time = new Date(Date.parse(str))
+            time = time.getTime()
+
+            return new Date(time).format('yyyy-MM-dd hh:mm:ss')
+        }
+        // -------------------- datetime process ------- end
+
+        this.getDuration = (msg) => {
+            let ret = null
+
+            let inputedStartTime = this.startTimeInput && this.startTimeInput.value
+            if (!inputedStartTime) {
+                return ret
+            }
+
+            let startMs = new Date(inputedStartTime).getTime()
+            let nowMs = Date.now()
+            if (startMs > nowMs) {  // 开始时间晚于现在
+                return ret
+            }
+
+            let endMs = nowMs  // 结束时间默认为现在
+            let inputedEndTime = this.endTimeInput && this.endTimeInput.value
+            if (inputedEndTime) {
+                endMs = new Date(inputedEndTime).getTime()
+                if (startMs >= endMs) {
+                    return ret
+                }
+            }
+
+            ret = {
+                startTime: new Date(startMs).format('yyyy-MM-dd hh:mm:ss'),
+                endTime: new Date(endMs).format('yyyy-MM-dd hh:mm:ss')
+            }
+            return ret
+        }
+    </script>
+</duration-selectpc>

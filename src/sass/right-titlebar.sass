@@ -1,0 +1,201 @@
+//停用
+.dlg-content
+    height: 30.1rem
+    position: absolute
+    width: 16.2rem
+    top: 3px
+    right: 0
+    overflow: auto
+    z-index: 3
+    nav,article
+      display: flex
+      span
+        flex: 1
+        text-align: center
+        font-size: 1rem
+    nav
+        margin-bottom: 10px
+    .vehicle-title
+        color: #009fff
+        padding-left: 0
+        span:nth-child(1)
+            margin-left: -10px
+            width: 50%
+        span:nth-child(2)
+            cursor: pointer
+    p
+        font-size: 13px
+        display: flex
+        justify-content: space-around
+        margin: 10px 0
+        padding-left: 5px
+        span
+            width: 33%
+            text-align: center
+    .noSpecial
+        span
+            text-align: left
+            margin-left: -105px
+
+    .content-coal-cutting
+        span
+            display: inline-block
+            width: 30%
+            text-align: center
+
+
+    .callTitle
+        text-align: center
+        margin-top: 5px
+        font-size: 0.875rem
+        cursor: pointer
+    .callText
+        color: #ccc
+        float: left
+        margin-left: 0.5rem   
+        p
+            height: 1.4rem
+        span,p
+            font-size: 13px
+            text-align: center
+
+    .callTextone
+        width: 44%
+        p
+            height: 1.4rem
+            display: flex
+            text-align: center
+            span
+                flex: 1
+    .callTextLast
+        p 
+          cursor: pointer
+
+    .callBackList
+        margin-bottom: 5px
+        display: flex
+        span
+            flex: 1
+            font-size: 13px
+            &:nth-child(2)
+            flex: 1.5
+            text-align: center
+.callTable
+    footer
+        padding: 1rem 1rem 1rem 3rem
+        button:nth-child(1)
+            &:hover
+                background: #009fff
+        button:nth-child(2)
+            &:hover
+                background: #ff5454
+    width: 23rem
+    min-height: 17rem
+    height: auto
+    background: #fff
+    position: absolute
+    top: 15%
+    left: 24rem
+    z-index: 99
+    .callTitleBar
+        width: 100%
+        height: 12%
+        background: #000
+        line-height: 2rem
+        font-size: 15px
+        padding-left: 17px
+    .data-content
+        display: flex
+        ul
+            flex: 0.5
+            width: 30%
+            height: auto
+            display: flex
+            flex-direction: column
+            li  
+                width: 5rem
+                flex: 1
+                text-align: center
+                line-height: 2rem
+                font-size: 0.875rem
+                list-style-type: none
+                color: #333
+        .data-content-right
+            width: 5rem
+            flex: 2
+            display: flex
+            flex-direction: column
+            p
+                    flex: 1
+                    font-size: 13px
+                    color: #333
+                    text-align: center
+                    line-height: 2rem
+                    select
+                        width: 100%
+                        font-size: 12px
+                        text-align: center
+                        color: #666
+                        padding-left: 100px
+                        height: 2rem
+            p:nth-child(2),p:nth-child(5),p:nth-child(3)
+                input
+                    width: 13px
+                    height: 13px
+                label
+                    cursor: pointer
+            p:nth-child(5)
+                padding-right: 15px
+            #callSpecial,#callSpecialStaff
+                position: relative
+                span
+                    text-align: center
+                    color: #333
+                    cursor: pointer
+                    .spanClose
+                        margin-left: 2px
+                        width: 15px
+                        height: 15px
+                        color: #fff
+                        line-height: 14px
+                        border-radius: 100%
+                        background: #009fff
+                        font-size: 14px
+                        display: inline-block
+                    &.renderSpan,&.staffSpan
+                        font-size: 14px
+                .search
+                    height: 1.6rem
+                    width: 90%
+                    margin-left: 8px
+                    padding-left: 10%
+                    border: 1px solid #ccc
+                    &::-webkit-input-placeholder 
+                        font-size: 13px
+
+                    
+                ul
+                    position: absolute
+                    top: 100%
+                    width: 100%
+                    background: #fff
+                    height: auto
+                    padding: 0px 7px
+                    z-index: 3
+                    li
+                        cursor: pointer
+                        float: left
+                        list-style-type: none
+                        margin-right: 4px
+                        padding-left: 2px
+        
+                   
+    article
+        margin-bottom: 5px
+        span
+            font-size: 12px
+            color: #d3d3d3
+            .icon
+                fill: #d3d3d3
+                &.activated
+                    fill: #009fff

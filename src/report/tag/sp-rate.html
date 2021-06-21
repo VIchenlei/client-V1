@@ -1,0 +1,214 @@
+<sp-rate>
+    <div class="sanlv-home">
+        <div>
+            <button class="sanlv-btn" data-name="efficiency-overview" onclick={gotoSanlv}>三率详情</button>
+            <button data-name="efficiency-manage" onclick={gotoSanlv}>调度日报</button>
+        </div>
+        
+        <div class="rate-top">
+            <span class="rate-top-title">全矿三率分析</span>
+            <div class="overview-echarts">
+                <div class="overviewBD">
+                    <div class="overview-BD" style="width:100px;height:100px;"></div>
+                </div>
+                <div class="overviewWD">
+                    <div class="overview-WD" style="width:100px;height:100px;"></div>
+                </div>
+                <div class="overviewRD">
+                    <div class="overview-RD" style="width:100px;height:100px;"></div>
+                </div> 
+            </div>
+        </div>
+        <div class="m-rate-dept">
+            <div class="rate-dept">
+                <div class="rate-dept_boot" style="width:100%;height:150px;"></div>
+            </div>
+            <div class="rate-dept">
+                <div class="rate-dept_worktime" style="width:100%;height:150px;"></div>
+            </div>
+            <div class="rate-dept">
+                <div class="rate-dept_rugular" style="width:100%;height:150px;"></div>
+            </div>
+        </div> 
+    </div>
+    <div class="efficiency-mb hide">
+        <div class="efficiency-top">
+            <img onclick={goback} src="/img/angle-double-left.png" alt="">
+            <div>
+                <input type="month" ref="efficiency-month" if={isMonth}>
+                <input type="date" ref="efficiency-month" name="" id="" if={!isMonth}>
+                <img onclick={searchMonth} src="/img/search.png" alt="">
+            </div>
+        </div>
+        <div class="efficiency-overview-mb"></div>
+    </div>
+    <script>
+        import echarts from 'echarts'
+        import {mrateBar,mgauge} from '../../js/def/graph_def.js'
+        import {getDeptID} from '../../js/utils/utils.js'
+        import './efficiency-overview.html'
+        import './efficiency-detail.html'
+        import './efficiency-manage.html'
+        import './boot-eff.html'
+        import './worktime-eff.html'
+        import './rugular-eff.html'
+        const DEPTARR = [12, 13, 22, 46, 56, 57, 61, 68, 69, 100, 62] 
+        this.isMonth = true
+        this.goback = () => {
+            let overview = this.root.querySelector('.overview') && this.root.querySelector('.overview').classList.contains('hide')
+            if (overview) {
+                this.efficiency.tags['efficiency-detail'].goOverView()
+            } else {
+                this.efficiency && this.efficiency.unmount(true)
+                this.root.querySelector('.sanlv-home').classList.remove('hide')
+                this.root.querySelector('.efficiency-mb').classList.add('hide')
+            }
+        }
+        this.queryDB = (month) => {
+            let tabDef = {
+                name: 'efficiency_overview',
+                sqlTmpl: {
+                    'overview-boot': `select round(sum(hsr.startup_rate) / count(hsr.startup_rate), 1) as worktime, work_date as stime from his_startup_rate hsr where work_date {exprString} group by work_date`,
+                    'overview-rugular': `select round(sum(worktime)/sum(schedule_value) * 100, 1) as worktime, date(stime) as stime from (select sum(detail_value) as worktime, schedule_value, date(start_time) as stime from his_regular_cycle_detail WHERE start_time {exprString} group by date(start_time), vehicle_id)aa group by aa.stime order by aa.stime`,
+                    'overview-worktime': `select ROUND(sum(hwr.worktime_rate) / count(hwr.worktime_rate), 1) as worktime,  work_date as stime from his_worktime_rate hwr where work_date {exprString} group by work_date`,
+                    'dept_boot': `select workface_id, workface_type, round(startup_rate, 1) AS worktime,work_date as stime from his_startup_rate hsr where work_date {exprString} group by workface_id, work_date, workface_type`,
+                    'dept_rugular': `SELECT ROUND(SUM(worktime) / schedule_value * 100, 1) AS worktime, stime, dept_id, ROUND(sum(worktime),2) as sumnum, vehicle_type_id, vehicle_id FROM (SELECT SUM(detail_value) AS worktime, schedule_value, DATE(start_time) AS stime, hrc.dept_id, hrc.vehicle_id,dv.vehicle_type_id FROM his_regular_cycle_detail hrc left join dat_vehicle dv on hrc.vehicle_id = dv.vehicle_id WHERE start_time {exprString} GROUP BY DATE(start_time), vehicle_id ORDER BY start_time)aa GROUP BY stime, dept_id ORDER BY stime;`,
+                    'dept_worktime': `select rate_id, ROUND(sum(hwr.worktime_rate) / count(hwr.worktime_rate), 1) as worktime, workface_id, workface_type, work_date as stime, avg_valid_time as overWorktime, avg_invalid_time as overChecktime from his_worktime_rate hwr where work_date {exprString} group by workface_id, work_date, workface_type`
+                }
+            } 
+            this.efficiency.doQuery(tabDef, month)
+        }
+
+        this.queryDBmanage = (time) => {
+            let tabDef = {
+                name: 'efficiency_manage',
+                sqlTmpl: {
+                    'dept_boot': `select round(startup_rate, 1) as worktime, round(startup_time,2) as overWorktime,  round( schedule_work_time ,2) as overChecktime, workface_id, workface_type from his_startup_rate hsr where work_date between {exprString} group by workface_id, workface_type`,
+                    'analysis': `select Rpt_Type, dept_id, Analysis from rpt_sanlv_daily_main rsdm, rpt_sanlv_daily_detail rsdd where rsdm.ID = rsdd.MainID and rsdm.CreateDateTime between {exprString};`,
+                    'dept_rugular': `SELECT ROUND(SUM(worktime) / schedule_value * 100, 1) AS worktime, stime,dept_id, ROUND(SUM(worktime),1) AS sumnum,round(SUM(worktime), 2) as overWorktime, round(schedule_value, 2) as overChecktime, vehicle_type_id as vehicleTypeID, vehicle_id FROM (SELECT SUM(detail_value) AS worktime, schedule_value, DATE(start_time) AS stime, hrc.dept_id, hrc.vehicle_id,dv.vehicle_type_id FROM his_regular_cycle_detail hrc LEFT JOIN dat_vehicle dv ON hrc.vehicle_id = dv.vehicle_id WHERE DATE(start_time) between {exprString} GROUP BY DATE(start_time), vehicle_id ORDER BY start_time)aa GROUP BY stime, dept_id ORDER BY dept_id;`,
+                    'planing': `select workface_id,dwf.work_face_type,schedule_startup_time as boot_time,case when dwf.work_face_type = 1 then schedule_mine_times else schedule_tunnelling_times end as planing,schedule_date from dat_workface_scheduling dws, dat_work_face dwf where schedule_date between {exprString};`,
+                    'dept_worktime': `select round(sum(hwr.worktime_rate) / count(hwr.worktime_rate), 1) as worktime, round(sum(avg_valid_time) / count(hwr.worktime_rate), 2) as overWorktime, round(sum(avg_invalid_time)/count(hwr.worktime_rate), 2) as overChecktime, workface_id, workface_type from his_worktime_rate hwr where work_date between {exprString} group by workface_id, workface_type;`
+                }
+            }
+            time = time ? time : new Date().format('yyyy-MM-dd')
+            this.efficiency.doQuery(tabDef, time)
+        }
+
+        this.searchMonth = () => {
+            let time = this.refs['efficiency-month'].value
+            if (time) {
+                this.isMonth ? this.queryDB(time) : this.queryDBmanage(time)
+            }
+        }
+
+        this.gotoSanlv = (evt) => {
+            let target = evt.currentTarget
+            let name = target.getAttribute('data-name')
+            this.isMonth = name === 'efficiency-overview' ? true : false
+            this.root.querySelector('.sanlv-home').classList.add('hide')
+            this.root.querySelector('.efficiency-mb').classList.remove('hide')
+            if (this.efficiency) {
+                this.efficiency.unmount(true)
+            }
+            this.efficiency = riot.mount('.efficiency-overview-mb', name)[0]
+            name === 'efficiency-overview' ? this.queryDB() : this.queryDBmanage()
+            
+        }
+        this.initOverCharts = (row, name, title) => {         
+            row = row ? row : [0]
+            name = `.${name}`
+            let initdom = this.root.querySelector(name)
+            if (!initdom) return
+            echarts.dispose(initdom)
+            let chart = echarts.init(initdom)
+            let msg = {
+                title: title,
+                data: [{value: row[0] && row[0].worktime, name: ``}],
+                max: name == '.overview-WD' ? 14 : 100
+            }
+            let option = mgauge(msg)
+            chart.setOption(option)
+        }
+
+        this.initOverDate = (overviewBD, overviewWD, overviewRD) => {
+            this.initOverCharts(overviewBD, 'overview-BD', '开机率')
+            this.initOverCharts(overviewWD, 'overview-WD', '平均有效工时')
+            this.initOverCharts(overviewRD, 'overview-RD', '正规循环率')
+        }
+
+        this.initdeptCharts = () => {
+        let keys = Array.from(this.deptMap.keys())
+        const TITLENAME = {'dept_boot': '队组开机率(%)', 'dept_worktime': '队组平均有效工时', 'dept_rugular': '队组正规循环率(%)'}
+        keys.forEach(key => {
+            let series = []
+            let xAxis = []
+            let yAxis = []
+            let data = Array.from(this.deptMap.get(key).values())
+            let domname = `.rate-${key}`
+            let initdom = this.root.querySelector(domname)
+            if (!initdom) return
+            echarts.dispose(initdom)
+            let chart = echarts.init(initdom)
+            data.forEach(item => {
+                xAxis.push(item[0])
+                yAxis.push(item[1])
+            })
+            let msg = {
+                title: TITLENAME[key],
+                xAxis: xAxis,
+                yAxis: yAxis,
+                key: key
+            }
+            let option = mrateBar(msg)
+            chart.setOption(option)
+        })
+        }
+
+        this.splitDeptData = (rows, name) => {
+            rows.forEach(row => {
+                if (!this.deptMap.get(name)) {
+                    let ret = new Map()
+                    this.deptMap.set(name, ret)
+                }
+                let deptData = this.deptMap.get(name)
+                let deptID = Number(row.dept_id)
+                if (name === 'dept_worktime' || name === 'dept_boot') {
+                    deptID = getDeptID(row)
+                }
+                if (DEPTARR.includes(deptID)) { // 演示队组
+                    let depts = xdata.metaStore.data.dept
+                    let deptname = depts && depts.get(deptID) && depts.get(deptID).abbr
+                    deptname = deptname || xdata.metaStore.getNameByID('dept_id', deptID)
+                    deptData.set(deptID, [deptname, row.worktime])
+                } else {
+                console.warn('该队组已被过滤:', deptID)
+                }                
+            })
+        }
+
+        this.initdeptDate = (deptB, deptW, deptR) => {
+            this.deptMap = new Map()
+            let deptBoot = this.splitDeptData(deptB, 'dept_boot')
+            let deptWorktime = this.splitDeptData(deptW, 'dept_worktime')
+            let deptRugular = this.splitDeptData(deptR, 'dept_rugular')          
+            this.initdeptCharts()
+        }
+       
+        this.initDate = (rows) => {
+            if (!rows) return        
+            this.update()
+            let overviewBD = rows['overview-boot']
+            let overviewWD = rows['overview-worktime']
+            let overviewRD = rows['overview-rugular']
+            this.initOverDate(overviewBD, overviewWD, overviewRD)
+            let deptB = rows['dept_boot']
+            let deptW = rows['dept_worktime']
+            let deptR = rows['dept_rugular']
+            this.initdeptDate(deptB,deptW,deptR)   
+        }
+        this.on('mount', () => {
+            let msg = opts.msg
+            this.initDate(msg)
+        })
+    </script>
+</sp-rate>

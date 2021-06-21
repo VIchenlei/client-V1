@@ -1,0 +1,125 @@
+<scene-mappc>
+    <input placeholder="请点击输入框选择地图..." ref='mapInput' onfocus={ selectCurMap }></input>
+    <div class="option hide" ref='option' onmouseout={ addHideOption }>
+        <div each={ map in maps } mapId={ map.map_id } onclick={ selectMap }>{ map.name }</div>
+    </div>
+    <script>
+        import '../sass/scene-mappc.sass'
+
+        this.selectCurMap = () => {
+            this.maps = Array.from(xdata.metaStore.dataInArray.get('map_gis'))
+            this.root.querySelector('.option').classList.remove('hide')
+        }
+
+        this.selectMap = (evt) => {
+            this.refs.mapInput.value = evt.target.innerText
+            this.refs.option.classList.add('hide')
+            this.mapID = evt.target.getAttribute('mapId')
+        }
+
+        xbus.on('HISTORY-DATA-RESULT', (ds) => {
+            if (ds && ds.cmd === "historyData") {
+                let hasPreLoadIndex = xdata.historyStore.loadIndex.get(ds.segmentIndex)
+                if (!hasPreLoadIndex) {
+                    xdata.historyStore.loadIndex.set(ds.segmentIndex, ds.segmentIndex)
+                } else {
+                    return
+                }
+
+                console.log('ds', ds)
+                this.processHistoryData(ds)
+            }
+        })
+
+        this.doQueryHistoryScene = (event) => {//执行步骤1：查询概况信息
+            window.xhint.showLoading()
+            xbus.trigger('MAP-HISTORY-RESET')
+            xbus.trigger('MAP-UPDATE-SIZE')
+            this.activeTrack = null
+
+            let mapID = this.mapID
+            if(!mapID) return window.xhint.showHint('请先选择地图，再进行查询！')
+
+            let duration = this.parent.getQueryDuration()
+
+            this.startTime = duration && duration.startTime
+            this.endTime = duration && duration.endTime
+
+            xdata.historyStore.initSegementIndex(this.startTime, this.endTime, mapID, null)
+            let message = {//查询info数据
+                cmd: 'queryHistoryScene',
+                data: {
+                    name: 'HistoryCompose',
+                    mapID: mapID,
+                    startTime: this.startTime,
+                    endTime: this.endTime,
+                    cur_time: xdata.historyStore.sceneInfo.cur_time
+                }
+            }
+            console.log('Request scene data : ', message)
+
+            xbus.trigger('REPT-FETCH-DATA', {
+                req: message,
+                def: {
+                    name: 'HistoryCompose'
+                }
+            })
+
+            let msg = {//同步查询播放数据，缩小时间等待
+                cmd: 'historyData',
+                type: 'scene',
+                mapID: xdata.historyStore.sceneInfo.mapID,
+                cards: xdata.historyStore.sceneInfo.cards,
+                startTime: this.startTime,
+                endTime: this.endTime,
+                //cur_time: dataCompose.cur_time,
+                startSegementIndex: 0,
+                segementCount: xdata.historyStore.sceneInfo.segementCount,
+                segementOffset: 1
+            }
+
+            xbus.trigger('HISTORY-FETCH-DATA', {
+                req: msg,
+                def: {
+                    name: 'HistoryScene',
+                    stat: 'jump'
+                }
+            })
+        }
+
+        xbus.on('REPT-SHOW-RESULT', (ds) => {//执行步骤2：接收到概况信息，初始化info
+            if (ds && ds.def.name === 'HistoryCompose') {
+                this.processSceneResult(ds)
+                window.xhint.close()
+            }
+        })
+
+        this.processHistoryData = (ds) => { // 点击查询的时候初始化场景数据
+            let tagPlayer = this.parent.parent.tagPlayer
+            if (!ds || !ds.def || !ds.def.name) {
+                return tagPlayer.isDataLoaded = false
+            }
+            for (let i = 0, len = (ds.segementOffset + 1); i < len; i++) {
+                xdata.historyStore.setSegment(ds.segmentIndex + i, ds.rows[i])
+            }
+            tagPlayer.isDataLoaded = true
+            if (ds.def.stat === 'jump' && ds.segmentIndex === 0) {
+                let msg = {
+                    mapID: xdata.historyStore.sceneInfo.mapID,
+                    rows: xdata.historyStore.segment[0],
+                    cmd: ds.def.name,
+                    startTime: this.startTime,
+                    endTime: this.endTime
+
+                }
+                tagPlayer.initPlayer(msg)
+            }
+        }
+
+        this.processSceneResult = (ds) => {
+            let dataCompose = ds.rows
+            this.tagResult = this.parent.tags['scene-info']
+            this.tagResult.update({ name: 'HistoryCompose', dataCompose: dataCompose })
+        }
+    </script>
+</scene-mappc>

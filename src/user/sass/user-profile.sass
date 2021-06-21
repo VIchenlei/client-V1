@@ -1,0 +1,65 @@
+@import '../../sass/defs'
+
+.user-profile
+  position: absolute
+  right: 0
+  // top: $head-height
+  width: 9rem
+  background: $body-bg
+  color: $body-ft
+  font-size: $fontsize-s
+  box-shadow: $menu-shadow // 4px 4px 8px rgba(0, 0, 0, .3)
+  z-index: 10
+
+  @media screen and (max-width: $width-medium)
+    left: 0
+    top: 0
+    width: 100%
+    height: calc(100% - 3rem)
+    display: flex
+    flex-flow: column nowrap
+  @media screen and (max-width: $width-medium) and (orientation: landscape)
+    flex-flow: row nowrap
+    height: 100%
+
+  .user-banner
+    flex: 0 0 38%
+    // background-image: url('/img/bg.png')
+    background: $banner-blue-gradient
+    display: flex
+    flex-flow: column nowrap
+    justify-content: center
+    align-items: center
+
+    img
+      height: 5rem
+    span
+      margin-top: 1rem
+      font-size: 1.2rem
+      color: $active-ft
+      font-weight: bolder
+
+  .user-dropmenu
+    list-style: none
+    @media screen and (max-width: $width-medium)
+      padding: 2rem
+
+    li
+      height: 2.8rem
+      display: flex
+      align-items: center
+      padding: 0 1rem
+      cursor: pointer
+      @media screen and (max-width: $width-medium)
+        border-bottom: 1px dotted #ddd
+        &:last-child
+          border: none
+
+      &:hover
+        background: $active-bg
+        color: $active-ft
+
+        .icon
+          fill: $active-ft
+      span
+        padding: 0 .5rem

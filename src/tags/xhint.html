@@ -1,0 +1,112 @@
+<xhint>
+  <div class="xhint-dialog loading-page">
+    <!-- <svg class="tips-icon {l.rotate ? 'loading-icon' : ''} {l.class ? l.class : ''}">
+      <use xlink:href="/icons/icons.svg#{l.icon}"></use>
+    </svg> -->
+    <div id="hold"></div>
+    <svg class="tips-icon {l.rotate ? 'loading-icon' : ''} {l.class ? l.class : ''}" if={!l.progress && !l.rotate}>
+        <use xlink:href="/icons/icons.svg#{l.icon}"></use>
+    </svg>
+    <loading if={!l.progress && l.rotate}></loading>
+    <p class="xhint-tips loading-text">
+        <!-- <svg class="tips-icon xhint-icon-warn">
+            <use xlink:href="/icons/icons.svg#icon-exclamati"></use>
+        </svg> -->
+        <span>{ l.tips }</span>
+    </p>
+    <p class="xhint-hint" if={ l.hint }> { l.hint } </p>
+    <div class="progressbox" if={l.progress}>
+      <div class="progressbar" id="progressBar" ref="progressBar"></div>
+    </div>
+    <button class="xhint-button" onclick={ terminate }>{ l.btn }</button>
+  </div>
+
+  <script>
+    import './loading.html'
+    const DEFAULT_MSG = {
+      icon: 'icon-spinner',  // 图片，默认是加载图片
+      class: '',  // 图标填充 class，默认为空
+      rotate: true,  // 是否旋转图标，比如：loading 时，需要旋转
+      tips: '系统正在加载，请稍候...',  // 提示信息
+      hint: null,  // 提示说明
+      btn: '取消',
+      cb: null     // 中断提示（用户主动关闭）时的回调函数
+    }
+
+    const NUM = 7,ANG = 360/NUM,RAD = NUM*5
+
+    this.l = DEFAULT_MSG
+
+    this.showLoading = (msg) => {
+      this.l = {
+        icon: msg && msg.name ? '' : 'icon-spinner',  // 图片，默认是加载图片
+        rotate: msg && msg.name ? false : true,
+        tips: msg && msg.information ? msg.information : '系统正在加载中，请稍候...',
+        btn: '取消',
+        progress: msg && msg.name ? true : false
+      }
+      this.show()
+      if (this.l.progress) {
+        this.root.querySelector('#progressBar').style.width = '0%'
+        this.progressBar()
+      }
+    }
+
+    this.progressBar = () => {
+      xbus.on('PROGRESS-BAR', () => {
+        if (this.l.progress) {
+          let size = xdata.dexieDBStore.forceData.size
+          let length = xdata.dexieDBStore.rows.length
+          this.root.querySelector('#progressBar').style.width = `${size / length * 100}%`
+          // 去掉dat_driver_arrange/dat_reader_path_combine表，所以size<length
+          if ((size + 2) >= length) {
+            this.close()
+          }
+        }
+      })
+    }
+
+    this.showHint = (msg, hint) => {
+      this.l = {
+        icon: 'icon-warning',
+        class: 'xhint-icon-warn',
+        rotate: false,
+        tips: msg,
+        hint: hint,
+        btn: '关闭'
+      }
+      this.show()
+    }
+
+    this.setup = () => {
+      for(let i = 0; i < NUM; i++){
+        var button = document.createElement('div')
+        button.className = `dot${i} dot`
+        button.style.top = RAD*Math.cos(ANG*i*Math.PI/180)-10+'px'
+        button.style.left = RAD*Math.sin(ANG*i*Math.PI/180)-10+'px'
+        // button.style.backgroundColor = `hsla(${ANG * i}, 50%, 50%, 1);`
+        button.style.backgroundColor = "hsla("+ANG*i+", 50%, 50%, 1)";
+
+        // button.style.animation = `osc 2s ease-in-out infinite ${i / (NUM / 2)}s, rainbow 8s infinite ${i / (NUM / 2)}s, spin 1s infinite;`
+        button.style.animation = 
+      "osc 2s ease-in-out infinite "+i/(NUM/2)+"s, rainbow 8s infinite "+i/(NUM/2)+"s, spin 1s infinite";
+        
+        this.root && this.root.querySelector('#hold').appendChild(button)
+      }
+    }
+
+    this.show = () => {
+      this.root.classList.remove('hide')
+      this.update()
+    }
+
+    this.close = () => {
+      this.root.classList.add('hide')
+    }
+
+    this.terminate = (evt) => {
+      this.close()
+      this.cb && this.cb()
+    }
+  </script>
+</xhint>

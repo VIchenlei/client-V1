@@ -1,0 +1,54 @@
+<lights-list>
+    <div class="lights-list">
+        <p>
+            <span each={i in label}>{ i }</span>
+        </p>
+        <p if={ datas } each = { item in datas }>
+            <span>{ item[1] }</span>
+            <span title="{ xdata.metaStore.data.light.get(item[1]) && xdata.metaStore.data.light.get(item[1]).name }">{ xdata.metaStore.data.light.get(item[1]) && xdata.metaStore.data.light.get(item[1]).name }</span>
+            <span title="{ xdata.metaStore.data.lights_group.get(item[0]) && xdata.metaStore.data.lights_group.get(item[0]).name }">{ xdata.metaStore.data.lights_group.get(item[0]) && xdata.metaStore.data.lights_group.get(item[0]).name }</span>
+            <span>{ xdata.metaStore.data.device_state.get(item[2]) && xdata.metaStore.data.device_state.get(item[2]).name }</span>
+            <span onclick = { showStatePage } groupId = { item[0] } lightId = { item[1] } state = { item[2] } stateCtrl = { item[4] } ctrlUser = { item[3] }>
+                <svg class="icon">
+                    <use xlink:href="/icons/icons.svg#icon-edit"></use>
+                </svg>
+            </span>
+        </p>
+        <div data-is="blank-message" message="没有相关记录。" class="blank-message" if={ !datas || datas.length === 0 }></div>
+        <!-- <p if={ !datas || datas.length === 0 }>没有相关数据！</p> -->
+    </div>
+    <script>
+        import '../sass/lights-list.sass'
+        this.label = ['编号','名称','所属灯组','状态','控制状态']
+
+        this.datas = xdata.TrafficLightsStore.data
+       
+        xbus.on('LIGHTS-STATE-UPDATE',()=>{
+            this.datas = Array.from(xdata.TrafficLightsStore.trafficLights.values())
+            // console.log('this.datas',this.datas)
+            this.update()
+        })
+
+        this.on('mount',()=>{
+            this.datas = Array.from(xdata.TrafficLightsStore.trafficLights.values())
+            console.log('0000',this.datas)
+        })
+
+        this.showStatePage = (evt) => {
+            let target = evt.currentTarget,groupId = target.getAttribute('groupId'),lightId = target.getAttribute('lightId'),state = target.getAttribute('state')
+            let stateData =  xdata.metaStore.data.device_state.get(Number(state)),stateName
+            stateName = stateData && stateData.name 
+            let ctrlUser = target.getAttribute('ctrlUser'),stateCtrl = target.getAttribute('stateCtrl')
+
+            let msg = {
+                groupId: Number(groupId),
+                lightId: Number(lightId),
+                stateName: stateName,
+                stateCtrl: Number(stateCtrl),
+                ctrlUser: ctrlUser,
+                evt: evt     
+            }
+            xbus.trigger('LIGHT-TIPS-UPDATE',msg)
+        }
+    </script>
+</lights-list>

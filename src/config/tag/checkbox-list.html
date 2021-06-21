@@ -1,0 +1,91 @@
+<checkbox-list>
+  <div>
+    <span>{title}</span>
+    <input type="text" onkeyup={searchList} placeholder={placeholder}>
+  </div>
+  <ul class="role-list" onclick={storeMenu}>
+    <li each={list, i in lists} class="list-item" data-name={list.name} card-spell={list.spy}>
+      <input type="checkbox" name="" id="{list[keyName]}" class="list{list[keyName]}" checked={judgeChecked(list[keyName], i)} disabled={judgeDisabled(list)}>
+      <label class={judgeClass(list)} for="{list[keyName]}">{list.name}</label>
+    </li>
+  </ul>
+
+  <script>
+    import {compare, searchList} from '../../js/utils/utils.js'
+
+    this.storeMenu = (evt) => {
+      this.parent.storeMenu(evt)
+    }
+
+    this.judgeChecked = (name, index) => {
+      if (this.checkedMenus) {
+        if (this.keyName === "area_business_id") {
+          if (parseInt(this.checkedMenus[index], 10)) return 'checked'
+        } else {
+          if (this.checkedMenus.includes(name.toString())) return 'checked'
+        }
+      }
+      if (this.setting && this.setting.includes(index)) return 'checked'
+      return ''
+    }
+
+    this.judgeClass = (list) => {
+      let businessID = list.area_business_id
+      if (!this.setting || !this.nosetting) return ''
+      if (this.setting.includes(businessID)) return 'green'
+      if (this.nosetting.includes(businessID)) return 'red'
+      return ''
+    }
+
+    this.judgeDisabled = (list) => {
+      if (this.parent.isDisabled) return 'disabled'
+      let businessID = list.area_business_id
+      let disabledArray = this.setting && this.setting.concat(this.nosetting)
+      if (!disabledArray) return ''
+      if (disabledArray.includes(businessID)) return 'disabled'
+      return ''
+    }
+
+    this.updateSelect = (businesses) => {
+      this.updateSelectList(businesses)
+      this.checkedMenus = null
+      this.update()
+    }
+
+    this.updateSelectList = (businesses, type) => {
+      if (this.keyName === "area_business_id") {
+        businesses = type ? this.parent.selectbusiness : businesses
+        this.setting = businesses && businesses['setting']
+        this.nosetting = businesses && businesses['nosetting']
+      }
+    }
+
+    this.searchList = (evt) => {
+      searchList(evt, this.root)
+    }
+
+    this.init = (opts) => {
+      this.title = opts.dataTitle
+      this.lists = opts.dataList
+      this.keyName = opts.dataKey
+      this.lists = this.keyName === "area_business_id" ? this.lists : this.lists.sort(compare('name', 'chinese'))
+      if (opts.dataAll) {
+        this.lists.unshift({
+          name: opts.dataAll,
+          spy: xdata.spell.makePy(opts.dataAll)[0]
+        })
+        this.lists[0][this.keyName] = 0
+      }
+      this.placeholder = opts.placeholder ? opts.placeholder : '请输入搜索名称、拼音'
+      this.checkedMenus = opts.dataChecked
+      this.updateSelectList('', 'init')
+    }
+    this.init(opts)
+
+    this.on('unmount', () => {
+      this.setting = null
+      this.nosetting = null
+      // this.unmount(true)
+    })
+  </script>
+</checkbox-list>

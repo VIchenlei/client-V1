@@ -1,0 +1,105 @@
+<reader-list class="group-list-container">
+  <div class="group-list group-list-title">
+    <span>分站号</span>
+    <span>分站名</span>
+    <span>操作</span>
+  </div>
+  <div each={rRow in reader} class="hm-item">
+    <p>
+      <span class="hm-label" onclick={ toggleLocation } class={ 'watch-' + rRow.reader_id } id={ rRow.reader_id }
+          locx={ rRow.x } locy={ rRow.y}>{ rRow.reader_id }</span>
+      <span class="hm-time" title={ rRow.name }>{ rRow.name }</span>
+      <span>
+        <input type="checkbox" class="chooseInput" name={ rRow.reader_id } onchange={ checkboxfn } checked={isChecked(rRow.reader_id)} disabled={isDisabled()}>
+      </span>
+    </p>
+    <!-- <p class="hm-pos" data-id={ row.obj_id } onclick={ locate }><img class="ticon" src="../img/location.png">{ xdata.metaStore.getPositionDesc(row.lmid, row.lmdirect, row.lmdistance) }</p> -->
+  </div>
+  <div data-is="blank-message" message="没有相关记录。" class="blank-message" if={ !readerHasData}></div>
+  <script>
+    import { judgeAreaIsneedDisplay } from '../../js/utils/utils.js'
+
+    xbus.on('BRIEF-SHOW-DEVICE DEVICE-INFO-UPDATED DEVICE-STATE-UPDATED', (rows) => {
+      this.changeReader()
+    })
+
+    this.showReader = () => {
+      if (xdata.metaStore.data.reader) {
+        let facilityReader = Array.from(xdata.metaStore.data.reader.values())
+        let readers = facilityReader
+        this.reader = readers.filter(item => {
+          let isShow = judgeAreaIsneedDisplay(item)
+          if (!isShow || item.state === 1) return false
+          return true
+        })// 停用的分站不显示
+        this.changeReader()
+      }
+      this.readerHasData = true
+      this.update()
+      // this.changeReader()
+    }
+
+    this.changeReader = () => {
+      let pushReader = Array.from(xdata.deviceStore.states.values()).filter(item => item.reader_type === 'reader')
+      for (let i = 0, len = pushReader.length; i < len; i++) {
+        let changeReader = pushReader[i]
+        let readerType = changeReader.device_type_id
+        let readerID = changeReader.reader_id
+        let readerState = changeReader.state
+        if (readerState === 1 && xdata.metaStore.data.reader.get(readerID)) {
+          if (readerType === 0) {
+           xdata.metaStore.data.reader.get(readerID).state = 2 // 为区分数据库中该分站是否停用,故用其他数值代表异常
+          }
+        } else if (readerState === 0 && xdata.metaStore.data.reader.get(readerID)) {
+          if (readerType === 0) {
+            xdata.metaStore.data.reader.get(readerID).state = 0
+          }
+        }
+      }
+
+      this.update()
+    }
+
+    this.isChecked = (id) => {
+      return this.parenTag.isChecked(id)
+    }
+
+    this.isDisabled = () => {
+      return this.parenTag.isEdit
+    }
+    
+    this.initData = () => {
+      this.redaerLabel = xdata.deviceStore.stateDefs.device.fields.labels
+      this.redaerNames = xdata.deviceStore.stateDefs.device.fields.names
+      this.showReader()
+    }
+
+    this.initData()
+    /**
+     * @description: 多选框选中显示 分站覆盖范围
+     */  
+    this.checkboxfn =(evt)=>{
+        let checked = evt.target.checked
+        let name = evt.target.name
+        let msg = {
+            name: name, //分站id用于获取分站覆盖范围信息
+            checked: checked, // true  false 用去判断隐藏显示分站覆盖范围
+        }
+        this.parenTag.handleSelect(msg)
+        xbus.trigger('MAP-SHOW-READERPATH', msg)        
+    } 
+
+    xbus.on('META-DATA-UPDATE', (msg) => { 
+      if (msg.def.name === 'reader') {
+        this.reader = msg.rows.filter(item => item.state !== 1)
+        this.update()
+      }
+    })
+
+    this.init = (opts) => {
+      this.parenTag = opts.parenTag
+    }
+
+    this.init(opts)
+  </script>
+</reader-list>

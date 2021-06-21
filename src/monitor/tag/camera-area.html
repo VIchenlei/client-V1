@@ -1,0 +1,103 @@
+<camera-area>
+    <div class="tips-title" ref="tipstitle">
+        <span class="tips-title-text">摄像头--{ nameAndPos }</span>
+        <span class="dlg-closer" onclick={ close }>
+            <svg class="icon icon-close">
+                <use xlink:href="/icons/icons.svg#icon-close"></use>
+            </svg>
+        </span>
+    </div>
+    <div class="content-body">
+        <video controls autoplay preload="auto" width={ window.isPC ? "360" : '310'} height='250'>
+            <source src={ cameraAddress }>
+        </video>
+    </div>
+    <script>
+        // import '../sass/camera-area.sass'
+        // const connectUrl = 'http://192.168.118.199:9000/ipc/?name='
+        const connectUrl = 'http://192.168.118.198/ipc/?name='
+        // const connectUrl = 'http://60.220.238.150:9000/ipc/?name='
+        this.on('mount', () => {
+            window.setDraggable({
+                target: this.root,
+                handle: this.refs.tipstitle
+            })
+            console.log('msg--------', opts)
+            this.setPos()
+            if(opts.data){
+                let cameraMark = opts.data.name
+                this.cameraAddress = connectUrl + cameraMark
+                // this.cameraName = opts.data.name
+                this.cameraPos = opts.data.pos_desc
+                this.nameAndPos = this.cameraPos
+            }else{
+                console.warn('please check metadata!')
+            }
+            this.update()
+        })
+
+        this.setPos = () => {
+            let point = this.getShowPoint(opts.evt)
+            this.root.style.left = `${point.x}px`
+            this.root.style.top = `${point.y}px`
+            this.root.classList.remove('reduceIndex')
+            this.root.classList.add('addIndex')
+        }
+
+        this.close = () => {
+            this.unmount(true)
+            this.root.classList.remove('addIndex')
+            this.root.classList.add('reduceIndex')
+        }
+
+        this.getShowPoint = (evt) => {
+            let tt = this.root
+            let tbox = tt.getBoundingClientRect()  // tips 视区
+            let tboxX = tt.offsetWidth, tboxY = tt.offsetHeight
+            let mbox = tt.parentElement.getBoundingClientRect()  // 地图视区
+            const pageHeader = 40//这里暂不使用document获取该高度
+
+            let px = 0
+            let py = 0
+            if (!isPC) {
+                px = (mbox.width - tbox.width) / 2
+                py = (mbox.height - tbox.height) / 2
+
+                px = px < 0 ? 0 : px
+                py = py < 0 ? 0 : py
+                return { x: px, y: py }
+            }
+            // let ex = evt.clientX
+            // let ey = evt.clientY
+            let ex, ey
+            // 点击事件在地图视窗中的坐标(ex, ey)
+            if (evt.pixel) {
+                ex = evt.pixel[0]
+                ey = evt.pixel[1]
+            } else {
+                ex = evt.clientX
+                ey = evt.clientY
+            }
+
+            let offset = 5
+
+            if (mbox.width - ex > tboxX) { // 当点击点右边空间足够时，显示在点击点的右边
+                px = ex + offset
+            } else if (ex > tboxX) { // 当点击点左边空间足够时，显示在点击点的左边
+                px = ex - tboxX - offset
+            } else { // 居中显示
+                px = (mbox.width - tboxX) / 2
+            }
+
+            if (mbox.height - ey > tboxY) { // 当点击点下边空间足够时，显示在点击点的下边
+                py = ey + pageHeader + offset
+            } else if (ey > tboxY) { // 当点击点上边空间足够时，显示在点击点的上边
+                py = ey + pageHeader - tboxY - offset
+            } else {  // 居中显示
+                py = (mbox.height - tboxY) / 2
+            }
+
+            return { x: px, y: py }
+        }
+    </script>
+</camera-area>

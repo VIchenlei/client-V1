@@ -1,0 +1,81 @@
+<call-personnel>
+  <div class="call">
+    <p class="tips" if={ hasData }>
+      当前无呼叫!
+    </p>
+    <div>
+      <nav class="nav-title">
+        <span>发起人</span>
+        <span>呼叫人</span>
+        <span>发起时间</span>
+        <span>状态</span>
+        <span>操作</span>
+      </nav>
+      <p each={ call in callList } class="callingList">
+        <span>{ call[0] }</span>
+        <span>{ call[6] === 0 ? '全员' : call[6] }</span>
+        <span>{ new Date(call[3]).format('hh:mm:ss') }</span>
+        <span>{ call[8] ? '成功' : '' }</span>
+        <span onclick={ cancelCall } name={ call[2] } card={ call[1] } data-type={ call[4] } call-time={ call[3] }>{ call[7] ? '取消' : '' }</span>
+      </p>
+    </div>
+    <div data-is="blank-message" message="没有相关记录。" class="blank-message" if={ !callList || callList.length <= 0 }></div>
+  </div>
+
+  <script>
+    xbus.on('SHOW-CALL-LIST', (msg) => {
+      this.callList = Array.from(xdata.callStore.states.values())
+      this.update()
+    })
+
+    this.init = () => {
+      this.callList = Array.from(xdata.callStore.states.values())
+      // console.log(this.callList)
+      this.update()
+    }
+
+    this.init()
+
+    this.cancelCall = (evt) => {
+      this.stationid = []
+      this.cards = []
+      let target = evt.currentTarget
+      let stationid = Number(target.getAttribute('name'))
+      let card = target.getAttribute('card')
+      let type = Number(target.getAttribute('data-type'))
+      let callTime = Number(target.getAttribute('call-time'))
+      stationid = type === 0 ? stationid = 0 : stationid
+      card = type === 0 ? card = '0' : card
+      let reader = {
+        stationid: stationid
+      }
+      this.stationid.push(reader)
+
+      let cardobj = {
+        cardid: card,
+        cardtype: 1
+      }
+      this.cards.push(cardobj)
+      let msg = {
+        cmd: 'call_card_cancel_req',
+        data: {
+          call_type_id: type, // 全员/定员
+          user_name: xdata.userName, // 取消人
+          call_time: callTime, // 时间戳
+          stations: this.stationid, // 分站
+          cards: this.cards // 取消呼叫卡
+        }
+      }
+      console.log(msg)
+      xbus.trigger('CALL-REMOTE', msg)
+    }
+
+        // xbus.on('CAll-CARD-REMOVE', (data) => {
+        //     console.log(data)
+        //     let key = data.user_name + '-' + parseInt(data.call_time, 10)
+        //     xdata.callStore.states.delete(key)
+        //     xdata.callStore.selfcallCardList.delete(key)
+        //     this.init()
+        // })
+  </script>
+</call-personnel>

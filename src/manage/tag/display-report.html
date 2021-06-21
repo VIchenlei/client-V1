@@ -1,0 +1,193 @@
+<display-report>
+    <nav class="nav-tool">
+        <img src="/img/closeblue.png" onclick={ close }>
+    </nav>
+    <article>
+        <div class="content-area">
+            <nav class="select-area">
+                <div class="control-bar">
+                    <div>
+                        <span>类别:</span>
+                        <select onchange={ changeFilterCondition }>
+                            <option each={ i in queryCondition} keys={ i.keys } selected={ i.selected }>{i.name}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <span>控制方式:</span>
+                        <select onchange={ changeControlMode }>
+                            <option each={ i in control } ident={ i.ident } selected={ i.selected }>{i.name}</option>
+                        </select>
+                    </div>
+                    <button ref='searchBar' controlMode={ controlMode } filterCondition={ filterCondition } onclick={ startQuery }>查询</button>
+                </div>
+                <div class="worktype-bar" if={ tableName==='staff' }>
+                    <span>常选工种：</span>
+                    <span ref="worktypeBar" name="所有工种" onclick={ changeWorkType} class="active allWorktype">所有工种</span>
+                    <span ref="worktypeBar" each={ type in workType } keyid={ type.id} onclick={ changeWorkType} name={ type.name }>{ type.name }</span>
+                </div>
+            </nav>
+            <section>
+                <div>
+                    <span class="labelTitle" each={ i in label} if={ tableName==='staff' || i !=='工种' && tableName==='vehicle' }>{i}</span>
+                </div>
+                <div ref="lineBar" each={ item in deptContent } show={ getShow(item.dept_id) }>
+                    <span>{ getStatus(item.dept_id) }</span>
+                    <span>{item.name}</span>
+                    <span if={ tableName==='staff' }>{ defaultWorkTypeName }</span>
+                    <span deptId={ item.dept_id } workTypeid={ defaultWorkTypeid } deptName={ item.name } class="detail" onclick={ updateDisplayList
+                        }>详情</span>
+                </div>
+            </section>
+        </div>
+        <div class="content-area">
+            <div data-is="display-list" class="basic_list" name={ tableName }></div>
+        </div>
+    </article>
+    <script>
+        import '../sass/display-report.sass'
+        import './display-list.html'
+        this.tableName = opts.name
+        this.parentTag = opts.parentTag
+        this.defaultWorkTypeName = '所有工种'
+        this.queryCondition = [{ name: '部门', keys: 'dept_id', selected: 'selected' }]
+        this.control = [{ name: '是否显示', ident: 'need_display', selected: 'selected' }, { name: '是否上报', ident: 'enable_report', selected: '' }]
+        this.label = ['当前状态', '部门', '工种', '操作']
+        this.controlMode = 'need_display'
+        this.msg = this.tableName
+
+        this.getWorkTypeid = (name) => {
+            let worktype = xdata.metaStore.dataInArray.get('worktype'), dataType
+            dataType = worktype && worktype.filter(item => item.name === name)[0]
+            return dataType && dataType.worktype_id
+        }
+
+        let driverWorktypeId = this.getWorkTypeid("胶轮车司机"), secureWorktypeid = this.getWorkTypeid("安监员")
+        this.workType = [{ name: '胶轮车司机', id: driverWorktypeId }, { name: '安监员', id: secureWorktypeid }]
+        this.deptContent = xdata.metaStore.dataInArray.get('dept')
+
+        this.changeWorkType = (evt) => {
+            this.removeWorktypeBarActive()
+            evt.target.setAttribute('class', 'active')
+            this.defaultWorkTypeid = evt.target.getAttribute("keyid")
+            this.defaultWorkTypeName = evt.target.getAttribute("name")
+        }
+
+        this.removeWorktypeBarActive = () => {
+            let curWorkType = this.refs.worktypeBar && this.refs.worktypeBar.filter(item => item.classList.contains('active'))
+            curWorkType && curWorkType[0] && curWorkType[0].classList.remove('active')
+        }
+
+        this.updateDisplayList = (evt) => {//点击详情
+            evt.preventUpdate = true  // do : 点击详情时，阻止刷新左侧列表,提高效率
+            this.setActiveBg(evt)
+            this.curClickDeptid = evt.target.getAttribute("deptId")
+            this.curClickWorkTypeid = evt.target.getAttribute("workTypeid")
+            this.ident = this.tableName === 'staff' ? 'stafflist' : 'vehiclelist'
+            this.searchUpdate('', '', this.curClickDeptid, '', this.ident, this.curClickWorkTypeid)//staff, vehicle, deptid, cardname, sqlname,worktype
+            this.tags["display-list"].curDeptName = evt.target.getAttribute("deptName")
+            this.tags["display-list"].curWorktypeName = this.defaultWorkTypeName
+        }
+
+        this.searchUpdate = (staff, vehicle, deptname, cardname, sqlname) => {
+            let condition = '1=1 '
+            if (staff) {
+                condition += `and s.staff_id = ${staff} `
+            }
+            if (deptname) {
+                condition += `and se.dept_id = ${deptname} `
+            }
+            if (vehicle) {
+                condition += `and name = '${vehicle}' `
+            }
+            if (cardname) {
+                condition += `and ident = ${cardname} `
+            }
+            if (!staff && !deptname && !vehicle && !cardname) {
+                condition = '1=1'
+            }
+            this.msg = {
+                name: sqlname,
+                condition: condition
+            }
+            this.tags["display-list"].inpuireDB(this.msg)
+        }
+
+        this.setActiveBg = (evt) => {
+            let parentNode = evt.target.parentElement
+            let activeLine = this.refs.lineBar.filter(item => item.classList.contains('active'))
+            activeLine && activeLine[0] && activeLine[0].classList.remove('active')
+            parentNode.setAttribute('class', 'active')
+        }
+
+        this.changeControlMode = (evt) => {
+            let ident = evt.target.getAttribute("ident"), target = evt.target, tarEle = target.options[target.selectedIndex].getAttribute('ident')
+            this.controlMode = tarEle
+            this.tags['display-list'].controlMode = tarEle
+        }
+
+        this.changeFilterCondition = (evt) => {
+            let keys = evt.target.getAttribute("keys"), target = evt.target, tarEle = target.options[target.selectedIndex].getAttribute('keys')
+            this.filterCondition = tarEle
+        }
+
+        this.startQuery = () => {
+            let activeLine = this.refs.lineBar.filter(item => item.classList.contains('active'))
+            activeLine && activeLine[0] && activeLine[0].classList.remove('active')//初始化选中行背景
+            this.msg = this.tableName//初始化查询方式
+            let ele = this.refs.searchBar, filterCondition = ele.getAttribute('filterCondition'), controlMode = ele.getAttribute('controlMode')
+            this.tags['display-list'].update({ controlMode: controlMode })//初始化右侧数据
+
+            this.defaultWorkTypeid = null
+            this.defaultWorkTypeName = '所有工种'//重置工种
+            this.removeWorktypeBarActive()//重置工种选中状态
+            this.root.querySelector('.allWorktype') && this.root.querySelector('.allWorktype').classList.add('active')
+        }
+
+        this.getShow = (keyid) => {
+            let data = this.tableName === 'staff' ? xdata.metaStore.deptStaff : xdata.metaStore.deptVehicle
+            data = data && data.get(keyid)
+            if (data && data[0]) {
+                return !this.defaultWorkTypeid ? true : data[0].worktype_id === Number(this.defaultWorkTypeid)
+            } else {
+                return false
+            }
+        }
+
+        this.getStatus = (keyid) => {
+            let data = this.tableName === 'staff' ? xdata.metaStore.deptStaff : xdata.metaStore.deptVehicle, showNumber = 0, hideNumber = 0
+            if (!this.getShow(keyid)) return //没有数据的不显示，减少处理
+            data = data && data.get(keyid)
+            data && data[0] && data.filter((item) => {
+                let ident = this.controlMode === 'need_display' ? item.need_display : item.enable_report
+                if (!this.defaultWorkTypeid) {
+                    if (ident === 1) showNumber++
+                    if (ident === 0) hideNumber++
+                } else {
+                    if (ident === 1 && item.worktype_id === Number(this.defaultWorkTypeid)) showNumber++
+                    if (ident === 0 && item.worktype_id === Number(this.defaultWorkTypeid)) hideNumber++
+                }
+            })
+
+            if (hideNumber === 0 && showNumber !== 0) {
+                return '全显'
+            } else if (hideNumber !== 0 && showNumber === 0) {
+                return '全不显'
+            } else if (hideNumber !== 0 && showNumber !== 0) {
+                return '部分显'
+            }
+        }
+
+        xbus.on('REPT-SHOW-RESULT', (ds) => {
+            if (!this.tags['display-list']) return
+            if (this.msg.condition && ds.rows && ds.rows[0] && ds.rows[0].dept_id !== Number(this.curClickDeptid)) return //父标签值不会改变
+            // console.log('this.msg.condition', this.msg.condition)
+            this.tags['display-list'].updateList(ds)
+        })
+
+        this.close = () => {
+            this.unmount(true)
+            this.parentTag.showDisPlay = false
+            this.parentTag.update()
+        }
+    </script>
+</display-report>

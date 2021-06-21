@@ -1,0 +1,138 @@
+@import defs
+
+.homepage,.homeMange
+    display: flex
+    @include wh(100%,100%)
+    .changeTag
+        @include wh(2.5rem,2.5rem)
+        @include fixed(95%,45%)
+        border-radius: 100%
+        text-align: center
+        line-height: 2.3rem
+        cursor: pointer
+        background: #e1ecf4
+        color: #29a7fd
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3)
+    .changeLeft
+        left: 96%
+    .changeRight
+        left: 46%
+
+    .menu
+        display: flex
+        flex: 1
+        width: 100%
+        padding: 5rem 9rem
+        justify-content: flex-start
+        flex-wrap: wrap
+            
+        side-menu,side-list
+            @include wh(30%,50%)
+            display: flex
+            margin: 0 2rem .9rem 0
+            background: $color-white
+            &:hover
+                animation: scale 0.5s forwards
+                box-shadow: 0 2px 4px rgba(0,0,0,.3)
+            .title
+                @include justify-middle
+                flex-direction: column
+                background: none
+                color: $disabled-bgcolor
+                height: auto
+                padding: 0.5rem
+                position: relative
+                .triangle
+                    @include wh(0,0)
+                    @include absolute(-3.1rem,-3rem)
+                    border-top: 3rem solid #69b2ad
+                    border-right: 3rem solid transparent
+                    border-bottom: 3rem solid transparent
+                    border-left: 3rem solid transparent
+                    transform: rotate(135deg)
+                .iconBG
+                    padding: 1rem 1.2rem
+                    border-radius: 100%
+                    .sidebar-icon
+                        fill: $color-white
+                .sidebar-title-text
+                    margin: 20px 0 15px 0
+                    color: $color-black
+        side-list
+            @include wh(21rem,15rem)
+            background: #f6f6f6
+            @media screen and (max-width: 5000px)
+                font-size: $fontsize-xl
+            @media screen and (max-width: 3000px)
+                font-size: $fontsize-s
+            &:nth-child(1),&:nth-child(7),&:nth-child(13)
+                .iconBG
+                    background: #69b2ad
+            &:nth-child(2),&:nth-child(8)
+                .triangle
+                    border-top: 3rem solid #c4cc51
+                .iconBG
+                    background: #c4cc51
+            &:nth-child(3),&:nth-child(9)
+                .triangle
+                    border-top: 3rem solid #5f95b2
+                .iconBG
+                    background: #5f95b2
+            &:nth-child(4),&:nth-child(10)
+                .triangle
+                    border-top: 3rem solid #7cc54a
+                .iconBG
+                    background: #7cc54a
+            &:nth-child(5),&:nth-child(11)
+                .triangle
+                    border-top: 3rem solid #7ab7ed
+                .iconBG
+                    background: #7ab7ed
+            &:nth-child(6),&:nth-child(12)
+                .triangle
+                    border-top: 3rem solid #55b276
+                .iconBG
+                    background: #55b276
+            .title
+                flex: 1.2
+            .content
+                position: relative
+                overflow: hidden
+                flex: 2
+                margin: 1.2rem 0rem 1.2rem 0
+                height: 11.6rem
+                background: $color-white
+                border-radius: 5px
+                article
+                    @include wh(303%,100%)
+                    display: flex
+                    color: $disabled-color
+                    div
+                        @include wh(103%,100%)
+                        position: relative
+                        overflow-y: scroll
+                        flex-direction: column
+                        justify-content: flex-start
+                        padding: .5rem
+                        p
+                            height: 1.9rem
+                            padding-left: 12%
+                            cursor: pointer
+                            color: $content-color
+                            text-shadow: 5px 5px 5px rgba(255,255,255,0.6)
+                            white-space: nowrap
+                    .transfer-bar
+                        @include absolute(85%,43%)
+                        @include wh(1rem,1rem)
+                        cursor: pointer
+                        line-height: 1rem
+                        text-align: center
+                        background: #f6f6f6
+                        box-shadow: 0 2px 4px rgba(0,0,0,.3)
+                        font-size: 0.8125rem
+                        border-radius: 50%
+
+.homepage
+    overflow-y: scroll
+    // width: 205% 
+    width: 103%

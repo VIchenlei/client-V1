@@ -1,0 +1,115 @@
+<three-rate-bottom>
+  <div each={list in lists} class="dept-rate">
+    <span class="rate-top-title">{xdata.metaStore.getNameByID('dept_id', list)}</span>
+    <div class={"dept"+list} data-dept={list} style="width:80%;height:200px;"></div>
+  </div>
+  
+  <script>
+    import echarts from 'echarts'
+    import {efficiencyDept, efficiencyDeptBar} from '../../js/def/graph_def.js'
+    let self = this
+    const LEGENDNAME = {'dept_boot': '开机率', 'dept_worktime': '工时利用率', 'dept_rugular': '正规循环率'}
+
+    this.splitDeptData = (rows, name) => {
+      let arr = []
+      rows.forEach(row => {
+        if (!this.deptMap.get(row.dept_id)) {
+          let ret = new Map()
+          this.deptMap.set(row.dept_id, ret)
+        }
+        let deptmap = this.deptMap.get(row.dept_id)
+        if (!deptmap.get(name)) {
+          let ret = new Map()
+          deptmap.set(name, ret)
+        }
+        if (!this.dataMap.get(row.dept_id)) {
+          let ret = []
+          this.dataMap.set(row.dept_id, ret)
+        }
+        let data = deptmap.get(name)
+        let stime = new Date(row.stime).getDate()
+        data.set(stime, [stime, row.worktime])
+        let deptArr = this.dataMap.get(row.dept_id)
+        deptArr.push(row.worktime)
+      })
+    }
+
+    this.initdeptcharts = () => {
+      for (let i = 0; i < this.lists.length; i++) {
+        let series = []
+        let legend = []
+        let deptID = this.lists[i]
+        let deptname = xdata.metaStore.getNameByID('dept_id', deptID)
+        let initdom = this.root.querySelector('.dept'+deptID)
+        if (!initdom) return
+        echarts.dispose(initdom)
+        let chart = echarts.init(initdom)
+        let rows = Array.from(this.deptMap.get(deptID).keys())
+        let max = 100
+        rows.forEach(row => {
+          let data = Array.from(self.deptMap.get(deptID).get(row).values())
+          let deptdata = self.dataMap.get(deptID)
+          max = Math.max.apply(Math, deptdata)
+          max = max < 100 ? 100 : Math.ceil(max)
+          legend.push(LEGENDNAME[row])
+          if (i == 0 || i == 3) {
+            series.push({
+              name: LEGENDNAME[row],
+              id: row,
+              data: data,
+              type: 'line',
+              smooth: true
+            })
+          } else {
+            series.push({
+              name: LEGENDNAME[row],
+              id: row,
+              data: data,
+              type: 'bar',
+              barGap: 0,
+              barWidth: 2
+            })
+          }
+          
+        })
+        let msg = {
+          legend: legend,
+          title: '',
+          series: series,
+          axisLine: {
+            lineStyle: {
+              color: '#fff'
+            }
+          },
+          axisLabel: {
+            rotate: -45
+          },
+          textStyle: {
+            color: '#fff',
+            fontSize: 12
+          },
+          max: max
+        }
+        let option
+        if (i == 0 || i == 3) {
+          option = efficiencyDept(msg)
+        } else {
+          option = efficiencyDeptBar(msg)
+        }
+        chart.setOption(option)
+      }
+    }
+
+    this.initDate = (deptB, deptW, deptR) => {
+      this.deptMap = new Map()
+      this.dataMap = new Map()
+      let deptBoot = this.splitDeptData(deptB, 'dept_boot')
+      let deptWorktime = this.splitDeptData(deptW, 'dept_worktime')
+      let deptRugular = this.splitDeptData(deptR, 'dept_rugular')
+      // console.log(this.deptMap)
+      this.lists = Array.from(this.deptMap.keys())
+      this.update()
+      this.initdeptcharts()
+    }
+  </script>
+</three-rate-bottom>

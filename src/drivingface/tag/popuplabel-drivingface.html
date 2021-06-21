@@ -1,0 +1,449 @@
+<popuplabel-drivingface>
+  <div class='box' ref="detaildialog">
+    <!-- <nav ref="dialogtitle" class="nav-general"> 概况
+      <span onclick={ close }>x</span>
+    </nav> -->
+    <div class='body-area'>
+      <nav class="nav-titles">
+        <!-- <span type='current' class="generalpre active" onclick={ showTitle }>基础信息</span> -->
+        <span type='current' class="generalpre active" onclick={ showTitle }>当前概况</span>
+        <span type='staffList' class="generalpre" onclick={ showTitle }>人员列表</span>
+        <span type='shiftHis' class="generalpre" onclick={ showTitle }>班次概况</span>
+        <span type='history' class="generalpre" onclick={ showTitle }>掘进趋势(按班)</span>
+        <span type='monthTrend' class="generalpre" onclick={ showTitle }>掘进趋势(按月)</span>
+        <!-- <span type='environment' class="generalpre" onclick={ showTitle }>环境参数</span> -->
+        <!-- <span type='twoDimensional' class="generalpre" onclick={ showTitle }>切换二维视图</span> -->
+      </nav>
+      <div class="content">
+        <article if={ current }>
+          <div class="content-left">
+            <p><span>掘进面名称：</span><span>{ title }</span></p>
+            <p><span>负责队组:</span><span> 掘六队</span></p>
+            <p><span>开采日期:</span><span>{ startTime }</span></p>
+            <p><span>计划完成日期:</span><span> { endTime }</span></p>
+            <p><span>计划掘进天数:</span><span>{planDay}天</span></p>
+            <p><span>实际掘进天数:</span><span>{realDay}天</span></p>
+            <p><span>计划掘进长度:</span><span>{ planDis}(m)</span></p>
+            <p><span>已经掘进长度:</span><span>{ realDis }(m)</span></p>
+            <div class="plan-pro">
+              <span>计划进度:</span>
+              <span class="bg-pro">
+                            <span class="plan-bg"></span>
+              </span>
+              <span>{ planPro }</span>
+            </div>
+            <div class="real-pro">
+              <span>实际进度:</span>
+              <span class='bg-pro'>
+                            <span class='real-bg'></span>
+              </span>
+              <span>{ realPro }</span>
+            </div>
+          </div>
+          <div class="content-right">
+            <div class="draw-content">
+              <div class="draw-top draw-tunnerller">
+                <span class="base-line"> 基准点</span>
+                <div class="bgVehicle">
+                  <span>{ overDistance }(m)</span>
+                  <span class="warnLine"></span>
+                  <!-- <span class="vertical-distance">已掘进{ realDis }m</span> -->
+                  <span class="doatVehicle"></span>
+                </div>
+              </div>
+              <div class="draw-footer">大巷</div>
+            </div>
+            <div class="draw-bottom">
+                <p><span>作业队组：</span><span>掘六队</span></p>
+                <p><span>班次:</span><span>{ begainTime }</span></p>
+                <p><span>工作时长:</span><span>{ workTime }(h)</span></p>
+                <p><span>当前状态:</span><span>{ state }</span></p>
+                <p><span>当班掘进距离:</span><span>{ tunnellerDis }m</span></p>
+                <p><span>平均速度:</span><span>{ curSpeed }m/h</span></p>
+                <p><span>最大速度:</span><span>{ moreSpeed }m/h</span></p>
+                <p><span>电量:</span><span>{ cardstate }</span></p>
+                <p if={ warnFace } class="specialArea"><span>特殊地质构造预警：</span><span>{ warnMessage }</span></p>
+                <p if={ !warnFace } class="specialArea AreaNormal"><span>特殊地质构造预警：</span><span>{warnMessage}</span></p>
+                <p if={ warnPerson } class="specialArea"><span>人员安全预警：</span><span>人员超员</span></p>
+                <p if={ !warnPerson } class="specialArea AreaNormal"><span>人员安全预警：</span><span>人员正常</span></p>
+            </div>
+          </div>
+          <div data-is='environment-data' class="content-end"></div>
+        </article>
+        <article if={ !current } class="Linechart articleSec">
+          <p>
+            <span>时间: {curTrendDay}</span>
+            <span>班次: {curTrendShift}</span>
+            <input type="date" id='queryTime' value="请选择查询时间"></input>
+            <select id='selectShift'>
+              <option>零点班</option>
+              <option>八点班</option>
+              <option>四点班</option>
+            </select>
+            <button onclick={ doQuerytrend }>查询</button>
+          </p>
+          <div class="svgDom" style="width: 660px;height:350px;"></div>
+        </article>
+      </div>
+        <article if={ currentShift } class="articleSec">
+          <drivingface-shiftTrend></drivingface-shiftTrend>
+        </article>
+        <article if={ monthTrend } class="Linechart articleSec">
+          <drivingface-monthTrend></drivingface-monthTrend>
+        </article>
+        <div class="cont" id="driverface-cont"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    import { drawLineChart } from '../../js/map/OlMapUtils.js'
+    import '../../tags/pagination.html'
+    import './drivingface-monthTrend.html'
+    import './drivingface-shiftTrend.html'
+    import './environment-data.html'
+    import './driverface-stafflist.html'
+
+    this.tunnellerFace = false
+    this.current = true
+    this.warnFace = false
+    this.warnPerson = false
+    this.staffList = false
+    this.environment = false
+    this.querySinglePage = true
+    this.curmonth = new Date().getMonth() + 1
+    this.nows = new Date(new Date().getTime()).format('yyyy-MM-dd')
+    this.num = this.num ? this.num : 1
+
+    this.close = () => {
+      // this.root.classList.add('hide')
+      this.unmount(true)
+      xbus.trigger('SHOW-WORK-FACE', {
+        isShow: false
+      })
+    }
+
+    xbus.on('HIDE-POP-DRIVERING', () => {
+      this.unmount(true)
+    })
+
+    this.sendToDb = (cmd, name, sql) => { // 查询数据库
+      let msg = {
+        cmd: cmd,
+        data: {
+          name: name,
+          sql: sql
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: msg,
+        def: {
+          name: name
+        }
+      })
+    }
+
+    this.showTitle = (evt, types, time) => { // tab切换
+      let type = types || evt.target.getAttribute('type')
+      let ele = this.root.querySelector('.content')
+      let title = this.root.querySelectorAll('.generalpre')
+      title.forEach((ele) => {
+        ele.classList.remove('active')
+      })
+      if (evt.target) {
+        evt.target.classList.add('active')
+      }
+      this.root.querySelector('.content').classList.add('hide')
+      this.root.querySelector('.cont').classList.add('hide')
+
+      if (type === 'shiftHis') {
+        this.root.querySelector('.content').classList.remove('hide')
+        this.currentShift = true
+        this.monthTrend = false
+        ele.classList.add('hide')
+      } else if (type === 'current') {
+        this.root.querySelector('.content').classList.remove('hide')
+        ele.classList.remove('hide')
+        this.current = true
+        this.currentShift = false
+        this.monthTrend = false
+        let data = this.card_id ? xdata.coaltunneller.tunneller.get(this.card_id) : ''
+        let self = this
+        setTimeout(function () {
+          self.init(data)
+        }, 30)
+      } else if (type === 'history') {
+        this.root.querySelector('.content').classList.remove('hide')
+        window.xhint.close()
+        ele.classList.remove('hide')
+        this.currentShift = false
+        this.current = false
+        this.monthTrend = false
+        this.queryCurShiftData()
+      } else if (type === 'monthTrend') {
+        this.root.querySelector('.content').classList.remove('hide')
+        this.monthTrend = true
+        ele.classList.add('hide')
+        this.currentShift = false
+      } else if (type === 'staffList') {
+        this.root.querySelector('.cont').classList.remove('hide')
+        this.currentShift = false
+        this.monthTrend = false
+        if (this.contList) {
+          this.contList.unmount(true)
+        }
+        console.log('this.parent', this.parent)
+        this.contList = riot.mount('div#driverface-cont', 'driverface-stafflist', {areaID: this.parent.opts})[0]
+      } else if (type === 'environment') {
+        this.root.querySelector('.cont').classList.remove('hide')
+        this.currentShift = false
+        this.monthTrend = false
+        if (this.contList) {
+          this.contList.unmount(true)
+        }
+        this.contList = riot.mount('div#driverface-cont', 'environment-data', {areaID: this.parent.opts})[0]
+      }
+    }
+
+    xbus.on('REPT-SHOW-RESULT', (msg) => { // 接受数据库数据
+      switch (msg.def.name) {
+        case 'tunnellerFace':
+          let ele = this.root.querySelector('.box')
+          ele && ele.classList.remove('hide')
+          if (msg.rows && this.current) {
+            this.defineData = msg.rows
+            this.tunnellerFace(msg.rows, this.data)
+            this.update()
+          }
+          break
+        case 'tunnellerCurShiftLine':
+          this.CurShiftLineData = msg.rows
+          console.log('msg.rows', msg.rows)
+          // this.drawLine(this.CurShiftLineData)
+          this.countTableData(this.CurShiftLineData)
+          break
+        case 'tunnellerFaceDis':
+          msg.rows && msg.rows[0] && this.setFaceBg(msg.rows[0])
+          break
+        default:
+          console.warn('无相关数据！')
+          break
+      }
+    })
+
+    this.setFaceBg = (data) => { // 计算比例高度
+      this.realDis = data.total_length
+      let time = Date.parse(new Date())
+      this.startTime = this.startTime ? this.startTime : window.sessionStorage.getItem('startTime')
+      let lasttime = Date.parse(this.startTime)
+      this.realDay = parseInt((time - lasttime) / (1000 * 60 * 60 * 24))
+      this.planDay = this.planDay ? this.planDay : Number(window.sessionStorage.getItem('planDay'))
+      this.planPro = ((this.realDay / this.planDay) * 100).toFixed(2) + '%'
+      this.totallength = this.totallength ? this.totallength : window.sessionStorage.getItem('totallength')
+      this.totallength === 0 ? this.realpro = 0 + '%' : this.realPro = ((this.realDis / this.totallength) * 100).toFixed(1) + '%'
+      let bgVehicle = this.root.querySelector('.bgVehicle')
+      if (!bgVehicle) {
+        return
+      }
+      this.root.querySelector('.plan-bg').style.width = this.planPro
+      this.root.querySelector('.real-bg').style.width = this.realPro
+      this.planDis = this.planDis ? this.planDis : Number(window.sessionStorage.getItem('planDis'))
+      this.overDistance = (this.planDis - this.realDis).toFixed(0)
+      window.sessionStorage.setItem('overDistance', this.overDistance)
+
+      bgVehicle.style.height = (this.totallength - this.realDis) / this.totallength * 100 + '%'
+      this.update()
+    }
+
+    this.doQuerytrend = (evt) => { // 输入日期查询掘进趋势
+      this.curTrendDay = this.root.querySelector('#queryTime').value
+      this.curTrendShift = this.root.querySelector('#selectShift').value
+      window.xhint.close()
+      switch (this.curTrendShift) {
+        case '零点班':
+          this.begainTrendTime = this.curTrendDay + ' 00:00:00'
+          this.endTrendTime = this.curTrendDay + ' 08:00:00'
+          break
+        case '八点班':
+          this.begainTrendTime = this.curTrendDay + ' 08:00:00'
+          this.endTrendTime = this.curTrendDay + ' 16:00:00'
+          break
+        case '四点班':
+          this.begainTrendTime = this.curTrendDay + ' 16:00:00'
+          this.endTrendTime = this.curTrendDay + ' 23:59:59'
+          break
+      }
+      this.queryCurShiftData()
+    }
+
+    this.preLoadShiftData = () => { // 默认打开的时候的班次,提前加载数据
+      this.curTrendDay = new Date(new Date().getTime()).format('yyyy-MM-dd')
+      this.hourTime = new Date(new Date().getTime()).format('hh:mm:ss')
+      if (this.hourTime >= '00:00:00' && this.hourTime <= '08:00:00') {
+        this.begainTrendTime = this.curTrendDay + ' 00:00:00'
+        this.endTrendTime = this.curTrendDay + ' 08:00:00'
+        this.curTrendShift = '零点班'
+      } else if (this.hourTime > '08:00:00' && this.hourTime <= '16:00:00') {
+        this.begainTrendTime = this.curTrendDay + ' 08:00:00'
+        this.endTrendTime = this.curTrendDay + ' 16:00:00'
+        this.curTrendShift = '八点班'
+      } else if (this.hourTime > '08:00:00' && this.hourTime <= '23:59:59') {
+        this.begainTrendTime = this.curTrendDay + ' 16:00:00'
+        this.endTrendTime = this.curTrendDay + ' 23:59:59'
+        this.curTrendShift = '四点班'
+      }
+    }
+
+    this.queryHasDis = () => { // 查询已掘进总距离,初始化原始数据
+      let sql = `select * from his_drivingface_shift_finish_length  where total_length in (select max(total_length) from his_drivingface_shift_finish_length where card_id = ${this.card_id}) order by cur_time desc limit 1 `
+      // console.log('sqlhasDis', sql)
+      this.sendToDb('query', 'tunnellerFaceDis', sql)
+    }
+
+    this.queryCurShiftData = () => { // 查询当前班次趋势图数据
+      let sqlLastData = `SELECT date_format(hdr.cur_time,"%Y-%m-%d %H:%i:%s") AS times, hdr.card_id,hdr.y AS leng FROM his_drivingface_real hdr WHERE hdr.card_id = ${this.card_id} AND hdr.cur_time > '${this.begainTrendTime}' AND hdr.cur_time < '${this.endTrendTime}' order by times`
+      console.log('sql', sqlLastData)
+      this.sendToDb('query', 'tunnellerCurShiftLine', sqlLastData)
+    }
+
+    this.on('mount', () => {
+      this.getBoundCardData()
+      this.init(this.data)
+      // window.setDraggable({
+      //   target: this.refs.detaildialog,
+      //   handle: this.refs.dialogtitle
+      // })
+    })
+
+    this.getBoundCardData = () => {
+      let drivingfaceData = xdata.metaStore.data.drivingface_vehicle.get(this.parent.opts.id)
+      let vehicleID = drivingfaceData && drivingfaceData.vehicle_id
+
+      let vehicleData = xdata.metaStore.data.vehicle_extend.get(vehicleID)
+      this.card_id = vehicleData && vehicleData.card_id
+      this.data = xdata.coaltunneller.tunneller.get(this.card_id)
+    }
+
+    this.init = (data) => {
+      !data && this.queryHasDis()// 没有缓存时，查询数据库给个已掘进距离
+      data && this.tunnellerFace('', data)
+      this.renderWarn(28)
+      this.renderWarn(30)
+      this.preLoadShiftData()// 预加载趋势图当前班次数据
+    }
+
+    this.renderWarn = (number) => {
+      let warntype = xdata.alarmStore.alarm.get(number)
+      if (!warntype) {
+        return
+      }
+      warntype.filter((item) => {
+        if (Number(item.obj_id) === Number(opts.id)) {
+          switch (number) {
+            case 28:
+              this.warnFace = item.status === 0
+              break
+            case 30:
+              this.warnPerson = item.status === 0
+              break
+          }
+        }
+      })
+    }
+
+    this.initDefinition = (data) => {
+      this.title = data.name
+      this.startTime = new Date(data.start_time).format('yyyy-MM-dd')
+      this.endTime = new Date(data.plan_time).format('yyyy-MM-dd')
+      this.planDay = data.plan_day
+      this.planDis = data.plan_length
+      this.totallength = data.total_length
+      this.driverFace = data.drivingface_id
+      window.sessionStorage.setItem('startTime', this.startTime)
+      window.sessionStorage.setItem('planDay', this.planDay)
+      window.sessionStorage.setItem('planDis', this.planDis)
+      window.sessionStorage.setItem('totallength', this.totallength)
+    }
+
+    xbus.on('TUNNELLER-STAT-START', (datas) => { // 刷新掘进面实时状态
+      let data = datas.filter(item => item[0] === this.card_id)[0]
+      this.tunnellerFace(this.defineData, data)
+      this.update()
+    })
+
+    xbus.on('DRIVINGFACE-WARN-UPDATE', (msg) => {
+      this.renderWarn(msg.typeid)
+      this.update()
+    })
+
+    this.tunnellerFace = (msg, realData) => { // render
+      let data = msg
+      data && data[0] && this.initDefinition(data[0])
+      this.pushData = null
+      this.pushData = realData
+      if (this.pushData) {
+        this.dept = xdata.metaStore.getNameByID('dept_id', this.pushData[8])
+        this.begainTime = this.getLocalTime(this.pushData[3])
+        if (this.begainTime >= '07:00:00' && this.begainTime < '15:00:00') {
+          this.begainTime = '八点班'
+        } else if (this.begainTime >= '15:00:00' && this.begainTime < '23:00:00') {
+          this.begainTime = '四点班'
+        } else {
+          this.begainTime = '零点班'
+        }
+        this.workTime = this.pushData[5]
+        if (this.pushData[10] === 1) {
+          this.cardstate = '电量低'
+        } else if (this.pushData[10] === 2) {
+          this.cardstate = '电量极低'
+        } else {
+          this.cardstate = '正常'
+        }
+        this.curSpeed = this.pushData[13]
+        this.moreSpeed = this.pushData[14]
+        this.tunnellerDis = this.pushData[15]
+        let warnPoint = xdata.metaStore.dataInArray.get('drivingface_warning_point')
+        warnPoint = warnPoint ? warnPoint.filter(item => item.warning_point_id === this.pushData[17]) : ''
+        let warnName = warnPoint && warnPoint[0] ? warnPoint[0].warning_point_name : ''
+        this.warnMessage = '距' + warnName + this.pushData[16] + '米'
+        this.state = this.pushData[11] === 3 ? '掘进' : '停机'
+
+        let warnLine = this.root.querySelector('.warnLine')
+        this.overDistance = this.overDistance ? this.overDistance : Number(window.sessionStorage.getItem('overDistance'))
+        let top = (1 - this.pushData[16] / this.overDistance) * 100 + '%'
+        if (warnLine) {
+          warnLine.style.top = top
+        }
+        let msg = { total_length: this.pushData[18], warnLinetop: top }
+        this.setFaceBg(msg)
+        xbus.trigger('UPDATE-TOTAL-LENGTH', msg)
+      }
+    }
+
+    this.getLocalTime = (nS) => {
+      return new Date(nS).format('hh:mm:ss')
+    }
+
+    this.countTableData = (data) => {
+      let canvaCharts = this.root.querySelector('.svgDom')
+      let drivingface = xdata.metaStore.data.drivingface.get(this.parent.opts.id)
+      let basePointy = drivingface && drivingface.base_point_y
+      let datay = []
+      let datax = []
+      let length = data.length > 0 ? data.length : 0
+      for (let i = 0; i < length; i++) {
+        let day = new Date(data[i].times).format('yyyy-MM-dd: hh:mm:ss')
+        let dis = (data[i].leng - basePointy) * 2
+        let y = Math.round((dis) * 1000) / 1000
+        let arr = []
+        arr.push(new Date(day))
+        arr.push(y)
+        datay.push(arr)
+      }
+      let minTime = this.begainTrendTime
+      let maxTime = this.endTrendTime
+      let titleText = '掘进进度(按班)'
+      let name = '掘进长度'
+      drawLineChart(canvaCharts, datax, datay, titleText, name, minTime, maxTime)
+    }
+  </script>
+</popuplabel-drivingface>

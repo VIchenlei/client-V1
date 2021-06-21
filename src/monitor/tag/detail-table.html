@@ -1,0 +1,63 @@
+<detail-table>
+  <div class="dlg-bg animated">
+    <div ref="detaildialog" class="dlg-window detail-dialog animated">
+      <div data-is="dialog-head" title={title}></div>
+      <div class="query-newexprs" def={ tab } name="operate_log" data-is="query-newexprs"></div>
+      <table if={ hasdata }>
+        <thead>
+          <tr>
+            <th each={label in labels}>{label}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr each={row in subRows}>
+            <td each={name, i in names}>{getName(row[name], name)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pagination" data-is="pagination" totalpage={ pageCount } pageindex={ pageIndex } tablename={ name } if={pageCount>1}></div>
+      <div data-is="blank-message" message="没有符合条件的数据。" class="blank-message" if={ !hasdata }></div>
+    </div>
+  </div>
+  
+  <script>
+    import '../../report/tag/query-newexprs.html'
+    import {copySubRows} from '../../js/utils/utils.js'
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+      this.pageIndex = msg.pageIndex
+      this.subRows = copySubRows(this.rows, this.pageIndex)
+      
+      this.update()
+      window.xhint.close()
+    })
+
+    this.getName = (value, name) => {
+      return xdata.metaStore.getNameByID(name, value)
+    }
+
+    this.close = () => {
+      this.unmount(true)
+    }
+
+    this.init = (opts) => {
+      this.name = opts.tableName
+      this.labels = opts.tables.fields.labels
+      this.title = opts.title
+      this.names = opts.tables.fields.names
+      this.rows = opts.rows
+      this.tab = opts.tables
+      this.def = opts.def
+      if (this.rows && this.rows.length > 0) {
+        this.hasdata = true
+        this.pageIndex = 0
+        this.pageCount = Math.round(this.rows.length / PAGE_SIZE)
+        this.subRows = copySubRows(this.rows, this.pageIndex)
+      } else {
+        this.hasdata = false
+      }
+      
+      window.xhint.close()
+    }
+    this.init(opts)
+  </script>
+</detail-table>

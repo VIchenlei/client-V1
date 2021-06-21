@@ -1,0 +1,321 @@
+<maintenance-detail>
+   <div class="op-panel">
+		<span>
+            <span class="hint--bottom-left" aria-label="添加信息" onclick={ insert } >
+			    <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-add"></use></svg>
+		    </span>
+		    <!--<span class="hint--bottom-left" aria-label="批量导入" if={ name !== 'map' } onclick={ importFile }>
+			    <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-import"></use></svg>
+		    </span>-->
+		</span>
+	</div>
+    <div class="content-panel" if={ hasdata }>
+		<table>
+			<thead>
+				<tr if={ !hasPartData }>
+					<th>保养记录编号</th>
+					<th>保养项目名称</th>
+                    <th>保养部位名称</th>
+                    <th>保养项目状态</th>
+                    <th class="no-print">操作</th>
+				</tr>
+                <tr if={ hasPartData }>
+					<th>保养记录编号</th>
+					<th>配件名称</th>
+                    <th>配件类型</th>
+                    <th>更换数量</th>
+                    <th>更换状态</th>
+                    <th class="no-print">操作</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr if={ !hasPartData } each={ row in subRows }>
+                    <td>{ row.maintenance_id }</td>
+                    <td>{ row.dcname }</td>
+                    <td>{ row.name }</td>
+                    <td>{ row.stat }</td>
+                    <td class="no-print">
+						<span class="hint--top-left" aria-label="删除">
+	    					<svg class="icon black-icon"><use onclick={ delete } xlink:href="/icons/icons.svg#icon-delete"  maintenance={ row.maintenance_id } checkpartsitem={ row.checkpartsitem_id }></use></svg>
+		    			</span>
+					</td>
+				</tr>
+                <tr if={ hasPartData } each={ row in partsData }>
+                    <td>{ row.maintenance_id }</td>
+                    <td>{ row.name }</td>
+                    <td>{ row.dptname }</td>
+                    <td>{ row.amount }</td>
+                    <td>{ row.stat }</td>
+                    <td class="no-print">
+						<span class="hint--top-left" aria-label="删除">
+	    					<svg class="icon black-icon"><use onclick={ delete } xlink:href="/icons/icons.svg#icon-delete"  maintenance={ row.maintenance_id } partsid={ row.parts_id } partsTypeid={ row.parts_type_id }></use></svg>
+		    			</span>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+    <div class="dlg-bg" if={ dlgData }>
+        <div name="meta_dialog" class="dlg-window meta-dialog maintenance-dialog">
+            <div name="meta_title" class="dlg-head">
+                <span class="dlg-title">
+                    <grip type="grip-horizontal"></grip>
+                        车辆保养
+                </span>
+            </div>
+             <div class="dlg-body" if={ !show_tips }>
+                <div class="content-panel">
+                    <table>
+                        <thead>
+                            <tr>
+                                <td>名称</td>
+                                <td>值</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>保养记录编号</td>
+                                <td>{ maintenance_id }</td>
+                            </tr>
+                            <tr if={ !hasPartData }>
+                                <td>保养项目-部位</td>
+                                <td>
+                                    <select class="selectm">
+                                        <option each={ i in checkpartsitemData } name={ i.checkpartsitem_id }>{ i.name} - { i.pname }</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr if={ !hasPartData }>
+                                <td>状态</td>
+                                <td>
+                                    <input type="radio" name="call" id="maleNor" onclick={ judgeType } names='正常' checked/>
+                                    <label for="maleNor" >正常</label>
+                                    <input type="radio" name="call" id="femaleUn" onclick={ judgeType } names='异常' />
+                                    <label for="femaleUn" >异常</label>
+                                </td>
+                            </tr>
+                            <tr if={ hasPartData }>
+                                <td>配件</td>
+                                <td>
+                                    <select class="selectp">
+                                        <option each={ i in partsReq } name={ i.parts_id }>{ i.name} - { i.pname }</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr if={ hasPartData }>
+                                <td>更换数量</td>
+                                <td>
+                                    <input type="number" class="changeNum" />
+                                </td>
+                            </tr>
+                            <tr if={ hasPartData }>
+                                <td>更换状态</td>
+                                <td>
+                                    <input type="text" class="changeText changeNum" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            <div class="dlg-foot" if={ !show_tips }>
+                <button op-name="save-update" onclick={ save }>
+                    保存
+                </button>
+                <button op-name="cancel-update" class="button-cancel" onclick={ close }>
+                    取消
+                </button>
+            </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    <div class="pagination" data-is="pagination" totalpage={ totalPage } pageindex={ pageIndex } tablename={ name }></div>
+	<div if={ !hasdata } class="tips">
+		<div>当前数据库中没有相关记录！</div>
+		<div>请查证后再试。</div>
+	</div>
+    <script>
+        import {composeUpdateDBReq} from '../js/utils/utils.js'
+        this.statType = "正常"
+        this.dlgData = false
+        this.hasPartData = false
+        xbus.on('REPT-SHOW-RESULT', (ds) => {
+            switch(ds.def.name){
+                case 'maintenance' :
+                this.subRows = ds.rows
+                this.subRows[0].name ? this.hasdata = true : this.hasdata = false
+                break
+                case 'checkpartsitem' :
+                this.checkpartsitemData = ds.rows
+                break
+                case 'hisPartsData' :
+                this.partsData = ds.rows
+                this.partsData[0].name ? this.hasdata = true : this.hasdata = false
+                this.hasPartData = true
+                break
+                case 'partsitem' :
+                this.partsReq = ds.rows
+                break
+
+            }
+            this.update()
+        })
+
+        this.judgeType=(evt)=>{
+            this.statType = evt.target.getAttribute('names')
+        }
+
+        this.maintenance_id =  sessionStorage.getItem('maintenance_id')
+        this.delete =(evt) =>{
+            this.maintenance_id = evt.target.getAttribute('maintenance')
+            if(!this.hasPartData){
+                let checkpartsitem_id = evt.target.getAttribute('checkpartsitem')
+                let sql = `DELETE from his_checkparts_data where maintenance_id= ${this.maintenance_id} and checkpartsitem_id =${checkpartsitem_id}`
+                let req = composeUpdateDBReq('DELETE', this.topicName, this.maintenance_id, sql)
+                xbus.trigger('META-UPDATE-DB', {
+                    req: req
+                })
+            }else{
+                let partsid = evt.target.getAttribute('partsid')
+                let sql = `DELETE from his_parts_data where maintenance_id= ${this.maintenance_id} and parts_id =${partsid}`
+                let req = composeUpdateDBReq('DELETE', this.topicName, this.maintenance_id, sql)
+                xbus.trigger('META-UPDATE-DB', {
+                    req: req
+                })
+            }
+        }
+
+        xbus.on('META-UPDATE-DB-RES', (res) => {
+            if (res.code == 0) {
+                let resultText = null
+                let maintenance_id = this.maintenance_id
+                if(!this.hasPartData){
+                    let sql = `select hm.maintenance_id,hcd.checkpartsitem_id,dc.checkparts_id,dc.name as dcname,dch.checkparts_id,dch.name,hcd.stat from his_maintenance hm left join his_checkparts_data hcd on hm.maintenance_id = hcd.maintenance_id left join dat_checkpartsitem dc on hcd.checkpartsitem_id = dc.checkpartsitem_id left join dat_checkparts dch on dc.checkparts_id = dch.checkparts_id where hm.maintenance_id = ${ maintenance_id } `
+                    let message = {
+                        cmd: 'query',
+                        data: {
+                        name: 'maintenance',
+                        sql: sql
+                        }
+                    }
+                    xbus.trigger('REPT-FETCH-DATA', {
+                        req: message,
+                        def: {
+                        name: 'maintenance'
+                        }
+                    })
+                }else{
+                    let sqls = `select hm.maintenance_id,hpd.parts_id,dp.parts_id,dp.parts_type_id,hpd.amount,hpd.stat,dp.name,dpt.name as dptname from his_maintenance hm left join his_parts_data hpd on hm.maintenance_id = hpd.maintenance_id left join dat_parts dp on dp.parts_id = hpd.parts_id left join dat_parts_type dpt on dpt.parts_type_id = dp.parts_type_id where hm.maintenance_id = ${ maintenance_id } `
+                    let messages = {
+                        cmd: 'query',
+                        data: {
+                        name: 'hisPartsData',
+                        sql: sqls
+                        }
+                    }
+                    xbus.trigger('REPT-FETCH-DATA', {
+                        req: messages,
+                        def: {
+                        name: 'hisPartsData'
+                        }
+
+                    })
+                }
+                this.update()
+                this.dlgData = false
+            }
+        })
+
+         this.close = (evt) =>{
+             this.root.querySelector('.dlg-bg').classList.add('hide')
+         }
+
+         this.insert = (evt) =>{
+             let judge = this.root.querySelector('.dlg-bg')
+             if(judge){
+                 if(judge.classList.contains('hide')){
+                     judge.classList.remove('hide')
+                 }
+             }
+             this.dlgData = true
+             if(!this.hasPartData){
+                let sql = ` select dcm.checkpartsitem_id,dcm.name,dc.name as pname from dat_checkpartsitem dcm,dat_checkparts dc where dcm.checkparts_id = dc.checkparts_id `
+                let message = {
+                    cmd: 'query',
+                    data: {
+                    name: 'checkpartsitem',
+                    sql: sql
+                    }
+                }
+                xbus.trigger('REPT-FETCH-DATA', {
+                    req: message,
+                    def: {
+                    name: 'checkpartsitem'
+                    }
+                })
+                //  this.update()
+              }else{
+                let sql = ` select dp.parts_id,dp.name,dpt.name as pname from dat_parts dp,dat_parts_type dpt where dp.parts_type_id = dpt.parts_type_id `
+                let message = {
+                    cmd: 'query',
+                    data: {
+                    name: 'partsitem',
+                    sql: sql
+                    }
+                }
+                xbus.trigger('REPT-FETCH-DATA', {
+                    req: message,
+                    def: {
+                    name: 'partsitem'
+                    }
+                })
+                // this.update()
+              }
+             
+         }
+
+         this.save =() =>{
+            if(!this.hasPartData){
+                let myselect = this.root.querySelector('.selectm')
+                let selectedIndex = myselect.selectedIndex
+                let value = myselect.options[selectedIndex].getAttribute('name')
+                let values = this.maintenance_id + "," + value + "," + '"'+this.statType + '"'
+                let sql = ` INSERT into his_checkparts_data  VALUES(${values}) `
+                let req = composeUpdateDBReq('INSERT', this.topicName, this.maintenance_id, sql)
+                xbus.trigger('META-UPDATE-DB', {
+                    req: req
+                })
+            }else{
+                let myselect = this.root.querySelector('.selectp')
+                let selectedIndex = myselect.selectedIndex
+                let value = myselect.options[selectedIndex].getAttribute('name')
+                let changeNum = this.root.querySelector('.changeNum').value
+                let stat = this.root.querySelector('.changeText').value
+                let values = this.maintenance_id + "," + value + "," + changeNum+","+ '"'+ stat + '"'
+                let sql = ` INSERT into his_parts_data  VALUES(${values}) `
+                let req = composeUpdateDBReq('INSERT', this.topicName, this.maintenance_id, sql)
+                xbus.trigger('META-UPDATE-DB', {
+                    req: req
+                })
+            }
+            
+         }
+
+        //  this.composeUpdateDBReq = (db_op, keyValue, sqlstring) => {
+        //     return {
+        //         cmd: 'update', // update, CMD.META.UPDATE
+        //         data: {
+        //             op: db_op, // INSERT, UPDATE, DELETE
+        //             name: this.topicName,
+        //             // id: this.tableKeyName,  // BUG???
+        //             id: keyValue,
+        //             sql: sqlstring
+        //         }
+        //     }
+        // }
+
+        this.on('unmount', () => {
+            this.root.classList.add('hide')
+        })
+    </script>
+</maintenance-detail>

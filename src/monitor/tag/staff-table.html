@@ -1,0 +1,55 @@
+<staff-table>
+  <table>
+    <thead>
+      <tr>
+        <th>时间</th>
+        <th each={label in labels}>{label}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr each={row in rowcont}>
+        <td>{getRow(row)}</td>
+        <td each={label in labels}>{getcont(row, label)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <!-- <div data-is="blank-message" message="当前无数据！" class="blank-message" if={ !hasdata }></div> -->
+  <script>
+    this.labels = [0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58]
+    this.initData = () => {
+      let rows = this.opts.parentag.staffdata
+      let rowtime = rows.hourDate
+      this.rowcont = Array.from(rowtime)
+      this.update()
+      // console.log(rows)
+    }
+    
+    this.getRow = (row) => {
+      return `${row[0]}:00:00`
+    }
+
+    this.getcont = (row, label) => {
+      let data = row[1][this.type]
+      let value = ''
+      data.forEach(item => {
+        let key = Object.keys(item)[0]
+        if (key == label) {
+          value = item[key]
+        }
+      })
+      return value
+    }
+
+    this.changeCharts = (type) => {
+      if (this.type !== type) {
+        this.type = type
+        this.initData()
+      }
+    }
+
+    this.on('mount', () => {
+      this.type = this.opts.parentag.type
+      this.initData()
+    })
+  </script>
+</staff-table>

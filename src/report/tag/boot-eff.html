@@ -1,0 +1,277 @@
+<boot-eff>
+  <div class="dept-analysis" if={ showAnalysis }>
+    <input class='write-analysis' type="text" ref = 'db_analysis' placeholder="请输入原因分析...">
+    <div class="old-analysis">{Analysis}</div>
+    <div class="time_warp">
+      <span>请输入修改时间</span>
+      <input type="date" ref = "save_time" value={ defaultTime }>
+    </div>
+    <div class="btn-warp">
+      <span class="btn-save" onclick={ saveData }>保存</span>
+      <span class="btn-off" onclick={ hide }>取消</span>
+    </div>
+  </div>
+  <div class="dept-boot" style="width:100%;height:300px;"></div>
+  <div class="dept-button"><span onclick={ show }></span></div>
+  <div class="dept-boot-switch" style="width:100%;height:70px"></div>
+  <div class="dept-car-switch" style="width:100%;height:70px;;display: none"></div>
+  <div class="total-switch">{total}</div>
+  <div class="total-time-switch" style="display:none">{totalTime}</div>
+  <script>
+    import echarts from 'echarts'
+    import { efficiencyLineDept,efficiencyBoot,efficiencyCarBoot } from "../../js/def/graph_def.js"
+    let self = this
+    this.updateDay = false
+
+    this.counttime = (totalTime) => {
+        let leave1=totalTime%(24*3600*1000)
+        let hours=Math.floor(leave1/(3600*1000))
+        let leave2=leave1%(3600*1000)
+        let minutes=Math.floor(leave2/(60*1000))
+        let time = hours+"时"+minutes+"分";
+        return time;
+    }
+    this.initBootCharts = (rows) => {
+      if (!rows) rows = new Map()
+      let initdom = this.root.querySelector('.dept-boot')
+      if (!initdom) return
+      echarts.dispose(initdom)
+      let chart = echarts.init(initdom)
+      let data = Array.from(rows.values())
+      data.sort(function(a,b){return a[0]-b[0]})
+      let dataArr = data.map( item=> item[1])
+      let max = Math.max.apply(Math, dataArr)
+      let min = Math.min.apply(Math, dataArr)
+      max = max < 100 ? 100 : Math.ceil(max)
+      // min = min < 70 ? Math.floor(min) : 70
+      min = 0
+      let time = this.parent.time ? this.parent.time : `${new Date().getMonth() + 1}-${new Date().getDate()}`
+      let series = [{
+        id: 'dept-boot',
+        data: data,
+        type: 'line',
+        smooth: true,
+        showAllSymbol: true,
+        itemStyle: {
+          normal: {
+            color: "#0167ff",
+            lineStyle: {
+              color: "#0167ff",
+            }
+          }
+        }
+      }]
+      let msg = {
+        time : time,
+        title:'开机率',
+        series: series,
+        max : max,
+        min : min
+      }
+      let option = efficiencyLineDept(msg)
+      chart.setOption(option)
+      chart.on('click', function(param) {
+        self.updateDay = true
+        self.parent.time = param.name
+        self.searchDB(param.name)
+      })
+    }
+
+    this.searchDB = (time) => {
+      let deptID = this.parent.deptID
+      let y = this.parent.parent.time.split('-')[0]
+      time = `${y}-${time}`
+      this.parent.getSql(deptID, time)
+    }
+
+    this.pushTurnOff = (rows, color, id) => {
+      if (id === 'open') {
+        this.total = (rows.length*1/60>>0) + "小时" + rows.length*1%60 + "分钟"
+      }
+      let msg = {
+        id: id,
+        name:'车辆开机',
+        type:'bar',
+        data: rows,
+        barWidth: 1,
+        itemStyle: {
+          normal: {
+            color: color
+          }
+        }
+      }
+      return msg
+    }
+    
+    
+    this.turnCarSwitch = (rows, color, states) =>{
+      if (states === 'open') {
+        this.totalTime = rows.reduce(function (preTotal,item) {
+          let sumTime = Date.parse(new Date(item[1])) - Date.parse(new Date(item[0]))
+          return preTotal+sumTime
+        },0)
+        this.totalTime = this.counttime(this.totalTime)
+      }
+      let msg = {
+        type: 'custom',
+        id: states,
+        renderItem: function renderItem(params, api) {
+          var yValue = api.value(2);
+          var start = api.coord([api.value(0), yValue]);
+          var size = api.size([api.value(1) - api.value(0), yValue]);
+          var style = api.style();   
+          return {
+            type: 'rect',
+            shape: {
+              x: start[0],
+              y: start[1],
+              width: size[0],
+              height: size[1]
+            },
+            style: style
+          };
+        },
+        dimensions: ['from', 'to', 'profit'],
+        encode: {
+          x: [0, 1],
+          y: 2,
+          itemName: 3
+        },
+        data: rows,
+        itemStyle: {
+          normal: {
+            color: color
+          }
+        }
+      }
+      return msg
+    }
+    
+    this.initBootSwitchCharts = () => {
+      let rows = this.parent.gasMsgData.get(8)
+      // if (rows) {
+        let initdom = this.root.querySelector('.dept-boot-switch') 
+        if (!initdom) return
+        echarts.dispose(initdom)
+        let chart = echarts.init(initdom)
+        let xdistance = chart.getWidth()-chart.getWidth()*0.05
+        let series = []
+        rows && rows.get('0') && series.push(this.pushTurnOff(Array.from(rows.get('0').values()), '#26cc41', 'open'))
+        rows && rows.get('1') && series.push(this.pushTurnOff(Array.from(rows.get('1').values()), '#ff0000', 'off'))
+        
+        let msg = {
+          title:'开关时间段',
+          time: this.parent.time ? this.parent.time : `${new Date().getMonth() + 1}-${new Date().getDate()}`,
+          series: series,
+          xdistance: xdistance,
+          year: this.parent.parent.time
+        }
+        let option = efficiencyBoot(msg)
+        chart.setOption(option)
+      // }
+    }
+
+    this.initCatBootCharts = () =>{
+      let rows = this.parent.bootswitch
+      let initdom = this.root.querySelector('.dept-car-switch') 
+      echarts.dispose(initdom)
+      let chart = echarts.init(initdom)
+      let series = []
+      rows && rows.get('0') && series.push(this.turnCarSwitch(Array.from(rows.get('1').values()), '#26cc41', 'open'))
+      rows && rows.get('1') && series.push(this.turnCarSwitch(Array.from(rows.get('0').values()), '#ff0000', 'off'))
+      let msg = {
+        title:'启停时间段',
+        time: this.parent.time ? this.parent.time : `${new Date().getMonth() + 1}-${new Date().getDate()}`,
+        series: series,
+      }
+      let option = efficiencyCarBoot(msg)
+      chart.setOption(option)
+    }
+    this.hide = () => {
+      this.showAnalysis = false
+    }
+
+    this.show = () => {
+      this.showAnalysis = true
+    }
+
+    this.saveData = () => {
+      this.showAnalysis = false
+			let oldArr = []
+			let updateArr = []
+      let CreateDateTime = this.refs.save_time.value
+      let NowTime = new Date().format('yyyy-MM-dd')
+      if (!CreateDateTime) {
+        window.hintip.open({
+          value: 'failure',
+          tip: '修改失败'
+        })
+        return
+      }
+			let CreatePersonal = this.d_name
+			let workface = []
+			let Rpt_Type = 1
+      let sql = ''
+			if (this.refs.db_analysis) {
+        updateArr.push(this.refs.db_analysis.value)
+        oldArr.push(this.Analysis)
+        workface.push(this.parent.workfaceID)
+      }
+			if (NowTime !== CreateDateTime || JSON.stringify(oldArr) !== JSON.stringify(updateArr)) {	
+				// if (this.ID){
+				// 	if (this.ID === null) {
+				// 			sql = `REPLACE into rpt_sanlv_daily_main (CreateDateTime,CreatePersonal,Rpt_Type) VALUES ('${CreateDateTime}','${CreatePersonal}',${Rpt_Type})`
+				// 		}else {
+				// 			sql = `REPLACE into rpt_sanlv_daily_main (CreateDateTime,CreatePersonal,Rpt_Type,ID) VALUES ('${CreateDateTime}','${CreatePersonal}',${Rpt_Type},${this.ID})`
+				// 		}
+				// } else{
+					
+        // }
+        sql = `REPLACE into rpt_sanlv_daily_main (CreateDateTime,CreatePersonal,Rpt_Type) VALUES ('${CreateDateTime}','${CreatePersonal}',${Rpt_Type})`
+        let req = {
+          cmd: 'update', // update, CMD.META.UPDATE
+          data: {
+            op: 'INSERT', // INSERT, UPDATE, DELETE
+            name: 'rpt_sanlv_daily_main',
+            sql: sql,
+            updateArr: updateArr,
+            deptArr: workface
+          }
+        }
+        xbus.trigger('META-UPDATE-DB', {
+          req: req
+        })
+			} else {
+        window.hintip.open({
+          value: 'failure',
+          tip: '修改失败'
+        })
+      }
+      // 更新分析的数据，但是会引起其它数据的更新
+      this.parent.getSql(this.parent.deptID)
+      // this.parent.parent.update()
+    }
+
+    xbus.on('META-UPDATE-DB-RES', (res) => {
+      let msg = {
+        value: res.code === 0 ? 'success' : 'failure',
+        tip: res.code === 0 ? '修改成功' : '修改失败'
+      }
+      window.hintip.open(msg)
+    })
+
+    this.init = (bootrows, bootAnalysis) => {  
+      this.defaultTime = new Date().format('yyyy-MM-dd')
+      this.total = ''
+      this.totalTime = ''
+      this.showAnalysis = false
+      this.Analysis = bootAnalysis[0] ? bootAnalysis[0].Analysis : ''
+      this.ID = bootAnalysis[0] ? bootAnalysis[0].MainID : null
+      this.d_name = xdata.metaStore.getNameByID('user_id', xdata.userName)
+      this.initBootCharts(bootrows)
+      this.initBootSwitchCharts()
+      this.initCatBootCharts()
+      this.update()
+    }
+  </script>
+</boot-eff>

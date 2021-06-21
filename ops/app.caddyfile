@@ -1,0 +1,47 @@
+# 地址可以带一个端口号，则 caddy 只会在这个端口上开启 http 服务，而不会开启 https。
+# 如果不写端口号的话，caddy 会默认绑定 80 和 443 端口，同时启动 http 和 https 服务。
+#  * host 要填一个域名，不能是 localhost 或 IP
+#  * 域名指向的 IP 是公网 IP，即服务器要有公网 IP 地址
+#  * 不要用冒号手动指定端口
+#  * 不要在域名前手动声明 http
+#  * 没在配置里关掉TLS 或者 声明用自己的证书但是还没配好
+#  * caddy 有权限绑定 80 和 443 端口
+
+app.beijingyongan.com {
+#:8899 {
+#    tls /etc/ssl/cert.pem /etc/ssl/key.pem  # 使用指定证书开启 https 服务
+    tls hank4work@vip.qq.com   # 启用 HTTPS，并使用对应 email账户 自动申请 Let's Encrypt 的HTTPS证书
+#    tls self_signed
+#    tls off
+
+    # 地图服务器
+    proxy /geoserver 192.168.0.206:2017
+
+    # node 服务器
+    proxy / localhost:8086 {
+      websocket
+      insecure_skip_verify
+      transparent
+    }
+
+#    # 为所有的 /js/xxx 的请求加上 Access-Control-Allow-Origin 和 Access-Control-Allow-Methods 这两个 header，从而能支持 javascript 跨域访问
+#    header /js {
+#      Access-Control-Allow-Origin  *
+#      Access-Control-Allow-Methods "GET, POST, OPTIONS"
+#      -Server  # 删除 Server header，防止别人看到服务器类型。
+#    }
+
+    gzip
+
+    # 访问日志
+    log ./access_app.log   # 访问日志的配置
+
+    # 错误日志
+    errors ./error_app.log {
+      * error.html
+      rotate_size 50   # 50M以后，自动分割
+      rotate_age  30   # 分割文件最多保留30天
+      rotate_keep 5    # 最多保留5个分割文件
+      rotate_compress
+    }
+}

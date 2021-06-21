@@ -1,0 +1,65 @@
+@import defs
+
+.pagination
+    flex: 0 0 2rem
+    margin: 1rem 0
+    @include align-center-middle
+
+    .pagination-bar
+        flex: auto
+        @include align-center-middle
+        color: #666
+        font-size: $fontsize-xs
+
+        .page-tag-group
+            display: flex
+            padding: 0
+            margin: 0 0.4rem
+            cursor: pointer
+            border: none
+
+            .page-tag
+                @include align-center-middle
+                border: 1px solid $body-sp
+                cursor: pointer
+            .page-tag-jump
+                margin-right: 4px
+                .icon
+                    @include wh(1.5rem,1.5rem)
+                    border-radius: 50%
+                    padding: .2rem
+                    background-image: url('/img/page.png')
+            .page-tag-jump-1
+                .icon-first_page
+                    background-position: -150px -6px
+                &:hover
+                    .icon-first_page
+                        background-position: -187px -6px
+            .page-tag-jump-2
+                .icon-navigate_before
+                    background-position: -6px -6px
+                &:hover
+                    .icon-navigate_before
+                        background-position: -42px -6px
+            .page-tag-jump-3
+                .icon-navigate_next
+                    background-position: -77px -6px
+                &:hover
+                    .icon-navigate_next
+                        background-position: -113px -6px
+            .page-tag-jump-4
+                .icon-last_page
+                    background-position: -221px -6px
+                &:hover
+                    .icon-last_page
+                        background-position: -256px -6px
+            .page-tag-index
+                padding: .2rem
+                margin: 0 0.4rem
+                // padding: 0 0.4rem
+
+            .selected-tag
+                cursor: auto
+                font-weight: bold
+                background: $active-bg
+                color: $active-ft

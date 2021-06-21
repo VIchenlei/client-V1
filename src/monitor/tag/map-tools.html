@@ -1,0 +1,101 @@
+<map-tools onclick={stopPropagation}>
+  <div class="tool-switcher" onclick={ toggleExpand } if={ isFold }>
+    <svg class="icon"><use xlink:href="/icons/icons.svg#icon-hammer"></use></svg>
+  </div>
+  <div class="tool-panel" if={ !isFold }>
+    <span each={ items } ref={ name } class="tool-item { class }" onclick={ switchItem }>
+      <svgicon icon="{iconName}"></svgicon>
+      <span>{ cont }</span>
+    </span>
+  </div>
+
+  <script>
+    import {ToolItems} from '../map_tools_def.js'
+
+    this.items = [...ToolItems]
+    this.isFold = true  // 十分收起
+
+    this.mapID = this.parent.mapID
+    this.mapType = this.parent.mapType
+
+    this.mixin('EventMixin')
+
+    // this.on('update', () => {
+    //   console.log('map-tools updated.', this.items)
+    //   console.trace()
+    // })
+
+    this.toggleExpand = (evt) => {
+      this.open()
+    }
+
+    this.saveState = (name, state) => {
+      for (let i = 0, len = this.items.length; i < len; i++) {
+        let item = this.items[i]
+        if (item.name === name) {
+          item.class = state ? 'active' : ''
+          break
+        }
+      }
+    }
+
+    this.switchItem = (evt) => {
+      let target = evt.currentTarget
+      let opName = target.getAttribute('ref')
+
+      if (opName === 'reset') {
+        xbus.trigger('MAP-RESET-POS', { mapID: this.mapID })
+        this.isFold = true
+        this.update()
+      } else {
+        target.classList.toggle('active')
+        let state = target.classList.contains('active')
+        // state = !state
+        this.saveState(opName, state)
+
+        if (opName === 'bzlx_sz' || opName === 'bzlx_hz') {
+          xbus.trigger('VectorlayerControl', {
+            layername: opName,
+            isVisible: state
+          })
+        } else {
+          let eventName = null
+          if (opName === 'vehicle' || opName === 'staff') {
+            eventName = 'MAP-SHOW-CARD'
+          } else if (opName === 'alarm') {
+            eventName = 'ALARM-LIST-SHOW'
+          } else {
+            eventName = `MAP-SHOW-${opName.toUpperCase()}`
+          }
+
+          xbus.trigger(eventName, {
+            mapID: this.mapID,
+            symbolType: opName,
+            mapType: this.mapType,
+            isVisible: state
+          })
+        }
+      }
+
+      evt.preventUpdate = true
+    }
+
+    this.open = () => {
+      this.isFold = false
+
+      // this.parent.papa.tagFooter.root.classList.add('hide')      // hide the status bar
+      // this.update()
+    }
+
+    this.close = () => {
+      this.isFold = true
+
+      // this.parent.papa.tagFooter.root.classList.remove('hide')
+      // this.update()
+    }
+
+    xbus.on('HIDE-ALL-POPUP', () => {
+      this.isFold = true
+    })
+  </script>
+</map-tools>

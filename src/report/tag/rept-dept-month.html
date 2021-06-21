@@ -1,0 +1,139 @@
+<rept-dept-month>
+	<div class="op-panel worktime-panel" if={ hasdata }>
+		<span class="staffnum">
+      <span>当前查询结果数：</span>
+      <span>{ dailyNum }</span>
+      <span>条</span>
+    </span>
+		<div data-is="rept-print" printdefs={reptPrint} cb={askFile}></div>
+	</div>
+	<table>
+		<thead>
+			<tr>
+				<th each={label in labels}>{label}</th>
+			</tr>
+		</thead>
+		<tbody if={hasdata}>
+			<tr each={month in deptMonth}>
+				<td each={name in fields.names}>{getname(name, month[name])}</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<script>
+		import { printDef } from '../js/report_defs.js'
+		import { objKeySort } from '../../js/utils/utils.js'
+		this.fields = {
+			names: ['dept_id', 'all', 'absence', 'zero', 'eight', 'four', 'averagetime'],
+			types: ['SELECT', 'NUMBER', 'NUMBER', 'NUMBER', 'NUMBER', 'NUMBER', 'NUMBER'],
+			labels: ['部门', '全勤次数', '缺升井次数', '零点班次数', '八点班次数', '四点班次数', '平均工作时间(h)']
+    }
+		this.reptIndex = opts.reptindex
+		this.reptPrint = printDef.reptDeptMonth
+		xbus.on('REPT-SHOW-RESULT', (ds) => {
+			if (ds.def.name === 'person_s_dept_month' || ds.def.name === 'person_s_dept_day') {
+				this.def = ds.def
+				this.labels = this.def.fields.labels
+				this.concatTable(ds)
+				this.update()
+			}
+		})
+
+		this.getname = (name, value) => {
+			if(name === 'start_time'){
+				value = new Date(value).format('yyyy-MM')
+			}
+			return xdata.metaStore.getNameByID(name, value)
+		}
+
+		this.getShift = (shiftID, curDept) => {
+			switch (shiftID) {
+				case 1:
+					curDept.zero = curDept.zero ? ++curDept.zero  :  1
+					break
+				case 2:
+					curDept.eight = curDept.eight ? ++curDept.eight : 1
+					break
+				case 3:
+					curDept.four = curDept.four ? ++curDept.four : 1
+					break
+			}
+		}
+
+		this.getCheck = (checkWork, curDept) => {
+			switch (checkWork) {
+				case 'all':
+					curDept.all = curDept.all ? ++curDept.all : 1
+					break;
+				case 'absence':
+					curDept.absence = curDept.absence ? ++curDept.absence : 1
+					break
+				default:
+					break
+			}
+		}
+	
+		this.concatTable = (ds) => {
+			let rows = ds.rows
+			if (rows) {
+				this.deptMap = new Map()
+				this.hasdata = rows.length > 0 ? true : false
+				rows.forEach(item => {
+					let deptID = item.dept_id
+					if (!this.deptMap.get(deptID)) {
+						let msg = {
+							dept_id: deptID
+						}
+						this.deptMap.set(deptID, msg)
+					}
+					let curDept = this.deptMap.get(deptID)
+					let shiftID = item.shift_id
+					this.getShift(shiftID, curDept) // 各班次和统计
+					let checkWork = item.nn
+					this.getCheck(checkWork, curDept) // 全勤/缺升井统计
+					curDept.sumtime = curDept.sumtime ? curDept.sumtime + item.sm : item.sm // 总时长
+					curDept.sumnum = curDept.sumnum ? curDept.sumnum + item.num : item.num // 总次数
+					curDept.averagetime = curDept.sumnum && curDept.sumtime && (curDept.sumtime / curDept.sumnum / 60).toFixed(1)
+					// curDept.start_time = item.start_time
+				})
+			}
+      this.deptMonth = Array.from(this.deptMap.values())
+      this.dailyNum = this.deptMonth.length
+			window.xhint.close()
+			this.update()
+		}
+
+		this.askFile = (opName) => {
+			this.namesInShort = this.getCleanName()
+			let data = this.dealPrintData(this.deptMonth,this.fields.names)
+      let msg = {
+        cmd: 'file',
+        name: this.def.name,
+        labels: this.fields.labels,
+        title: this.def.label,
+        namesInShort: this.namesInShort,
+        types: this.fields.types,
+        fileType: opName,
+				reptIndex: this.reptIndex,
+				data: JSON.stringify(data),
+				isQuery: true
+			}
+      xbus.trigger('ASK-FILE', msg)
+		}
+		
+		this.getCleanName = () => {
+      return this.fields.names.map((item) => {
+        let name = item.split('.').pop()
+        return name.split(' ').pop()
+      })
+		}
+		
+		this.dealPrintData = (rows, names) => {
+			let dealData = rows.map(item => {
+				let objValue = objKeySort(item, names)
+				return objValue
+			})
+			return dealData
+		}
+	</script>
+</rept-dept-month>

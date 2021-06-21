@@ -1,0 +1,163 @@
+@import defs
+
+.cart_title
+   @include wh($cart-title,$cartstate-height)
+   background: $table-bgcolor
+   font-size: $fontsize-xs
+   color: $title-color
+   margin-left: 20px
+   border-bottom: 2px solid #ffffff
+
+
+   &:nth-child(1)
+   padding-left: 20px
+   span
+        display: inline-block
+        @include wh(24px,$cartstate-height)
+        font-weight: 600
+        line-height: $cartstate-height
+        margin-right: 20px
+        
+   .active
+       border-bottom: 2px #27ca41
+   
+     
+
+table
+    margin: 0
+    width: 100%
+    text-align: center
+    border-collapse: collapse
+    font-size: $fontsize-s
+    tbody
+        background: #fff
+    @media screen and (max-width: $width-medium)
+        font-size: .8rem
+        margin: 2%
+        width: 95%
+
+    thead tr
+        height: $unit-height
+        color: #3f3f3f
+        border-bottom: 1px solid $grip-color
+       
+        
+        th
+            padding: 0 2px
+            cursor: pointer
+            &:nth-child(1)
+                padding-left: 14px
+            &:nth-last-child(1)
+                padding-right: 14px
+            span.handShape
+                cursor: pointer
+            img
+                cursor: pointer
+
+    
+    tfoot
+        // display: none
+        tr
+            height: $unit-height
+            background: lighten($title-bgcolor, 30%)
+            color: darken($title-color, 80%)
+
+    tbody tr
+        height: $unit-height
+        color: #3f3f3f
+        border-bottom: 1px solid $table-body-border
+        // background: none!important
+        opacity: 0.8
+        cursor: pointer
+        @media screen and(max-width: $width-maxlarge)
+            height: 2.8rem 
+        
+        td
+            padding: 0 2px
+            max-width: 114px
+            overflow: hidden
+            text-overflow: ellipsis
+            white-space: nowrap
+            &:nth-child(1)
+                padding-left: 14px
+            &:nth-last-child(1)
+                width: 12rem
+                padding-right: 14px
+                overflow: inherit
+            // border: 1px solid #ebebeb
+            &.abnormal
+                color: $make-default
+
+            &.vehicle-check
+                cursor: pointer
+        .fontlf
+          text-align: left
+    tbody .vehicleType
+        td:nth-child(7),td:nth-child(8),td:nth-child(9),td:nth-child(10),td:nth-child(11)
+            display: none
+        td:nth-child(12)
+            width: 350px
+            .pro
+                width: 300px
+                span
+                    display: inline-block
+                    float: left
+                .use
+                    background: #009fff
+                .leisure
+                    background: #efefef
+                .malfunction
+                    background: #ff5454
+                .maintain
+                    background: yellow
+                .upkeep
+                    background: green
+
+    tbody tr, tfoot tr
+        &:hover, &.active
+            //background-color: #009fff
+            background: $table-body-hover
+            color: #000
+
+.report-table 
+    table
+        table-layout: fixed
+        thead tr
+            .icon-input
+                overflow: hidden
+            th.time
+                width: 12rem
+            th.card
+                width: 9.5rem
+            th.istime
+                width: 12rem
+        tbody tr
+            td
+                width: 1px
+                overflow: visible
+                text-overflow: clip
+                white-space: pre-line
+                word-break: break-all
+            .istime
+                white-space: nowrap
+            .islink
+                color: #009fff
+                text-decoration: underline
+            td:nth-child(1)
+                padding-left: 0
+    #REPT_person_month
+        thead tr 
+            th.card
+                width: 6.5rem
+            th:nth-child(2)
+                width: 43px
+            th:nth-child(4)
+                width: 80px
+    #REPT_person_dept_period
+        thead tr 
+            th:nth-child(14),th:nth-child(15)
+                width: 9rem
+                
+
+          
+

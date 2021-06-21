@@ -1,0 +1,227 @@
+<scene-info>
+  <virtual if={ messageName==='TrackList' }>
+    <div class="search-tag">
+      <input placeholder="查询车牌/姓名" id="searchInput" ref="searchInput" class="search-input" onkeyup={ enterForSearch }></input>
+      <!--
+      <svg id="searchButton" class="icon search-icon" onclick={ searchTheName }><use xlink:href="/icons/icons.svg#icon-search"></svg>
+      -->
+    </div>
+    <div id="trackListTags">
+      <p each={ row, i in tracks } data-value={i} map-id={ row[ 'map_id'] } data-start-time={ row[ 'startTime'] } data-end-time={
+        row[ 'endTime'] } card-id={ row[ 'card_id'] } card-name={ getNameByID(row[ 'card_id']) } class="track-tag" onclick={
+        queryTrackData }>
+        <span>{ getNameByID(row['card_id']) }</span>
+        <span>{ getMapName(row['map_id']) }</span>
+      </p>
+      <div id="searchMessage" class="message-box" style="display: none">
+        <span>记录中无此卡</span>
+      </div>
+    </div>
+  </virtual>
+  <virtual if={ messageName==='HistoryCompose' } onclick={ showHistoryCompose }>
+    <div if={ hasdata } onclick={ hideParentTag }>
+      <!--<p class="history-tittle">共有标识卡<span>{dataCompose.cardCount}</span>张</p>-->
+      <p class="history-compose-tittle"><span>标识卡-区域出入情况</span><span>数量</span></p>
+      <div class="history-compose-detail" each={ rowArea in dataCompose.cardInArea }>
+        <p>{getAreaName(rowArea.area_id)}</p>
+        <p>{rowArea.card_count}</p>
+      </div>
+      <!-- <p class="history-compose-tittle">标识卡-状态变化情况</p>
+      <div class="history-compose-detail" each={ rowState in dataCompose.cardInState }>
+        <p>{getStateName(rowState.state)}</p>
+        <p>{rowState.card_count}</p>
+      </div> -->
+    </div>
+  </virtual>
+  <!-- <virturl if={ (!tracks || tracks.length <= 0) && (!dataCompose || dataCompose.cardCount <= 0) && (messageName === null || messageName === 'init') } class="message-box">
+    <span> {listMessage} </span>
+  </virturl> -->
+  <!-- <div data-is="blank-message" message={ listMessage } class="blank-message hide" if={ !hasdata }></div> -->
+  <div class="blank-message" if={ !hasdata }>{ listMessage }</div>
+
+  <script>
+    this.activeTrack = null
+    this.messageName = 'init'
+    this.tracks = opts.tracks
+    this.dataCompose = opts.dataCompose
+    this.hasdata = false
+    this.listMessage = ''
+
+    this.pcFlag = window.isPC
+
+    xbus.on('HISTORY-DATA-RESULT', (ds) => {
+      // TODO:
+    })
+
+    this.hideParentTag = () =>{
+      this.parent.root.classList.add('hide')
+      xbus.trigger('HIDE-TRACKLIST-MENU')
+    }
+
+    this.enterForSearch = (evt) => {
+      // let keyCode = evt.keyCode
+      /*
+      if(keyCode === 13){
+          this.searchTheName()
+      } else {
+        return true
+      } */
+      // console.log(this.searchInput.value)
+      this.searchTheName()
+      // return true
+      /*
+      this.searchInput.value = evt.key
+      let checkValue = this.searchInput.value
+      */
+    }
+    this.searchTheName = () => {
+      let searchValue = this.searchInput.value
+      let trackListTags = this.root.querySelector('#trackListTags').querySelectorAll('.track-tag')
+      this.isCardExist = false
+      if (!searchValue) {
+        for (let j = 0; j < trackListTags.length; j++) {
+          trackListTags[j].style.display = 'flex'
+        }
+        this.root.querySelector('#searchMessage').style.display = 'none'
+        return
+      }
+
+      let regString = 'n*' + searchValue + 'n*'
+      let Reg = new RegExp(regString, 'i')
+      let countforCardExist = 0
+      for (let i = 0; i < trackListTags.length; i++) {
+        let cardName = trackListTags[i].getAttribute('card-name')
+        if (!Reg.test(cardName) || cardName === null) {
+          trackListTags[i].style.display = 'none'
+        } else {
+          trackListTags[i].style.display = 'flex'
+          countforCardExist++
+        }
+      }
+      if (countforCardExist > 0) {
+        this.root.querySelector('#searchMessage').style.display = 'none'
+      } else {
+        this.root.querySelector('#searchMessage').style.display = 'flex'
+      }
+    }
+
+    this.getNameByID = (id) => {
+      let obj = xdata.metaStore.getCardBindObjectInfo(id)
+      return obj && obj.name ? obj.name : '测试'
+    }
+
+    this.getMapName = (id) => {
+      let name = ''
+      let maps = xdata.metaStore.data['map']
+      let map = maps ? maps.get(id) : null
+      name = map && map.name
+
+      return name
+    }
+
+    this.getAreaName = (id) => {
+      let name = ''
+      let names = xdata.metaStore.data['area']
+      name = names ? names.get(id) : null
+      name = name && name.name
+
+      return name
+    }
+
+    this.getStateName = (id) => {
+      let name = ''
+      let names = xdata.metaStore.data['state_biz']
+      name = names ? names.get(id) : null
+      name = name && name.name
+      return name
+    }
+
+    this.on('update', (msg) => {
+      if (msg) {
+        switch (msg.name) {
+          case 'init':
+            this.messageName = 'init'
+            this.tracks = null
+            this.dataCompose = null
+            this.listMessage = '请先从上方查询数据！'
+            break
+          case 'TrackList':
+            this.tracks = msg.tracks
+            if (this.tracks && this.tracks.length > 0) {
+              this.messageName = msg.name
+            } else {
+              this.tracks = null
+              this.listMessage = '没有满足条件记录！'
+            }
+            break
+          case 'HistoryCompose':
+            // console.log(msg.dataCompose)
+            this.dataCompose = msg.dataCompose
+            console.log('this.dataCompose', this.dataCompose)
+            if (this.dataCompose && this.dataCompose.cardInArea && this.dataCompose.cardInArea.length > 0) {
+              this.messageName = msg.name
+              this.hasdata = true
+            } else {
+              this.dataCompose = null
+              this.hasdata = false
+              // this.tags['blank-message'] && this.tags['blank-message'].update({ message: '没有满足条件记录' })
+              // this.tags['blank-message'] && this.tags['blank-message'].root.classList.remove('hide')
+              this.listMessage = '没有满足条件记录!'
+            }
+
+            break
+          default:
+            this.messageName = null
+            this.tracks = null
+            this.dataCompose = null
+            this.listMessage = '没有满足条件记录!'
+        }
+        // this.update()
+      }
+    })
+
+    this.queryTrackData = (event) => {
+      let node = event.currentTarget
+      if (node === this.activeTrack) {
+        return
+      }
+
+      if (this.activeTrack) {
+        this.activeTrack.classList.remove('active')
+      }
+      this.activeTrack = node
+      this.activeTrack.classList.add('active')
+
+      let index = node.getAttribute('data-value')
+      // console.log(index)
+      this.parent.doQueryTrackData(index)
+      if (!this.pcFlag) {
+        document.querySelector('.page-foot').classList.add('hide')
+        document.getElementsByClassName('dlg-bg')[1].style.height = '101%'
+      }
+    }
+
+    this.showHistoryCompose = (event) => {
+      // let node = event.currentTarget
+      // if (node === this.activeTrack) {
+      //   return
+      // }
+
+      // if (this.activeTrack) {
+      //   this.activeTrack.classList.remove('active')
+      // }
+      // this.activeTrack = node
+      // this.activeTrack.classList.add('active')
+
+      // let index = node.getAttribute('data-value')
+      // console.log(event)
+      // this.parent.doQueryHistoryScene(event)
+      if (!this.pcFlag) {
+        document.querySelector('.query-panel').classList.add('hide')
+        document.querySelector('.page-foot').classList.add('hide')
+        document.getElementsByClassName('dlg-bg')[0].style.height = '101%'
+        // console.log(document.getElementsByClassName('dlg-bg')[0])
+      }
+    }
+  </script>
+</scene-info>

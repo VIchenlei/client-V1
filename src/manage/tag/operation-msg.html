@@ -1,0 +1,456 @@
+<operation-msg>
+    <p class="cont-title">
+      <span>业务信息</span>
+      <span class="buttons hide" ref="buttons">
+        <b class="hint--bottom" name="btn-sure" onclick={ handleDB } aria-label="保存">
+          <img src="/img/store.png" alt="">
+          <!-- <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-store"></use></svg> -->
+        </b>
+        <b class="hint--bottom" name="btn-cancel" onclick={ handleDB } aria-label="重置">
+          <img src="/img/reset.png" alt="">
+          <!-- <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-reset"></use></svg> -->
+        </b>
+      </span>
+    </p>
+    <div class="content" ref="content" name="content">
+      <div class="operation-first">
+        <span each={ row in firstRows } if={ row.field_name !== 'need_display' && row.field_name !== 'enable_report' } class="cont_title { !required.includes(row.field_name) ? 'unrequire' : '' }" name={ row.field_name }>
+            <span class="labeltitle float-above" name={ row.field_name } if={ row.field_type !== 'FILE' }>{ row.field_label }
+              <b class="red" if={ required.includes(row.field_name) }>※</b>
+            </span>
+
+            <span class="defaultFill" name={ row.field_name } type={ row.field_type } onclick={ editDefault }>{ getInnerText(row) }</span>
+                       
+            <icon-input idname={ getIdName(row.field_name) } ref={row.field_name} type="text" class="hide" placeholder="" icon="icon-down" if={ row.field_type !== 'SELECT' && row.field_type !== 'FILE' && row.field_type !== 'DATE'} classname="login-input" data-type={ row.field_type } blurName="checkInput" value={ row.field_value }></icon-input>
+            <icon-input idname={ row.field_name } ref={row.field_name} type="date" class="x-date hide" placeholder="" icon="icon-down" if={ row.field_type === 'DATE' } classname="login-input" data-type={ row.field_type } blurName="checkInput" value={ row.field_value }></icon-input>
+            <select-input idname={ row.field_name } class="hide { row.field_name }" name={ row.field_name } ref={row.field_name} if={ row.field_type=='SELECT' } data-type={ row.field_type } oldvalue={ row.field_value } data-value={row.field_value} onchange={ change } blurName="checkInput"></select-input>
+            <p ref={ row.field_name + 'tips' } name={ row.field_name + 'tips' }></p>
+        </span>
+      </div>
+      <div class="operation-second" name="operation-second" ref="operation-second">
+        <span each={ row in secondRows } if={ row.field_name !== 'need_display' && row.field_name !== 'enable_report' } class="cont_title { !required.includes(row.field_name) ? 'unrequire' : '' }" name={ row.field_name }>
+          <span class="labeltitle float-above" name={ row.field_name } if={ row.field_type !== 'FILE' }>{ row.field_label }
+            <b class="red" if={ required.includes(row.field_name) }>※</b>
+          </span>
+
+          <span class="defaultFill" name={ row.field_name } type={ row.field_type } onclick={ editDefault }>{ getInnerText(row) }</span>
+          
+          <icon-input idname={ row.field_name } ref={row.field_name} type="text" class="hide" placeholder="" icon="icon-down" if={ row.field_type !== 'SELECT' && row.field_type !== 'FILE' && row.field_type !== 'DATE'} classname="login-input" data-type={ row.field_type } blurName="checkInput" value={ row.field_value }></icon-input>
+          <icon-input idname={ row.field_name } ref={row.field_name} type="date" class="x-date hide" placeholder="" icon="icon-down" if={ row.field_type === 'DATE' } classname="login-input" data-type={ row.field_type } blurName="checkInput" value={ row.field_value }></icon-input>
+          <select-input idname={ row.field_name } class="hide { row.field_name }" name={ row.field_name } ref={row.field_name} if={ row.field_type=='SELECT' } data-type={ row.field_type } oldvalue={ row.field_value } data-value={row.field_value} onclick={ change } blurName="checkInput"></select-input>
+          <p ref={ row.field_name + 'tips' } name={ row.field_name + 'tips' }></p>
+        </span>
+      </div>
+    </div>
+    <script>
+        import '../../tags/meta-select.html'
+        import {getRows, trim, composeUpdateDBReq, formatTime, editDetail} from '../../js/utils/utils.js'
+        import {formatFieldValue} from '../../config/utils.js'
+        import { illegalInput, unIllegal } from '../js/illegalInput.js'
+        this.name = null
+        // this.needAll = 'disNeedAll'
+        const VEHICLETYPE = {
+          25: 4,
+          26: 5
+        }
+        this.getIdName = (name) => {
+          if (name == 'staff_id' || name === 'vehicle_id') return `${name}_id`
+          return name
+        }
+        this.getInnerText = (row) => { 
+          let type = row.field_type
+          let name = row.field_name
+          let value = row.field_value
+          if(type !== 'SELECT' && type !== 'DATE'){
+            return value
+          }else if(type === 'SELECT'){
+            if (name === 'dept_id_ck' && value) {
+              let deptCks = xdata.metaStore.data.dept_ck
+              return deptCks && deptCks.get(value) && deptCks.get(value).name
+            }
+            return xdata.metaStore.getNameByID(name, value)
+          }else if(type === 'DATE'){
+            return formatTime(value,type)
+          }
+        }
+        
+        this.on('mount', () => {
+          this.name = opts.name  // eslint-disable-line
+          if (xdata.isCheck === 1 && this.name === 'staff') {
+            this.def = xdata.metaStore.defs[this.name + '_extend_ck'] ? xdata.metaStore.defs[this.name + '_extend_ck'] : xdata.metaStore.defs[this.name + '_extend']
+          } else {
+            this.def = xdata.metaStore.defs[this.name + '_extend']
+          }
+          this.tableName = 'dat_' + this.name + `${xdata.isCheck === 1 && this.name === 'staff' ? '_extend_ck' : '_extend'}`
+          this.required = ['card_id']
+          this.rows = getRows(null, this.def)
+          this.divisionRows(this.rows)
+          this.update()
+        })
+
+        this.divisionRows = (rows) => {
+          this.firstRows = rows.slice(0, 7)
+          this.secondRows = rows.slice(7)
+        }
+
+        this.checkInput = (evt) => {
+          let self = this
+          let target = evt.currentTarget
+          let value = trim(target.value)
+          let checkNode = target.parentElement.parentElement
+          let inputname = checkNode.getAttribute('idname')
+          let type = checkNode.getAttribute('data-type')
+          if (inputname === 'card_id') {
+            let num = this.name === 'staff' ? 1 : 2
+            if (value.indexOf(`00${num}`) !== -1 && value !== `00${num}` && value.length>10) {
+              value = value.substr(3)
+              value = parseInt(value, 10).toString()
+            }
+            let keyValue = this.parent.tags['basic-msg'].refs[this.name + '_id'].opts.riotValue
+            if (this.name === 'staff') value = value.length <= 10 ? `001${value.padStart(10, 0)}` : `001${value}`
+            if (this.name === 'vehicle') {
+              let vtype = this.parent.tags["basic-msg"].root.querySelector('.vehicle_type_id').querySelector('select') && this.parent.tags["basic-msg"].root.querySelector('.vehicle_type_id').querySelector('select').value
+              value = value.length <= 10 ? `002${value.padStart(10, 0)}` : `002${value}`
+            }
+            let checkValue = value.substr(3)
+            checkValue = parseInt(checkValue, 10).toString()
+            if (checkValue === '0') return illegalInput(self, inputname, '卡号输入不能为空或为0')
+            if (checkValue.length > 10) return illegalInput(self, inputname, '卡号超出限制')
+            let objs = Array.from(xdata.metaStore.staffs.values()).concat(Array.from(xdata.metaStore.vehicles.values()))
+            let isBindCard = objs.some(item => item.card_id === value)
+            let bindObj = isBindCard && xdata.metaStore.getCardBindObjectInfo(value)
+            let bindID = bindObj && bindObj[`${this.name}_id`]
+            if (bindObj && bindID !== keyValue) return illegalInput(self, inputname, '已存在该编号')
+            return unIllegal(self, checkNode, value, inputname)
+          }
+
+          if (inputname === 'lampNo') {
+            if (/^[A-Za-z\d-]{1,}$/g.test(value) || value === '') return unIllegal(self, checkNode, value, inputname)
+            return illegalInput(self, inputname, '请输入数字、字母或-')
+          }
+          if (inputname === 'work_line' || inputname === 'power_alarm') {
+            if ([0, 1].includes(parseInt(value, 10)) || value === '') return unIllegal(self, checkNode, value, inputname)
+            return illegalInput(self, inputname, '请输入0或1')
+          } 
+          if (type === 'NUMBER') {
+            if (!parseInt(value, 10) && parseInt(value, 10) !== 0) return illegalInput(self, inputname, '请输入数字')
+            return unIllegal(self, checkNode, parseInt(value, 10), inputname)
+          } 
+          if (type === 'SELECT') {
+            if (!target[target.selectedIndex].value) return illegalInput(self, inputname, '非法值，请重新输入')
+            return unIllegal(self, checkNode, target[target.selectedIndex].innerHTML, inputname)
+          } 
+        }
+
+        this.showDown = () => {
+          let row = this.refs['operation-second']
+          this.showThird = !this.showThird
+          row.classList.toggle('hide')
+          this.refs['angel-double-left'].classList.toggle('hide')
+          this.refs['angel-double-right'].classList.toggle('hide')
+        }
+
+        this.editDefault = (evt) => {
+          this.parent.editDefault(evt)
+        }
+
+        this.getDate = (value) => {
+          if (value) {
+            return new Date(value).format('yyyy-MM-dd')
+          } else {
+            return ''
+          }
+        }
+
+        this.change = (evt) => {
+          let target = evt.currentTarget
+          let name = target.getAttribute('name')
+          let select = target.childNodes[0].querySelector('.query-select')
+          target.setAttribute('value', select[select.selectedIndex].value)
+        }
+
+        this.doOperateDB = (evt) => {
+          let type = this.refs['content'].getAttribute('data-type')
+          if (type) {
+            this.doUpdate()
+          } else {
+            this.doInsert()
+          }
+        }
+
+        this.handleDB = (evt) => {
+          let name = evt.currentTarget.getAttribute('name')
+          let type = this.refs['content'].getAttribute('data-type')
+          let ident = this.name === 'staff' ? 's' : 'v'
+          switch (name) {
+            case 'btn-sure':
+              this.doInsert()
+              break
+            case 'delete':
+              this.doDelete()
+              xdata.metaStore[`${ident}basicExtendUpdate`] = true
+              break
+            case 'btn-cancel':
+              this.doReset()
+              break
+          }
+          this.parent.registerGlobalEventHandlers(name)
+          // this.parent.updateBasicList()
+          this.refs.buttons.classList.add('hide')
+        }
+
+        // 判断是否为更新，更新卡号时，需要给采集发送state为1
+        this.judgeValue = (keyValue, cardID) => {
+          let name = this.name
+          let objs = xdata.metaStore.data[name]
+          let obj = objs && objs.get(keyValue)
+          if (!obj) return 0 // 新增返回0
+          let extend = xdata.metaStore.data[`${name}_extend`]
+          let oldCardID = extend && extend.get(keyValue)
+          oldCardID = oldCardID && oldCardID.card_id
+          if (!cardID || (Number(oldCardID) !== Number(cardID))) return 1 // 修改卡号，返回1
+          return 0
+        }
+
+        this.judgeCard = (fieldValue) => {
+          let cards = xdata.metaStore.data.card
+          let cardType = this.name === 'staff' && 1
+          if (!cardType) {
+            // let vehicleType =  this.parent.tags["basic-msg"].root.querySelector('.vehicle_type_id').querySelector('select') && this.parent.tags["basic-msg"].root.querySelector('.vehicle_type_id').querySelector('select').value
+            // cardType = VEHICLETYPE[vehicleType] ? VEHICLETYPE[vehicleType] : 2
+            cardType = 2
+          }
+          if (!cards || !cards.get(fieldValue)) {
+            return `REPLACE INTO dat_card (card_id, card_type_id, ident, state_id) VALUES(${fieldValue}, ${cardType}, ${Number(fieldValue.slice(3))}, 0)`
+          }
+        }
+
+        this.judgeKeyValue = (fieldValue) => {
+          let objects = xdata.metaStore.data[`${this.name}_extend`]
+          fieldValue = parseInt(fieldValue, 10)
+          if (objects.get(fieldValue)) return 'UPDATE'
+          return 'INSERT'
+        }
+
+        this.doInsert = () => {
+          let fields = ''
+          let values = ''
+          let keyValue = null
+          let cardSql = null
+          let cardKey = null
+          let opType = 'INSERT'
+          let detail = ''
+          if (this.illegal) return window.hintip.open({
+            value: 'notsave',
+            tip: '输入的内容存在非法值，请检查输入项！'
+          })
+
+          for (let i = 0, len = this.rows.length; i < len; i++) {
+            let row = this.rows[i]
+            let fieldName = row.field_name
+            if (fieldName === 'need_display') continue
+            let fieldValue = null, textValue = null
+            if (row.field_type === 'SELECT') {
+              fieldValue = this.root.querySelector('.' + fieldName).getAttribute('oldvalue')
+              let value = this.root.querySelector('.' + fieldName).getAttribute('value')
+              textValue = this.root.querySelector('.' + fieldName).previousElementSibling.innerText
+              if (!value && value !== '0') {
+                value = this.root.querySelector('.' + fieldName).querySelector('select') && this.root.querySelector('.' + fieldName).querySelector('select').value
+              }
+              if (Number(value) && fieldValue !== value) {
+                fieldValue = value
+              }
+              if (!fieldValue || !(/\d/ig).test(fieldValue)) {
+                fieldValue = 0
+              }
+            } else {
+              if (fieldName === `${this.name}_id`) {
+                fieldValue = this.parent.root.querySelector(`#${this.name}_id`).value
+                opType = this.judgeKeyValue(fieldValue)
+              } else {
+                fieldValue = this.refs[fieldName].root.querySelector('input').value
+              }
+              
+              if (fieldName === 'card_id') {
+                fieldValue = this.refs['card_id'].root.parentElement.querySelector('.defaultFill').innerText
+                if (fieldValue.length > 13) fieldValue = this.formatCard(fieldValue)
+                cardSql = this.judgeCard(fieldValue)
+                cardKey = fieldValue
+              }
+              fieldValue = formatFieldValue(this.rows[i].field_type, fieldValue)
+              textValue = fieldValue
+            }
+            if (i === 0) {
+              keyValue = Number(this.parent.tags['basic-msg'].refs[this.name + '_id'].root.querySelector('#' + this.name + '_id').value)
+            } else {
+              fields += ','
+              values += ','
+            }
+            detail = editDetail(fieldName, textValue, detail, `${this.name}_extend`)
+            fields += fieldName
+            values += fieldValue
+          }
+          if (this.name === 'staff') {
+            fields += ',user_id'
+            values += `,'${xdata.userName}'`
+          }
+          console.log(detail)
+          let sql = `REPLACE into ${this.tableName} (${fields}) VALUES(${values})`
+          console.log(sql)
+          let req = composeUpdateDBReq(opType, `${this.name}${xdata.isCheck === 1 && this.name === 'staff' ? '_extend_ck' : '_extend'}`, keyValue, sql)
+          console.log('req',req)
+          req.data['notify'] = `${keyValue};${cardKey}`
+          this.parent.tags['basic-msg'] && this.parent.tags['basic-msg'].insertSql()
+          req.data['detail'] = detail
+          req.data['user_id'] = xdata.userName
+          // let state = this.judgeValue(keyValue, cardKey)
+          // req['state'] = state
+          xbus.trigger('META-UPDATE-DB', {
+            req: req
+          })
+          if (cardSql) {
+            let cardreq = composeUpdateDBReq('INSERT', 'card', cardKey, cardSql)
+            xbus.trigger('META-UPDATE-DB', {
+              req: cardreq
+            })
+          }
+          xdata.metaStore.basicExtendUpdate = true
+        }
+
+        this.handupCard = key => {
+          let staffExtend = xdata.metaStore.data.staff_extend && xdata.metaStore.data.staff_extend.get(key)
+          let cardID = staffExtend && staffExtend.card_id
+          let underWellCards = xdata.cardStore.scards
+          if (underWellCards.get(cardID)) {
+            xbus.trigger('MAN-CONTROL-UPMINE', {
+              cmd: 'clear_card',
+              data: [{
+                cardid: cardID,
+                cardtype: 1
+              }]
+            })
+          }
+        }
+
+        this.doUpdate = (link, optype) => {
+          let sql = '', cardSql = null, cardKey = null, keyValue = null, detail = ''
+          let key = this.parent.tags["basic-msg"].key
+          if (xdata.metaStore.data.staff_extend && !xdata.metaStore.data.staff_extend.get(key)) return this.doInsert()
+          for (let i = 0, len = this.rows.length; i < len; i++) {
+            let field_name = this.rows[i].field_name
+            if (field_name === 'need_display') continue
+            let inputValue = null, textValue = null
+            if (this.rows[i].field_type === 'SELECT') {
+              inputValue = this.refs[field_name].root.getAttribute('value') || this.refs[field_name].root.getAttribute('data-value')
+              let selectEle = this.root.querySelector('.' + field_name).querySelector('select')
+              if (selectEle && selectEle.options.length === 1) {
+                inputValue = selectEle.value
+              }
+              textValue = this.refs[field_name].root.previousElementSibling.innerText
+              if (!inputValue || !inputValue.match(/\d/ig)) {
+                inputValue = 0
+              }
+            } else {
+              if (field_name === `${this.name}_id`) {
+                inputValue = this.parent.tags["basic-msg"].keyValue || this.parent.tags["basic-msg"].key
+                keyValue = inputValue
+              } else {
+                inputValue = this.refs[field_name].root.querySelector('#' + field_name).value
+              }
+              textValue = inputValue
+            }
+            if (field_name === 'card_id') {
+                inputValue = this.refs['card_id'].root.parentElement.querySelector('.defaultFill').innerText
+                if (inputValue.length > 13) inputValue = this.formatCard(inputValue)
+                cardSql = this.judgeCard(inputValue)
+                cardKey = inputValue
+                textValue = inputValue
+              }
+            if (this.rows[i].field_value != inputValue) {
+              inputValue = formatFieldValue(this.rows[i].field_type, inputValue)
+              if (sql != '') {
+                sql += ','
+              }
+              sql += `${field_name}=${inputValue}`
+              detail = editDetail(field_name, textValue, detail, `${this.name}_extend`)
+            }
+          }
+          
+          if (sql) {
+            this.handupCard(key)
+            let sqlString = `UPDATE ${this.tableName} SET ${sql} where ${this.name + '_id'}=${key};`
+            console.log(sqlString)
+            let req = composeUpdateDBReq(optype, `${this.name}${xdata.isCheck === 1 && this.name === 'staff' ? '_extend_ck' : '_extend'}`, keyValue, sqlString)
+            console.log('req',req)
+            req.data['notify'] = `${keyValue};${cardKey}`
+            req.data['detail'] = detail
+            req.data['user_id'] = xdata.userName
+            xbus.trigger('META-UPDATE-DB', {
+              req: req
+            })
+          }
+          
+          this.parent.tags['basic-msg'] && this.parent.tags['basic-msg'].insertSql(optype)
+          
+          if (cardSql) {
+            let cardreq = composeUpdateDBReq('INSERT', 'card', cardKey, cardSql)
+            xbus.trigger('META-UPDATE-DB', {
+              req: cardreq
+            })
+          }
+          xdata.metaStore.basicExtendUpdate = true
+        }
+
+        this.doDelete = (name) => {
+          let self = this
+          let keyname = this.name + '_id'
+          let sql = `DELETE from ${this.tableName} where ${keyname}=${name}`
+          let req = composeUpdateDBReq('DELETE', `${this.name}_extend`, name, sql)
+          // let cardID = this.refs['card_id'].root.querySelector('#card_id').value
+          let obj = xdata.metaStore.data[`${this.name}_extend`] && xdata.metaStore.data[`${this.name}_extend`].get(Number(name))
+          let cardID = obj && obj.card_id
+          let deptID = obj && xdata.metaStore.data.dept && xdata.metaStore.data.dept.get(obj.dept_id)
+          let detail = editDetail(keyname, name, '', `${self.name}_extend`)
+          detail = editDetail('card_id', cardID, detail, `${self.name}_extend`)
+          detail = editDetail('dept_id', deptID && deptID.name, detail, `${self.name}_extend`)
+          req.data['notify'] = `${name};${cardID}`
+          req.data['detail'] = detail
+          req.data['user_id'] = xdata.userName
+          req.username = xdata.userName
+          this.handupCard(name)
+          xbus.trigger('META-UPDATE-DB', {
+            req: req
+          })
+          this.rows = getRows(null, this.def)
+          this.update()
+        }
+
+        this.doReset = () => {
+          this.refs['content'].setAttribute('data-type', '')
+          this.rows = getRows(null, this.def)
+          this.divisionRows(this.rows)
+          this.update()
+        }
+
+        this.updateList = (value) => {
+          let msg = {
+            row: xdata.metaStore.data[this.name + '_extend'] && xdata.metaStore.data[this.name + '_extend'].get(value)
+          }
+          this.rows = getRows(msg, this.def)
+          this.divisionRows(this.rows)
+          if (xdata.metaStore.data[this.name + '_extend'] && xdata.metaStore.data[this.name + '_extend'].get(value)) {
+            this.refs['content'].setAttribute('data-type', 'update')
+          } else {
+            this.refs['content'].setAttribute('data-type', '')
+          }
+          this.update()
+        }
+
+        this.formatCard = (fieldValue) => {
+          let value = fieldValue.substr(3)
+          value = parseInt(value, 10).toString()
+          value = this.name === 'staff' ? `001${value.padStart(10, 0)}` : `002${value.padStart(10, 0)}`
+          return value
+        }
+    </script>
+</operation-msg>

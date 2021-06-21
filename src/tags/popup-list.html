@@ -1,0 +1,229 @@
+<popup-list>
+  <span if={isEnableSearch} class="search-filter" onclick={hideList}></span>
+  <ul if={ rowlist && !isEnableSearch }>
+    <li class="list-item" each={ row in rows } card-name={ row.name } card-spell={ row.spy } onclick={ choosed } data-type={ row[nametitle + '_id'] }>{ row.name }</li>
+    <li class="noresult hide">没有符合条件结果</li>
+  </ul>
+  <ul if={ stafflist && !isEnableSearch }>
+    <li class="list-item" each={ staff in staffNumber } data-type={ staff[0] } card-name={ staff[2] } onclick={ choosed }>{ staff[2] }</li>
+  </ul>
+
+  <script>
+    import { OD, ST } from '../js/def/odef.js'
+    import {compare, clone} from '../js/utils/utils.js'
+    import Fuse from 'fuse.js'
+    import fuzzySearch from '../js/def/fuzzy_search.js'
+    import './search-filter.html'
+    import {CARD} from '../js/def/state.js'
+
+    let parentTag = opts.self
+    let self = this
+    let optsOne = {
+      threshold: 0,
+      // includeMatches: true,
+      minMatchCharLength: 2,
+      location: 0,
+      tokenize: true,
+      matchAllTokens: true,
+      keys:  ['name', 'spy', 'staff_id', 'card_id']
+      // keys: ['id', 'n', 'b']
+      // id: 'id'
+    }
+    let fuse = new Fuse(null, optsOne)
+
+    this.setPosition = (target, parentTarget) => {
+      let box = target.getBoundingClientRect()
+      let pbox = parentTarget.getBoundingClientRect()
+      this.root.style = `left: ${box.left - pbox.left}px; top: ${box.bottom - pbox.top + 5}px; width: ${box.width}px`
+    }
+
+    // 呼叫人员列表,关联区域
+    this.showCallTable = () => {
+      if (this.areas.length > 0) {
+        for (let i = 0, len = this.areas.length; i < len; i++) {
+          let areacards = xdata.cardStore.getDetail(1, 'area', this.areas[i].areaID)
+          this.formatDetailData(areacards)
+        }
+        this.staffNumber = this.areastaffs
+      } else {
+        let data = xdata.cardStore.getDetail(OD.STAFF, ST.SUM)
+        this.staffNumber = data || '0'
+      }
+      if (this.staffNumber.length <= 0) {
+        parentTag.showNull = true
+        // this.hasresult = true
+        parentTag.update()
+      } else {
+        parentTag.showNull = false
+        parentTag.update()
+      }
+      // console.log(this.staffNumber)
+    }
+
+    this.formatDetailData = (areacards) => {
+      for (let i = 0, len = areacards.length; i < len; i++) {
+        let card = areacards[i]
+        this.areastaffs.push(card)
+      }
+    }
+
+    this.getResult = (result) => {
+      if (result) parentTag.insertChoosed(result, this.name)
+      this.root.classList.add('hide')
+      self.unmount(true)
+    }
+
+    this.hideList = (evt) => {
+      evt.stopPropagation()
+    }
+
+    this.enableSearch = () => {
+      let name = this.nametitle
+      let fuzzy = fuzzySearch[name]
+      let datas = xdata.metaStore.data[name] && Array.from(xdata.metaStore.data[name].values())
+      let keys = fuzzy.keys
+      let desc = fuzzy.desc
+      let dittoname = null
+      if (['callSpecial', 'callSpecialStaff'].includes(this.name)) {
+        if (this.name === 'callSpecialStaff') {
+          datas = xdata.cardStore.getSearchData(1)
+          dittoname = clone(datas)
+          dittoname.forEach(e => {
+            e.b = e.b.toUpperCase()
+            e.n = `${e.k}-${e.n}`
+          })
+        } else {
+          dittoname = datas
+        }
+        keys = this.name === 'callSpecialStaff' ? ['n', 'b'] : keys
+        desc =  this.name === 'callSpecialStaff' ? 'n' : desc
+      }
+      let typeDef = {
+        name: fuzzy.name,
+        label: fuzzy.label,
+        placeholder: fuzzy.placeholder,
+        cb: this.getResult // the callback when select an item.
+      }
+
+      let dataSet = {
+        desc: desc, // 显示结果集时，显示的字段：一般为描述字段
+        keys: keys, // 参与搜索的列名称
+        data: dittoname
+      }
+
+      this.searchFilter = riot.mount('.search-filter', 'search-filter', { typeDef: typeDef, dataSet: dataSet})[0]
+    }
+
+    this.init = (opts) => {
+      this.isEnableSearch = opts.isEnableSearch || false
+      this.name = opts.name
+      this.positionPoint = opts.target
+      this.parentTag = opts.parentTarget
+      this.areas = opts.areas
+      if(opts.hasOwnProperty('searchValue')){      
+        this.searchValue = opts.searchValue
+      }
+      this.areastaffs = []
+      if (this.name === 'callSpecial') {
+        this.rowlist = true
+        this.rows = xdata.metaStore.dataInArray.get('area')
+        this.nametitle = 'area'
+      } else if (this.name === 'callSpecialStaff') {
+        this.stafflist = true
+        this.showCallTable()
+        this.nametitle = 'staff'
+      }  else if (this.name === 'staff') {
+        this.rowlist = true
+        fuse.list = xdata.metaStore.dataInArray.get('staff')
+        let matchs = fuse.search(this.searchValue)        
+        if(!!this.searchValue){          
+          this.rows = matchs
+        } else {
+          this.rows = xdata.metaStore.dataInArray.get('staff')
+        }
+        if (xdata.objRange === 1 || xdata.isCheck === 1) {
+          this.rows = this.filterNeedDislayCard(this.rows)
+        }
+        let noresult = this.root.querySelector('.noresult')
+        if (matchs.length <= 0) {
+          noresult && noresult.classList.remove('hide')
+        } else {
+          noresult && noresult.classList.add('hide')
+        }
+        this.nametitle = this.name
+      } else if (this.name === 'reader') {
+        this.rowlist = true
+        this.rows = Array.from(xdata.metaStore.data.reader.values())
+        this.nametitle = this.name
+      } else {
+        this.rowlist = true
+        // this.rows = this.name === 'dept' ? Array.from(xdata.metaStore.depts.values()) : xdata.metaStore.dataInArray.get(this.name).sort(compare('name', 'staff'))
+        this.rows = this.name === 'dept' ? Array.from(xdata.metaStore.data.dept.values()) : xdata.metaStore.dataInArray.get(this.name)
+        if (this.name === 'dept') {
+          let depts = xdata.depts
+          if (depts) this.rows = this.rows.filter(item => item.dept_id && depts.includes(item.dept_id))
+        }
+        this.nametitle = this.name
+      }
+      this.update()
+    }
+    this.init(opts)
+
+    this.on('mount', () => {
+      self.setPosition(this.positionPoint, this.parentTag)
+
+      this.root.classList.remove('hide')
+      if (this.isEnableSearch) this.enableSearch()
+    })
+
+    this.choosed = (evt) => {
+      let target = evt.currentTarget
+      parentTag.insertChoosed(target, this.name)
+
+      this.root.classList.add('hide')
+      self.unmount(true)
+    }
+
+    this.enterForSearch = (target) => {
+      // let target = evt.currentTarget
+      this.searchTheName(target)
+    }
+
+    this.searchTheName = (target) => {
+      let searchValue = target.value
+      let trackListTags = this.root.querySelectorAll('.list-item')
+      this.isCardExist = false
+      let regString = 'n*' + searchValue + 'n*'
+      let Reg = new RegExp(regString, 'i')
+      let noresult = this.root.querySelector('.noresult')
+      let resultArr = []
+
+      if (trackListTags) {
+        for (let i = 0; i < trackListTags.length; i++) {
+          let cardName = trackListTags[i].getAttribute('card-name')
+          let cardSpell = trackListTags[i].getAttribute('card-spell').toLowerCase()
+          if ((!Reg.test(cardName) || cardName === null) && cardSpell.indexOf(searchValue) === -1) {
+            trackListTags[i].style.display = 'none'
+          } else {
+            trackListTags[i].style.display = 'block'
+            resultArr.push(trackListTags[i])
+          }
+        }
+      }
+      if (resultArr.length <= 0) {
+        noresult && noresult.classList.remove('hide')
+      } else {
+        noresult && noresult.classList.add('hide')
+      }
+    }
+
+    this.close = () => {
+      this.unmount(true)
+    }
+
+    this.filterNeedDislayCard = (matchs) => {
+      let data = matchs.filter((item) => item.need_display != 0)
+      return data
+    }
+  </script>
+</popup-list>

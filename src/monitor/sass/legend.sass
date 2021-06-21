@@ -1,0 +1,26 @@
+@import '../../sass/defs'
+
+.legend-container
+  position: absolute
+  right: 3rem
+  bottom: 1px
+  width: 7rem
+  @media screen and (max-width: $width-medium)
+    display: none
+
+  .legend-img
+    @include wh(7rem,auto)
+    position: absolute
+    bottom: 1px
+
+  .legend-switcher
+    @include wh(2rem,2rem)
+    @include align-center-middle
+    position: absolute
+    right: -2.8rem
+    bottom: 1px
+    z-index: 9999
+    background: $active-bg
+    cursor: pointer
+    .icon
+      fill: $active-ft

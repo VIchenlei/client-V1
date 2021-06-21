@@ -1,0 +1,264 @@
+<search-bar>
+  <div class="contTitle">
+    <span class="condition" if={ stafforvehicle }>
+      <span class="condName float-above">员工:</span>
+      <span class="identify-staff search-bar"></span>
+    </span>
+    <span class="condition" if={ !stafforvehicle }>
+      <span class="condName float-above">车牌:</span>
+      <icon-input idname="vehicle" type="text" class="vehicle" placeholder="请输入车牌号" icon="icon-down" classname="login-input" reg-type="NER" onclick={ list } onkeyup={ enterForSearch } oninput={ clearInput }></icon-input>
+      <div id="call-list" class="call-list-vehicle"></div>
+    </span>
+    <span class="condition">
+      <span class="condName deptname float-above">部门:</span>
+      <icon-input idname="dept" type="text" class="dept" placeholder="请输入部门" icon="icon-down" classname="login-input" reg-type="CENR" onclick={ list } onkeyup={ enterForSearch } oninput={ clearInput }></icon-input>
+      <div id="call-list" class="call-list-dept"></div>
+    </span>
+    <span class="condition">
+      <span class="condName cardname float-above">卡号:</span>
+      <!-- <icon-input idname="card" type="text" class="card" placeholder="请输入卡号" icon="icon-down" classname="login-input" data-type="CARD" reg-type="CARD"></icon-input> -->
+      <div class="card">
+        <input type='search' ref='searchinput' id="card-number" class="login-input card-number" placeholder="请输入卡号" onkeyup={ enterForLogin } onfocus={
+            changeHr } onblur={ changeHrOrigin } oninput={ searchInput }>
+        <hr class="input_bottom searchinput" ref="hr">
+        <div if={ isShowResultList } class="card_list popup-list">
+            <span if={ hasresult } class="list-item" each={ item, i in resultCardList } data-name={item} onclick={ chooseItem }
+                data-type={ item[name + '_id' ] } data-index={ i }>{ item.card_id}</span>
+            <span if={ !hasresult } class="tips"> 无符合条件的卡号 </span>
+        </div>
+      </div>   
+    </span>
+    <button onclick={ search }>查询</button>
+  </div>
+
+  <script>
+    import { trim, getSearchData } from '../../js/utils/utils.js'
+    const sqlQuery = ['leader_arrange','dat_vehicle_state','his_maintenance','dat_vehicle_drive','his_patrol_data','rt_person_forbid_down_mine']
+    let self = this
+    let parentTag = opts.parentTag  // eslint-disable-line
+    this.name = parentTag.name
+    this.stafforvehicle = true
+    let typeDef = null
+    let dataSet = null
+
+    this.on('mount', () => {
+      this.fuzz = riot.mount('span.identify-staff', 'fuzzy-search2', { typeDef: typeDef, dataSet: dataSet })[0]
+      if (parentTag.name === 'staff') {
+        this.stafforvehicle = true
+      } else {
+        this.stafforvehicle = false
+      }
+      this.update()
+    })
+
+    this.getResult = (result) => {
+      let desc = dataSet.desc
+      // 检索之后 页面分页为第一页
+      this.pageIndex = 0
+      if(this.root.querySelector('#searchinput').value){
+        // if(desc!=='name'){     
+          this.root.querySelector('#searchinput').value = result[desc]
+        // }else{
+        //   this.root.querySelector('#searchinput').value = result[0][desc]   
+        // }
+      }else{
+        this.root.querySelector('#searchinput').value = ''
+        let staff = this.root.querySelector('.search-box') && this.root.querySelector('.search-box').querySelector('#searchinput').value
+        let vehicle = this.root.querySelector('.vehicle') && this.root.querySelector('.vehicle').querySelector('#vehicle').value
+        let deptName = this.root.querySelector('.dept').querySelector('#dept').value && this.root.querySelector('.dept').getAttribute('data-value')
+        let cardname = this.root.querySelector('.card-number') && this.root.querySelector('.card-number').value
+        parentTag.searchUpdate(staff, vehicle, deptName, cardname, parentTag.sqlname)
+        if (parentTag.selectInputs.size > 0) {
+          parentTag.checked = false
+          parentTag.update()
+          parentTag.clearSelectInput()  
+        }
+      }
+      
+    }
+
+    this.clearInput = (evt) => {
+      let value = evt.target.value
+      if (value) return
+      if (parentTag.selectInputs.size > 0) {
+        parentTag.checked = false
+        parentTag.update()
+        parentTag.clearSelectInput()  
+      }
+    }
+
+    this.init = () => {
+      let results = getSearchData(this.label, this.name, this.rows, (sqlQuery.includes(this.name) ? this.getDownWellResult : this.getResult))
+      typeDef = results.typeDef
+      dataSet = results.dataSet
+    //   let staffs = Array.from(xdata.metaStore.staffs.values())
+    //   this.typeDef = {
+    //     name: 'staff',
+    //     label: '人员',
+    //     placeholder: '请输入姓名/简拼/工号',
+    //     cb: this.getResult  // the callback when select an item.
+    //   }
+    //   this.dataSet = {
+    //     desc: 'name',  // 显示结果集时，显示的字段：一般为描述字段
+    //     keys: ['name', 'spy', 'staff_id', 'card_id'],  // 参与搜索的列名称
+    //     data: staffs
+    //   }
+    }
+    this.init()
+
+    this.list = (evt) => {
+      evt.stopPropagation()
+      let target = evt.currentTarget
+      let parentTarget = document.querySelector('.basic-message-form')
+      let name = target.getAttribute('class')
+      if (this.callList) {
+        this.callList.unmount(true)
+      }
+      let vessel = 'div.call-list-' + name
+      this.callList = riot.mount(vessel, 'popup-list', {
+        target: target,
+        name: name,
+        self: self,
+        parentTarget: parentTarget,
+        isspecial: 'special'
+      })[0]
+    }
+
+    this.insertChoosed = (target, name) => {
+      let root = this.root.querySelector('.' + name)
+      root.querySelector('#' + name).value = target.innerText
+      root.setAttribute('data-value', target.getAttribute('data-type'))
+    }
+
+    this.enterForSearch = (evt) => {
+      let searchTarget = evt.currentTarget.getElementsByTagName('input')[0]
+      this.callList.enterForSearch(searchTarget)
+    }
+
+    this.search = (evt) => {
+      let staff = this.root.querySelector('.search-box') && this.root.querySelector('.search-box').querySelector('#searchinput').value && this.root.querySelector('.search-box').querySelector('#searchinput').getAttribute('data-type')
+      let vehicle = this.root.querySelector('.vehicle') && this.root.querySelector('.vehicle').querySelector('#vehicle').value
+      let deptName = this.root.querySelector('.dept').querySelector('#dept').value && this.root.querySelector('.dept').getAttribute('data-value')
+      let cardname = this.root.querySelector('.card-number') && this.root.querySelector('.card-number').value 
+      parentTag.name === 'staff' ? vehicle = '' : staff = ''
+      parentTag.searchUpdate(trim(staff), trim(vehicle), trim(deptName), trim(cardname), parentTag.sqlname)
+    }
+
+    /**
+    * @description: 卡号输入框聚焦 显示蓝色边框线
+    * @param {type} 
+    * @return: 
+    */
+    this.changeHr = (evt) => {
+        this.refs.hr.style.transform = `scale(1)`
+        this.root.getElementsByTagName('svg')[0].style = `fill: #09f;`
+        this.opts.onfocus && this.opts.onfocus()
+    }
+
+    /**
+    * @description: 卡号输入框失去焦点 隐藏蓝色边框线
+    * @param {type} 
+    * @return: 
+    */
+    this.changeHrOrigin = (evt) => {
+        this.refs.hr.style.transform = `scale(0)`
+        this.root.getElementsByTagName('svg')[0].style = `fill: #999;`
+        if (opts.blurname) {
+            this.parent[opts.blurname](evt)
+        }
+    }
+
+    /**
+    * @description: 检索所需要的卡号
+    * @param {type}  
+    * @return: 
+    */
+    this.enterForLogin = (evt) => {
+        let s = evt.target.value
+        let cards = xdata.metaStore.data.card && Array.from(xdata.metaStore.data.card.values())
+        if (/staff/.test(this.name)) {
+            cards = cards.filter(item => item.card_type_id === 1)
+        } else {
+            cards = cards.filter(item => item.card_type_id !== 1)
+        }
+        let card = null
+        let num = s.substr(0, 3)
+        if (num === '0' || num === '00') num = '001'
+        if (s.length <= 10) {
+            switch (num) {
+                case '001':
+                    card = cards.filter(item => item.card_id.toString().substr(0, 3) === num).slice(0, 20)
+                    break;
+                case '002':
+                    card = cards.filter(item => item.card_id.toString().substr(0, 3) === num).slice(0, 20)
+                    break;
+                case '004':
+                    card = cards.filter(item => item.card_id.toString().substr(0, 3) === num).slice(0, 20)
+                    break;
+                case '005':
+                    card = cards.filter(item => item.card_id.toString().substr(0, 3) === num).slice(0, 20)
+                    break;
+                default:
+                    card = cards.filter(item => item.ident === parseInt(s))
+                    break;
+            }
+            this.resultCardList = card
+        } else {
+            card = cards.filter(item => item.card_id === s)
+            this.resultCardList = card
+        }
+        this.isShowResultList = true
+        card.length > 0 ? this.hasresult = true : this.hasresult = false
+        if (s === '') {
+            this.isShowResultList = false
+        }
+    }
+
+    /**
+    * @description: 在卡号检索面板中选择卡号来检索
+    * @param {type} 
+    * @return: 
+    */
+    this.chooseItem = (evt) => {
+        evt.stopPropagation()
+        let t = evt.currentTarget
+        let v = t.getAttribute('data-index')
+        let i = v && parseInt(v, 10)
+        let self = this
+        let value = this.resultCardList[i].card_id
+        this.isShowResultList = false
+        this.root.querySelector('.card-number').value = value
+        
+    }
+
+    /**
+    * @description: 清空输入框 隐藏检索面板
+    * @param {type} 
+    * @return: 
+    */
+    this.searchInput = (evt) =>{
+      let value = evt.target.value
+      if (value === "") this.isShowResultList = false
+      if (value) return
+      if (parentTag.selectInputs.size > 0) {
+        parentTag.checked = false
+        parentTag.update()
+        parentTag.clearSelectInput()  
+      }
+    }
+
+    /**
+     * @description: 更新搜索姓名结果集
+     */  
+    this.updateSearchList =(label,name,rows)=>{
+        let results = null
+        results = getSearchData(this.label, this.name, this.rows, this.getResult)
+        typeDef = results.typeDef
+        dataSet = results.dataSet
+        if (this.fuzz) {
+            this.fuzz.updateData({ typeDef: typeDef, dataSet: dataSet, searchType: false, searchIcon: false })
+        }
+        this.update()
+    }
+  </script>
+</search-bar>

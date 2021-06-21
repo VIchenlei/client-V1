@@ -1,0 +1,116 @@
+@import defs
+
+.dlg-bg
+    @include absolute(0,0)
+    @include wh(100%,100%)
+    @include align-center-middle
+    background: $mask-bg
+    z-index: 999
+
+.dlg-window
+    background: $body-bg
+    display: flex
+    flex-flow: column nowrap
+    box-shadow: $dialog-shadow
+    position: absolute  // 用于拖动
+    z-index: 1000
+
+.dlg-head
+    padding: 0 1rem 0 .5rem
+    flex: 0 0 $head-height
+    background: $head-bg
+    color: $head-ft
+
+    @include align-middle
+    justify-content: space-between
+    cursor: move
+
+    @media screen and (max-width: $width-medium)
+        padding: 0 .5rem
+        .mobile-goback
+            display: flex
+            .icon
+                fill: $head-ft
+
+    .dlg-title
+        @include align-middle
+        flex-flow: row nowrap
+
+        @media screen and (max-width: $width-medium)
+            .grip-horizontal
+                display: none
+    .icon
+        fill: $head-ft
+.dlg-head-alarm
+    background: $head-bg-alarm
+    span
+        color: $color-black
+        .icon
+            cursor: pointer
+            fill: $float-ft
+.dlg-body
+    flex: auto
+    font-size: $fontsize-s
+    @include align-center
+    flex-flow: column
+    button
+        margin-left: 1rem
+
+    .ctrl-panel
+        @include align-middle
+        justify-content: space-between
+
+        padding: 0 .5rem
+        flex: 0 0 $ctrl-panel-height
+        background: $ctrl-bg
+
+        .condition-builder
+            display: flex
+
+            .condition
+                @include align-middle
+                margin-right: 1rem
+                // min-width: 7rem
+                input
+                    text-align: center
+                    padding-left: .2rem
+                    border-radius: $control-radius
+                    height: $control-height
+                    width: 10.5rem
+               
+                input[type="text"]
+                    width: 7rem
+                input[type="radio"]
+                    width: 1.5rem
+                input[type="datetime-local"]
+                    width: 12rem
+                @media screen and (max-width: $width-medium)
+                    input,input[type="text"]
+                        width: 6rem
+
+    .content-panel
+        max-height: 600px
+        overflow-y: auto
+        overflow-x: auto
+        padding: 0px
+        color: $body-ft
+        display: flex
+        flex-flow: column
+        .tdvehicle tr
+            cursor: auto
+            td:nth-child(2)
+                cursor: pointer
+
+.dlg-foot
+    padding: .3rem 3.6rem
+    flex: 0 0 $foot-height
+    height: 2rem
+    margin-top: .5rem
+    border-top: 1px solid $border-line
+    display: flex
+    justify-content: space-around
+    // @include align-center-middle
+.file-dialog .dlg-foot
+    justify-content: center
+    button:nth-child(2), button:nth-child(3)
+        margin-left: 1rem

@@ -1,0 +1,90 @@
+<side-bar>
+  <article>
+    <div onclick={ activateItem } class="menu">
+        <side-menu each={ menus } def={ this } if={isShow(this)}></side-menu>
+    </div>
+  </article>
+  <script>
+    import {getMenus} from '../js/utils/utils.js'
+    import './side-menu.html'
+    const DEPTSPEACIAL = ['车辆报表查询','三率报表查询','设备报表查询']
+    this.name = opts.name
+    this.menus = opts.menus
+
+    this.active_item = null
+
+    this.isShow = (row) => {
+      if (row.title === '信息管理' && xdata.isCheck === 1) return false
+      if (DEPTSPEACIAL.includes(row.title) && xdata.roleID === 2) return false
+      if (this.roleRankID !== 2) return true
+      let menuID = row.menuID
+      if (!menuID) return true
+      if (this.checkedMenu.includes(menuID)) return true
+      return false
+    }
+
+    // arrow function 绑定了 this
+    this.activateItem = (evt) => {
+      let name = null
+      let msg = null
+
+      if (evt.cardID) {
+        msg = evt
+        // if (evt.name === 'staff') {
+        //   name = 'person'
+        // } else {
+        //   name = 'vehicle_updown_mine'
+        // }
+        name = evt.report
+        this.name = 'REPT'
+      } else {
+        let el = evt.target
+        this.name = this.root.getAttribute('name')
+        if (this.active_item) {
+          this.active_item.classList.remove('active')
+        }
+        this.active_item = el
+        if (!el) {
+          let target = evt
+          let arr = this.tags["side-menu"]
+          for (let i = 0; i < arr.length; i++) {
+            if (arr[i].refs[target]) {
+              this.active_item = arr[i].refs[target]
+            }
+          }
+        }
+        this.active_item && this.active_item.classList.add('active')
+        name = this.active_item && this.active_item.getAttribute('name')
+
+        // sessionStorage.setItem('select', name)
+      }
+
+      if (name && (evt.target || evt)) {
+        let eventName = `${this.name}-SWITCH-MENU`
+        xbus.trigger(eventName, {
+          menuname: name,
+          msg: msg
+        }) // META-SWITCH-MENU, REPT-.., STATUS-..
+      }
+    }
+
+    xbus.on('SHOW-REPORT', (msg) => {
+      this.activateItem(msg)
+    })
+
+    xbus.on('SIDE-MENU-UPDATE', (msg) => {
+      if (msg.name === this.name) {
+        this.menus = msg.menus
+        this.update()
+      }
+    })
+
+    this.init = () => {
+      let roleID = xdata.roleID
+      let menuRes = getMenus(roleID)
+      this.roleRankID = menuRes.roleRankID
+      this.checkedMenu = menuRes.checkedMenu
+    }
+    this.init()
+  </script>
+</side-bar>

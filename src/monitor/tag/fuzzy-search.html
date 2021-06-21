@@ -1,0 +1,290 @@
+<fuzzy-search  onclick={ preventBubble }>
+  <!-- <div class="search-type-selector" id="typeselector" onclick={ showTypeList }>{searchType.label}</div> -->
+  <div class="search-icon" id="selecticon" onclick={ doSearch }><img src="./img/search.png"></div>
+  <div if={ isShowTypeList } class="popup-list type-panel">
+    <span each={ stype, i in typeDef} onclick={ chooseType } class="list-item" data-index={ i }>{ stype.label}</span>
+  </div>
+  <!-- <div if={ isShowSelectedItem } class="selected-item" onclick={ locateItem }></div> -->
+  <input id="searchinput" ref="searchinput" type="search" class="search-box" size="10" placeholder='请输入人员、车辆、分站、地标信息' onkeyup={ checkInput } onfocus={ focusInput }>
+  <div if={ isShowResultList } class="popup-list">
+    <span if={ hasresult } class="list-item" each={ result } onclick={ chooseItem } data-type={ t } data-value={ id } data-card={ c }>{ n }</span>
+    <span if={ !hasresult } class="tips"> 当前井下无符合条件的对象 </span>
+    <span if={ uncoverArea } class="tips">该卡在非覆盖区域,已为您定位到区域</span>
+  </div>
+
+  <script>
+    import Fuse from 'fuse.js'
+    import { CARD } from '../../js/def/state.js'
+    import { clone } from '../../js/utils/utils.js'
+
+    // const CARD_ID_LENGTH = 13
+
+    // 最多取多少个结果
+    const MAX_ITEM_COUNT = 20
+    const TIME_OUT = 5 * 60 * 1000  // ms, 最少 5 分钟更新一次查询集
+
+    this.hasresult = false
+    this.uncoverArea = false
+
+    this.isShowResultList = false
+    this.isShowTypeList = false
+
+    let defaultMapID = xdata.metaStore.defaultMapID // 当前默认地图，切换地图时，更新查询集
+
+    this.typeDef = [
+      { key: 'vehicle', id: 2, label: '车辆', prefix: '002', placeholder: '车牌、车牌首字母、卡号' },
+      { key: 'staff', id: 1, label: '人员', prefix: '001', placeholder: '姓名、姓名首字母、卡号' },
+      { key: 'reader', id: 3, label: '分站', prefix: '003', placeholder: '分站名称、分站号' },
+      { key: 'landmark', id: 4, label: '地标', prefix: '004', placeholder: '地标名称、地标号' }
+    ]
+
+    this.registerGlobalEvent = () => {
+      xbus.on('HIDE-ALL-POPUP', () => {
+        let needUpdate = false
+        if (this.isShowResultList) {
+          this.isShowResultList = false
+          needUpdate = true
+        }
+        if (this.isShowTypeList) {
+          this.isShowTypeList = false
+          needUpdate = true
+        }
+        needUpdate && this.update()
+      })
+    }
+
+    this.preventBubble = (evt) => {
+      evt.stopPropagation()
+    }
+
+    // 当前所选择的搜索类型，默认为车辆
+    this.searchType = this.typeDef[0]
+
+    let opts = {
+      threshold: 0,
+      // includeMatches: true,
+      minMatchCharLength: 2,
+      location: 0,
+      tokenize: true,
+      matchAllTokens: true,
+      keys: ['id', 'n', 'b', 't', 'c'] // id/名称/拼音/类型/卡号
+      // id: 'id'
+    }
+
+    let fuse = new Fuse(null, opts)
+    this.registerGlobalEvent()
+
+    // 回车 或 key 长度大于2并且不是数字，或 是数字且长度大于等于 3 ，自动搜索
+    this.checkInput = (evt) => {
+      let startSearch = false
+
+      if (evt.keyCode === 13) {
+        startSearch = true
+      } else {
+        let s = this.refs.searchinput.value
+        if (s && s.length >= 2) {
+          if (!isNaN(parseInt(s, 10))) {
+            if (s.length >= 3) { // 数字需要至少三个字符
+              startSearch = true
+            }
+          } else { // 自动查找，字符只需要两个字符
+            startSearch = true
+          }
+        } else {
+          this.isShowResultList = false
+        }
+      }
+
+      if (startSearch) {
+        this.doSearch()
+      }
+      return true
+    }
+
+    // fuse.list 为空 或 类型不是上次的类型 或 类型相同但距离上次更新时间 > TIME_OUT，更新搜索数据集
+    // TODO 把数据准备的工作放到 webworker 中，并行处理，不影响主线程，避免卡顿
+    this.updateSearchDataSet = () => {
+      let staff = xdata.cardStore.getSearchData(1)
+      let vehicle = xdata.cardStore.getSearchData(2)
+      let device = xdata.deviceStore.getSearchData(3)
+      let landmark = xdata.deviceStore.getSearchLandmarkData(4)
+      let fuseListLength = fuse.list === null ? 0 : fuse.list.length
+      let dataLength = staff.length + vehicle.length +  device.length + landmark.length
+      if ( dataLength !== fuseListLength || !fuse.list || fuse.list.length === 0 || fuse.xtype !== this.searchType.id || (performance.now() - fuse.xLastUpdate) > TIME_OUT || xdata.metaStore.defaultMapID !== defaultMapID) {
+        // let data = this.searchType.id === 3 ? xdata.deviceStore.getSearchData(this.searchType.id) : xdata.cardStore.getSearchData(this.searchType.id)
+        let data = [].concat(staff).concat(vehicle).concat(device).concat(landmark)
+        if (data) {
+          fuse.list = data
+          fuse.xLastUpdate = performance.now()
+          fuse.xtype = this.searchType.id
+        }
+        defaultMapID = xdata.metaStore.defaultMapID
+      }
+    }
+
+    this.doSearch = () => {
+      let s = this.refs.searchinput.value
+      if (!s && s.length < 2) { // 少于两个字符不查询
+        return
+      }
+      this.updateSearchDataSet()
+
+      this.result = null
+      this.hasresult = false
+
+      let matchs = fuse.search(s)
+      matchs = this.filterNeedDislayCard(matchs)
+
+      if (matchs && matchs.length > 0) {
+        matchs = matchs.slice(0, MAX_ITEM_COUNT)
+        this.result = matchs
+        let dittoname = clone(matchs)
+        dittoname.forEach(e => {
+          if (e.t === 1) e.n = `${e.k}-${e.n}`
+        })
+        this.result = dittoname
+        this.hasresult = true
+      }
+      this.isShowResultList = true
+      this.update()
+    }
+
+    this.filterNeedDislayCard = (matchs) => {
+      let data = []
+      if (this.searchType.id === 2) {
+        matchs.filter((item) => {
+          let cardobj = xdata.metaStore.data.vehicle_extend.get(Number(item.id))
+          let cardId = cardobj && cardobj.card_id
+          if (xdata.metaStore.needDisplay(cardId)) {
+            data.push(item)
+          }
+        })
+      } else if (this.searchType.id === 1) {
+        matchs.filter((item) => {
+          let cardobj = xdata.metaStore.data.staff_extend.get(Number(item.id))
+          let cardId = cardobj && cardobj.card_id
+          if (xdata.metaStore.needDisplay(cardId)) {
+            data.push(item)
+          }
+        })
+      } else if (this.searchType.id === 3) {
+        matchs.filter((item) => {
+          let cardobj = xdata.metaStore.data.reader && xdata.metaStore.data.reader.get(Number(item.id))
+          let reader = cardobj && cardobj.reader_id
+          if (reader) {
+            data.push(item)
+          }
+        })
+      } else if (this.searchType.id === 4) {
+        matchs.filter((item) => {
+          let cardobj = xdata.metaStore.data.landmark && xdata.metaStore.data.landmark.get(Number(item.id))
+          let landmark = cardobj && cardobj.landmark_id
+          if (landmark) {
+            data.push(item)
+          }
+        })
+      }
+      return data
+    }
+
+    this.showTypeList = (evt) => {
+      this.isShowTypeList = !this.isShowTypeList
+      // this.isShowTypeList = true
+      this.isShowResultList = false
+    }
+
+    this.chooseType = (evt) => {
+      let target = evt.currentTarget
+      let index = target.getAttribute('data-index')
+      let i = parseInt(index, 10)
+      let currentID = this.typeDef[i].id
+
+      if (currentID !== this.searchType.id) {  //  换了 type
+        this.searchType = this.typeDef[i]
+        this.clearSearchInput()
+        this.updateSearchDataSet()
+      }
+
+      this.isShowTypeList = false
+      this.update()
+    }
+
+    this.chooseItem = (evt) => {
+      let t = evt.currentTarget
+      let skey = t.getAttribute('data-value')
+      let stype = parseInt(t.getAttribute('data-type'), 10)
+      let scard = t.getAttribute('data-card')
+
+      this.startLocating(skey, stype, scard)
+
+      this.isShowResultList = false
+    }
+
+    // 补全 13 位的卡号
+    function composeCardID (prefix, sid) {
+      let len = (sid + '').length
+      let ss = ''.padEnd(10 - len, '0')
+      return prefix + ss + sid
+    }
+
+    // 定位卡。如果卡在非覆盖区域，没有具体位置，所以定位到卡所在的区域。
+    this.startLocating = (sid, stype, scard) => {
+      if (stype !== 3 && stype !== 4) {
+        let cardID = scard || composeCardID(`00${stype}`, sid)
+        let card = xdata.cardStore.getLastState(cardID)
+        if (!card) return
+        let mapID = card[CARD.map_id]
+        if (mapID !== xdata.metaStore.defaultMapID) return
+        let areaID = card[CARD.area_id]
+
+        let inUncoverArea = xdata.cardStore.isInUncoverArea(cardID)
+        if (inUncoverArea) {
+          let message = {
+            areas: [areaID],
+            mapID: card[CARD.map_id],
+            mapType: 'MONITOR',
+            type: 'location',
+            isVisible: 'true'
+          }
+          xbus.trigger('MAP-SHOW-AREA', message)
+          xdata.locateStore.locateAreas.set(areaID, 'location')
+        } else {
+          let msg = {
+            cards: [cardID]
+          }
+          // xbus.trigger('CARD-LOCATING-START', msg)
+          window.cardStartLocating(msg)
+        }
+      } else if(stype === 3){
+        let msg = {
+          mapID: xdata.metaStore.defaultMapID,
+          symbolType: 'reader',
+          mapType: 'MONITOR',
+          isVisible: 'true',
+          id: [sid]
+        }
+        xbus.trigger('MAP-SHOW-READER', msg)//显示光晕
+      } else if(stype === 4){
+        let msg = {
+          mapID: xdata.metaStore.defaultMapID,
+          symbolType: 'landmark',
+          mapType: 'MONITOR',
+          isVisible: 'true',
+          id: [sid]
+        }
+        xbus.trigger('MAP-SHOW-LANDMARKER', msg)//显示光晕
+      }
+    }
+
+    this.clearSearchInput = () => {
+      this.refs.searchinput.value = ''
+    }
+
+    this.focusInput = (evt) => {
+      this.updateSearchDataSet()
+
+      this.isShowResultList = false
+      this.isShowTypeList = false
+    }
+  </script>
+</fuzzy-search>

@@ -1,0 +1,281 @@
+<!--
+message 结构
+message = {
+  cmd : 'INSERT / UPDATE / DELETE',
+  topicName : topicName, // such as dept, map, etc.
+  tableName : tableName,
+  tableTitle : tableTitle,
+  tableKeyName : key_field_name,
+	rows : [{
+    name : field_name,
+    value : field_value,
+    type : field_type,
+    label : field_label,
+  }, {}, ...]
+}
+-->
+
+<swap-dialog>
+  <div class="dlg-bg animated">   
+    <div name="meta_dialog" if = {alias === 'dept_info' || alias === 'occupation_info'} ref="meta_dialog" class="dlg-window meta-dialog widen animated">
+      <div name="meta_title" ref="meta_title" class="dlg-head">
+        <span class="dlg-title">
+          <grip type="grip-horizontal"></grip>{ tableTitle } 
+        </span>
+      </div>     
+      <div class="dlg-body" if={ !show_tips }>
+          <div class="alias-left">
+            <ul class="alias-box">
+              <li class="alias-txt">{alias === 'dept_info' ? '原部门编号':'原职务编号'}</li>
+              <li class="alias-val">{rows[0].field_value}</li>
+              <li class="alias-txt">{alias === 'dept_info' ? '原部门名称':'原职务名称'}</li>
+              <li class="alias-val">{getNameValue(rows)}</li>
+            </ul>
+          </div>
+          <div class="alias-tip">替换为</div>
+          <div class="alias-right">
+            <table>
+              <tbody>
+                <tr each={ rows } if={ isHide(field_name) }>
+                  <td if={ cmd=='UPDATE' }>
+                    <text-filed text={ field_newlabel } enableNull ={ field_newenableNull } class="xinput" type={ getInputType(field_type) } min={ getInputType(field_type) ==='number' ? 0 : ''} ref={ field_name } value={ field_value } data-oldvalue={field_value} name={ field_name }></text-filed>
+                    <text-select class="selectHide" ref={ field_name } name={ field_name } data-oldvalue={field_value} value={ field_value } if={ field_type=='SELECT' } data-name={ tableName } onchange={ change }></text-select>
+                  </td>                  
+                </tr>
+              </tbody>
+            </table>
+          </div>
+      </div>
+      <div class="dlg-foot" if={ !show_tips }>
+        <button op-name="save-update" class="btn-sure" onclick={ doUpdate }>保存</button>
+        <button op-name="cancel-update" class="btn-cancel" onclick={ close }>取消</button>
+      </div>      
+    </div>
+  </div>
+
+  <script>
+    import {composeUpdateDBReq, trim, show} from '../../js/utils/utils.js'
+    import {metaUpdateRes,formatFieldValue,testUnenableNullData,testForm} from '../utils.js'
+    this.show_tips = false
+    // 特殊的字段类型
+    const specialTypes = ['occupation_id', 'dept_id', 'name']
+    const self = this
+
+    this.getNameValue = (rows) => {
+      return this.alias === 'dept_info' ? rows[2].field_value : rows[1].field_value
+    }
+
+    this.isHide = (field_name) => {
+      if (specialTypes.includes(field_name)) return true
+      return false
+    }
+
+    this.on('mount', () => {
+      show(this.root)
+      window.setDraggable({
+        target: this.refs.meta_dialog,
+        handle: this.refs.meta_title
+      })
+      this.registerGlobalEventHandlers()
+    })
+
+    // 每次打开一个 dialog 时，
+    // 会先 unmount 前一次的 dialog，这里会注销对应的全局事件（xbus）
+    this.on('unmount', () => {
+      this.unregisterGlobalEventHandlers()
+    })
+
+    this.registerGlobalEventHandlers = () => {
+      xbus.on('META-UPDATE-DB-RES', (res) => {
+        let updateRes = metaUpdateRes(res, this.topicName, this.cmd)
+        if (updateRes) {
+          this.close()
+        }        
+        this.update()
+        window.setDraggable({
+          target: this.refs.meta_dialog,
+          handle: this.refs.meta_title
+        })          
+      })
+    }
+
+    this.unregisterGlobalEventHandlers = () => {
+      xbus.off('META-UPDATE-DB-RES')
+    }
+
+    this.getInputType = (fieldType) => {
+      if (fieldType !== 'SELECT') {
+        let ret = 'text'
+        switch (fieldType) {
+          case 'COLOR':
+            ret = 'color'
+            break
+          default:
+            ret = 'text'
+        }
+        return ret
+      }
+    }
+
+    this.getValue = (i, type) => {
+      let fieldName = this.rows[i].field_name
+      let field_type = this.rows[i].field_type
+      let ele = this.refs[fieldName].root.querySelector('input')
+      let value = ele && ele.value
+      if (field_type === 'SELECT') {
+        if (type === 'insert') {
+          value = this.root.querySelector('.' + fieldName+ ' select').getAttribute('value')
+          value = this.root.querySelector('.' + fieldName+ ' select').value
+          if (!value || !value.match(/\d/ig)) {
+            value = 0
+          }
+        } else {
+          value = this.refs[fieldName].root.querySelector('select').value
+        }
+      } 
+      if(this.refs[fieldName].tips && !value && value !== 0){
+        //如果是必填字段但是没有值时
+        return testUnenableNullData()
+      }
+      value = formatFieldValue(field_type, value)
+      return value
+    }
+
+    this.doUpdate = () => {
+      if(testForm('更新失败，请核对正确保存！',this.root)) return 
+      let sql = ''
+      for (let i = 0; i < this.rows.length; i++) {
+        let fieldName = this.rows[i].field_name
+        let inputValue = null
+        if (!specialTypes.includes(fieldName)) continue
+        let ele = this.refs[fieldName].root.querySelector('input')
+        let value = ele && ele.value
+        if (this.rows[i].field_type === 'SELECT') {
+          inputValue = this.refs[fieldName].root.querySelector('select').value
+        } else {
+          inputValue = value
+        }
+        if(this.refs[fieldName].tips && !inputValue && inputValue !== 0){//如果是必填字段但是没有值时
+          return testUnenableNullData()
+        }
+        if (this.rows[i].field_value != inputValue) {
+          inputValue = formatFieldValue(this.rows[i].field_type, inputValue)
+          if (sql !== '' && sql.substr(-1) !== ',') {
+            sql += ','
+          }
+          sql += `${fieldName}=${inputValue}`
+        }
+      }
+      if (sql !== '') {
+        let ele = this.refs[this.tableKeyName].root.querySelector('input')
+        let keyValue = ele && ele.value
+        keyValue = keyValue ? keyValue : this.refs[this.tableKeyName].opts.riotValue
+        if (!keyValue && keyValue !== 0) {
+          keyValue = this.refs[this.tableKeyName].value
+        }
+        if (this.tableName === 'dat_dept' && this.alias === 'dept_info') {
+          sql = `UPDATE ${this.tableName} set ${sql} where ${this.tableKeyName}=${this.rows[0].field_value}`
+          let deptIdValue = this.getValue(0)
+          let arr = Array.from(xdata.metaStore.data.dept.values())
+          for (let i = 0; i < arr.length; i++) {
+            if(deptIdValue === arr[i].dept_id && this.getValue(0) !== this.rows[0].field_value){
+              if (this.activePanel) {
+                this.activePanel.unmount(true)
+              }
+              let insertOldSql = `REPLACE into dat_dept (dept_id,hm_dept_id,name,abbr,rank) VALUES('${this.rows[0].field_value}',${arr[i].hm_dept_id},'${arr[i].name}','${arr[i].abbr}',${arr[i].rank}), ('${deptIdValue}',${this.rows[1].field_value},'${this.rows[2].field_value}','${this.rows[3].field_value}',${this.rows[6].field_value})`
+              this.activePanel = riot.mount('call-leave', { name: 'dept', currentTag: self, insertSql: insertOldSql, oldId : this.rows[0].field_value ,newId : deptIdValue})[0]
+              return          
+            }
+          }                 
+          this.getTradeId('dept',this.rows[0].field_value,this.getValue(0))   
+        } else if (this.tableName === 'dat_occupation' && this.alias === 'occupation_info') {
+          sql = `UPDATE ${this.tableName} set ${sql} where ${this.tableKeyName}=${this.rows[0].field_value}`
+          let occupationIdValue = this.getValue(0)
+          let arr = Array.from(xdata.metaStore.data.occupation.values())
+          for (let i = 0; i < arr.length; i++) {
+            if(occupationIdValue === arr[i].occupation_id && this.getValue(0) !== this.rows[0].field_value){
+              if (this.activePanel) {
+                this.activePanel.unmount(true)
+              }
+              let insertOldSql = `REPLACE into dat_occupation (occupation_id,name,shortname,occupation_level_id,rank) VALUES('${this.rows[0].field_value}','${arr[i].name}','${arr[i].shortname}','${arr[i].occupation_level_id}',${arr[i].rank}),('${occupationIdValue}','${this.rows[1].field_value}','${this.rows[2].field_value}','${this.rows[3].field_value}',${this.rows[4].field_value})`
+              this.activePanel = riot.mount('call-leave', { name: 'occupation', currentTag: self, insertSql: insertOldSql, oldId : this.rows[0].field_value ,newId : occupationIdValue})[0]
+              return          
+            }
+          }     
+          this.getTradeId('occupation',this.rows[0].field_value,this.getValue(0))   
+        } else {
+          sql = `UPDATE ${this.tableName} set ${sql} where ${this.tableKeyName}=${keyValue}`
+        } 
+        //console.log(sql)
+        let req = composeUpdateDBReq('UPDATE', this.topicName, keyValue, sql)
+        xbus.trigger('META-UPDATE-DB', {
+          req: req
+        })
+      } else if (this.modified) {
+        this.close()
+      } else {
+        this.dlg_tips = '数据没有修改，请确认后再提交！'
+        let msg = {
+          value: 'nochange',
+          tip: this.dlg_tips
+        }
+        window.hintip.open(msg)
+        this.update()
+      }
+    }
+
+    this.modifyFun = (sheet,id,sql) =>{
+      let req = composeUpdateDBReq('UPDATE', sheet, id, sql)
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+    }
+    
+    //部门or职务id更改后不对换的情况下人员车辆更改
+    this.getTradeId = (table,oldId,newId) => {
+        let staffModifySql = `UPDATE dat_staff_extend SET ${table}_id = ${newId} where ${table}_id =${oldId} `
+        this.modifyFun('staff_extend',oldId,staffModifySql)
+        if(table === 'dept'){
+          let vehicleModifySql = `UPDATE dat_vehicle_extend SET ${table}_id = ${newId} where ${table}_id =${oldId} `
+          this.modifyFun('vehicle_extend',oldId,vehicleModifySql)
+        }
+    }
+
+    this.close = () => {
+      // // TODO MetaStore 广播 META-DATA-UPDATE 时，meta-table.html 没有更新。所以这里加上以下代码
+      let names = ['battery_vehicle', 'leader_scheduling', 'transport_back', 'his_maintenance', 'dat_vehicle_state', 'dat_vehicle_drive','rt_person_forbid_down_mine', 'leader_arrange']
+      if (!names.includes(this.topicName)) {
+        let table = {
+          def: xdata.metaStore.defs[this.topicName],
+          rows: xdata.metaStore.dataInArray.get(this.topicName),
+          maxid: xdata.metaStore.maxIDs[this.topicName]
+        }
+        xbus.trigger('META-DATA-UPDATE', table)
+      }
+      this.unmount(true)
+    }
+
+    this.getLabel = () => {
+      this.rows[0].field_newenableNull = false
+      this.rows[0].field_newlabel = this.alias === 'dept_info' ? "新部门编号":"新职务编号"
+      const index = this.alias === 'dept_info' ? 2 : 1
+      this.rows[index].field_newenableNull = true
+      this.rows[index].field_newlabel = this.alias === 'dept_info' ? "新部门名称":"新职务名称"
+    }
+
+    this.init = (opts) => {
+      let msg = opts.message // eslint-disable-line
+      this.alias = null
+      this.alias = msg.alias
+      this.cmd = msg.cmd
+      this.topicName = msg.name
+      this.tableName = msg.table
+      this.tableKeyName = msg.key
+      this.rows = msg.rows 
+      this.getLabel()   
+      this.modified = false // use to indicate which the record be modified or not.
+    }
+
+    this.init(opts)
+  </script>
+</swap-dialog>

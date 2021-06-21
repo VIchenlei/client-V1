@@ -1,0 +1,75 @@
+<dept-staff-list>
+  <ul class="deptDriverStaff">
+    <li each={ staff in staffs } name={ staff.staff_id } dept-id={ staff.dept_id } card-name={ staff.card_name } spy={ staff.spy } onclick={ putInput }>
+        {staff.name} 
+    </li>
+  </ul>
+  <script>
+    import { sort } from '../../js/utils/utils.js'
+    this.putInput = (evt) => {
+      let target = evt.currentTarget
+      let staffId = target.getAttribute('name')
+      let deptId = target.getAttribute('dept-id')
+      let input = this.parent.root.querySelector('#input')
+      input.value = target.innerHTML
+      input.setAttribute('staff-id', staffId)
+      input.setAttribute('dept-id', deptId)
+    }
+
+    this.removestaffsList = () => {
+      this.root.classList.remove('hide')
+      let trackListTags = this.root.querySelector('.deptDriverStaff').querySelectorAll('li')
+      for (let i = 0; i < trackListTags.length; i++) {
+        trackListTags[i].style.display = 'block'
+      }
+    }
+
+    this.addhide = () => {
+      this.root.classList.add('hide')
+    }
+
+    this.position = (target) => {
+      let deptDriverStaff = this.root.querySelector('.deptDriverStaff')
+      let x = target.parentElement.offsetLeft
+      let y = target.parentElement.offsetTop
+      let width = target.parentElement.offsetWidth
+      let height = target.parentElement.offsetHeight
+      let scroll_T = this.parent.root.scrollTop
+      let top = document.documentElement.scrollTop
+      deptDriverStaff.style.width = width + 'px'
+      deptDriverStaff.style.left = x + 'px'
+      let rootHeight = document.body.clientHeight
+      let bottom = rootHeight - (y + height + top - scroll_T)
+      if (bottom < 255) {
+        deptDriverStaff.style.top = y + height + top - scroll_T - height - 264 + 'px'
+      } else {
+        deptDriverStaff.style.top = y + height + top - scroll_T + 'px'
+      }
+    }
+
+    this.createName = () => {
+      let staffs = xdata.metaStore.staffs
+      let staffDriverArr = []
+      if (staffs) {
+        let driverstaffs = Array.from(staffs.values()).filter(item => item.occupation_id === 100)
+        for (let i = 0, len = driverstaffs.length; i < len; i++) {
+          let driverstaff = driverstaffs[i]
+          let staffname = xdata.metaStore.data.staff.get(driverstaff.staff_id) ? xdata.metaStore.data.staff.get(driverstaff.staff_id).name : ''
+          let staffDeptName = xdata.metaStore.data.dept.get(driverstaff.dept_id) ? xdata.metaStore.data.dept.get(driverstaff.dept_id).name : ''
+          staffDriverArr.push({
+            staff_id: driverstaff.staff_id,
+            dept_id: driverstaff.dept_id,
+            card_name: staffDeptName + '-' + staffname,
+            name: staffname + '-' + staffDeptName
+          })
+        }
+        this.staffs = staffDriverArr.sort(compare('name', 'staff'))
+      }
+    }
+
+    this.init = () => {
+      this.createName()
+    }
+    this.init()
+  </script>
+</dept-staff-list>

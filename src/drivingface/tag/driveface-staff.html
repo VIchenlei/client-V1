@@ -1,0 +1,178 @@
+<driveface-staff>
+    <div class="staffs">
+        <!-- <p each={ staff in staffs } id={'staff' + staff[0]} type={staff[0]} onclick={ showTips } data-top={staff[19]} data-right={staff[20]} style="top: {staff[19]}px; right: {staff[20]}px;">
+            <span class="stafftitle">{ staff[2] }</span>
+            <img src={staff[21]} alt="" class={staff[22]}>
+        </p> -->
+    </div>
+    <script>
+        import {staffImg} from '../../js/def/sensor_def.js'
+        const MOVE = 1
+        // this.firstStaff = true
+        this.calculate = (row) => {
+          let x = Math.abs(row[3])
+          let y = Math.abs(row[4])
+          let scaleStaffX, scaleStaffY
+          if (!this.basicCoordinate) {
+            this.basicCoordinate = this.parent.basicCoordinate
+          }
+          if (this.basicCoordinate) {
+            let charX = Math.abs(x - this.basicCoordinate[0])
+            let charY = Math.abs(y - this.basicCoordinate[1])
+            let staffX = charX * this.measuringScale * this.scale // （ iconX - 基准点X ）* 2 * 屏幕比例
+            let staffY = charY * this.scale * this.measuringScale // ((iconY - 基准点Y) * 2 + 巷道口显示20米) * 屏幕比例 + 伸缩层20px 其中 rightLength = 巷道口20米 * 屏幕比例 + 伸缩层20px
+            scaleStaffX = Number((staffX - 46 / 2).toFixed(2))
+            scaleStaffY = Number((staffY + this.rightLength - 70 / 2).toFixed(2))
+          }
+          row.push(scaleStaffX)
+          row.push(scaleStaffY)
+        }
+
+        this.animate = (moveObj, x, y, className) => {
+          let top = Number(moveObj.getAttribute('data-top'))
+          let right = Number(moveObj.getAttribute('data-right'))
+          if (top !== x || right !== y) {
+            // moveObj.style['transition'] = 'all 5s linear'
+            console.log(right, y)
+            if (right > y) {
+              moveObj.querySelector(`.${className}`).setAttribute('src', staffImg['rightmove'].img)
+            } else if (right < y) {
+              moveObj.querySelector(`.${className}`).setAttribute('src', staffImg['leftmove'].img)
+            }
+            moveObj.style.top = x + 'px'
+            moveObj.style.right = y + 'px'
+          }
+        }
+
+        this.createNodes = (staff, cmd) => {
+          let divNode = this.root.querySelector('.staffs')
+          let staffID = staff[0]
+          let pNode = this.root.querySelector('#staff' + staffID)
+          let x = staff[19]
+          let y = staff[20]
+          if (cmd) { // 卡升井 删掉该人
+            if (pNode) {
+              this.root.removeChild(pNode)
+            }
+          } else {
+            if (!pNode) {
+              pNode = document.createElement('p')
+              pNode.setAttribute('id', 'staff' + staff[0])
+              pNode.setAttribute('type', staff[0])
+
+              let spanNode = document.createElement('span')
+              spanNode.setAttribute('class', 'stafftitle')
+              spanNode.innerHTML = staff[2]
+
+              let imgNode = document.createElement('img')
+              imgNode.setAttribute('class', staff[22])
+              imgNode.setAttribute('src', staff[21])
+
+              pNode.appendChild(spanNode)
+              pNode.appendChild(imgNode)
+              this.root.appendChild(pNode)
+            }
+            this.animate(pNode, x, y, staff[22])
+            pNode.setAttribute('data-top', staff[19])
+            pNode.setAttribute('data-right', staff[20])
+          }
+        }
+
+        this.updateStaffs = (staffs, cmd) => {
+          this.def = xdata.cardStore.stateDefs['staff']
+          let staffArr = []
+          if (cmd) {
+            let staffsCard = staffs.cards
+            for (let i = 0; i < staffsCard.length; i++) {
+              let staff = staffsCard[i]
+              this.createNodes(staff, 'UPMINE')
+            }
+          } else {
+            for (let i = 0; i < staffs.length; i++) {
+              let row = staffs[i]
+              let state = row[13] // 运动状态：静止、运动
+              let imgSrc = staffImg['stop'].img
+              let statename = 'stop'
+              if (state === MOVE) {
+                imgSrc = staffImg['rightmove'].img
+                statename = 'move'
+              }
+        
+              row = xdata.metaStore.formatStateArray(this.def, row, 'SHORT-DATE')
+              row.push((Math.abs(row[3] - this.drivcefacaBrow.base_point_x)).toFixed(0)) // 距离巷道口的相对距离
+              row.push((Math.abs(row[4] - this.drivcefacaBrow.base_point_y)).toFixed(0))
+        
+              this.calculate(row) // 计算人员在屏幕上的显示位置
+              row.push(imgSrc)
+              row.push(statename)
+            // staffArr.push(row)
+              this.createNodes(row)
+            }
+          }
+          // this.staffs = staffArr
+          // this.createNodes(this.staffs)
+          // this.animate(this.staffs)
+        }
+
+        this.staffPosition = (basicCoordinate, msg) => {
+          let drivefaceID = this.parent.parent.opts.id
+          let driverfaceAreaID = drivefaceID && xdata.metaStore.data.drivingface_vehicle && xdata.metaStore.data.drivingface_vehicle.get(drivefaceID) && xdata.metaStore.data.drivingface_vehicle.get(drivefaceID).area_id
+          let driverfaceStaffs = driverfaceAreaID && xdata.cardStore.workfacescards.get(driverfaceAreaID)
+          driverfaceStaffs = driverfaceStaffs && Array.from(xdata.cardStore.workfacescards.get(driverfaceAreaID).values())
+        
+          if (msg) { // 卡升井时
+            this.updateStaffs(msg, 'UPMINE')
+          } else if (driverfaceStaffs) {
+            this.drivcefacaBrow = this.parent.driveface // 掘进面基准点（巷道口）
+            if (basicCoordinate) {
+              this.basicCoordinate = basicCoordinate // 计算基准点
+            }
+            this.rightLength = this.parent.rightLength // 巷道口20米 * 屏幕比例 + 伸缩层20px
+            this.measuringScale = this.parent.measuringScale // 屏幕比例
+            this.scale = this.parent.scale // 地图比例
+
+            this.updateStaffs(driverfaceStaffs)
+          }
+        }
+
+        this.removeScards = (scards) => {
+          for (let i = 0; i < scards.length; i++) {
+            let scard = scards[i]
+            let cardID = scard[0]
+            let pNode = this.root.querySelector('#staff' + cardID)
+            if (pNode) {
+              this.root.removeChild(pNode)
+            }
+          }
+        }
+
+        xbus.on('CARD-STATE-CHANGED', (msg) => {
+          this.staffPosition('', msg)
+          if (xdata.cardStore.unworkfacescards.size > 0) {
+            this.removeScards(Array.from(xdata.cardStore.unworkfacescards.values()))
+          }
+        })
+
+        this.showTips = (evt) => {
+          evt.stopPropagation()
+          let target = evt.target.parentElement
+          let cardID = target.getAttribute('type')
+          let msg = {
+            id: cardID,
+            cardtype: 'staff',
+            event: evt,
+            state: {
+              def: this.def,
+              rec: xdata.cardStore.getLastState(cardID)
+            },
+            info: {
+              def: xdata.cardStore.getInfoDef('staff'),
+              rec: xdata.cardStore.getInfo(cardID, 'staff')
+            },
+            curTitleType: 'MONITOR'
+          }
+          window.cardtips.show(msg)
+        }
+        this.root.addEventListener('click', this.showTips)
+    </script>
+</driveface-staff>

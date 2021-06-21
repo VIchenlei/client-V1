@@ -1,0 +1,106 @@
+@import defs
+
+.transport-bars,.materiel-bar
+    color: #000
+
+.transport-bars
+    @include align-center-middle
+    background: url(/img/mapBg.png) center center
+    position: relative
+    height: 100%
+    .shift_detial
+        span
+            cursor: pointer
+            border: 1px solid #3f3f3f
+            padding: 2rem
+            margin-left: 4rem
+            &:hover 
+                color: #009fff
+    img
+        @include wh(756px,auto)
+    
+    .materIMG
+        @include absolute(0,0)
+        @include wh(100%,100%)
+    .content-panel
+        @include wh(100%,100%)
+        .credentials
+            width: 100%
+            .container
+                display: flex
+                flex-direction: column
+                .tablecont
+                    height: 19rem
+                    overflow: auto
+                .writeDB
+                    margin-top: 1rem
+                    font-size: .9rem
+                    height: 2rem
+                    .title
+                        justify-content: space-around
+                        .cred
+                            margin: 0 1rem
+                            .credname
+                                width: 4rem
+                    .conten
+                        height: 10rem
+                        overflow: auto
+                        .cont
+                            display: flex
+                            justify-content: space-around
+                            div
+                                width: 18rem
+                                border: 1px solid #efefef
+                                padding: 0.5rem
+                                .credname
+                                    width: 9rem
+                            .cred
+                                @include align-middle
+                                @include line-height(40px,40px)
+                                width: 16rem
+                        
+.materiel-bar
+    height: 100%
+    h3
+        @include line-height(3rem,3rem)
+        text-align: center
+    p
+        justify-content: space-between
+        padding: 0 1rem
+    p:nth-child(2)
+        span    
+            cursor: pointer
+            &:hover
+                color: #009fff
+    p:nth-child(3)
+        span:nth-child(2)
+            float: right
+    p:nth-child(4)
+        @include line-height(3rem,2rem)
+        justify-content: flex-end
+    table
+        thead
+            tr:hover
+                background: #e3e3e3 !important
+        tr:hover
+            background: none !important
+        td
+            cursor: pointer
+            border: 1px solid #ebebeb
+            max-width: 4rem
+            input
+                height: 2rem
+                border: none
+                padding: 0
+            select
+                border: 0
+                height: 2rem
+        .storage:hover
+            color: #009fff
+    
+    #materiel-table
+        p
+            float: right
+
+        
+

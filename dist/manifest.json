@@ -1,0 +1,35 @@
+{
+  "name": "井下北斗精准定位系统",
+  "short_name": "精准定位",
+  "start_url": "/m.html?utm_source=homescreen",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#09f",
+  "icons": [
+    {
+      "src": "/img/icon96.png",
+      "type": "image/png",
+      "sizes": "96x96"
+    },
+    {
+      "src": "/img/icon144.png",
+      "type": "image/png",
+      "sizes": "144x144"
+    },
+    {
+      "src": "/img/icon168.png",
+      "type": "image/png",
+      "sizes": "168x168"
+    },
+    {
+      "src": "/img/icon192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/img/icon256.png",
+      "type": "image/png",
+      "sizes": "256x256"
+    }
+  ]
+}

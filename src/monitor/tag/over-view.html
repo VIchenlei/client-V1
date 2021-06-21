@@ -1,0 +1,112 @@
+<over-view>
+  <span class="over-view-title">人员车辆总数</span>
+  <div data-type="VEHICLE" class="overview-card">
+    <!-- <span class="vehicle-trapezoidal trapezoidal"></span>
+    <svg class="label-icon" style="transform: rotate(-90deg)">
+      <use xlink:href="/icons/icons.svg#icon-bus-vehicle"></use>
+    </svg> -->
+    <span class="vehicles">
+      <span class="count" onclick={ showDetails } data-type="TDVEHICLE">{ (xdata.cardStore.overview.tdVehicle).toString().padStart(3, 0) }</span>
+      <!-- <span class="division">/</span>
+      <span class='current-count' data-type="VEHICLE" onclick={ showDetails }>{ getVehicles() }</span> -->
+      <!-- <span class='current-count' data-type="VEHICLE" onclick={ showDetails }>{ xdata.cardStore.overview.vehicle }</span> -->
+    </span>
+  </div>
+
+  <!--人员-->
+  <div data-type="STAFF" class="overview-card" onclick={ showDetails }>
+    <!-- <span class="staff-trapezoidal trapezoidal"></span>
+    <svg class="label-icon">
+      <use xlink:href="/icons/icons.svg#icon-person"></use>
+    </svg> -->
+    <!-- <span class='current-count'>{ xdata.cardStore.overview.staff }</span> -->
+    <span class='current-count'>{ staffNumber() }</span>
+  </div>
+
+  <script>
+    import { OD, ST } from '../../js/def/odef.js'
+
+    // // the default value
+    this.regist = { vehicle: 0, staff: 0 }
+
+    this.staffNumber = () => {
+      let staffNumber = Array.from(xdata.cardStore.scards.values()).length
+      if (xdata.isCheck === 1) {
+        let areas = xdata.metaStore.data.area
+        let downArea = areas && areas.get(0)
+        let overCountPersonRP = downArea && downArea.over_count_person_rp
+        if (staffNumber > overCountPersonRP) staffNumber = overCountPersonRP
+      }
+      return staffNumber
+    }
+
+    this.getVehicles = () => {
+      let objRange = xdata.objRange
+      if (objRange === 0) return Array.from(xdata.metaStore.data.vehicle.values())
+      let vehicles = xdata.metaStore.data.vehicle
+      let filterVehicles = Array.from(xdata.metaStore.data.vehicle_extend.values()).filter(item => item.need_display === 1 && vehicles && vehicles.get(item.vehicle_id))
+      return filterVehicles.length
+    }
+
+    this.getType = (node) => {
+      let type = node.getAttribute('data-type')
+      switch (type) {
+        case 'VEHICLE':
+          type = OD.VEHICLE
+          break;
+        case 'STAFF':
+          type = OD.STAFF
+          break
+        case 'TDVEHICLE':
+          type = type
+          break
+      }
+      return type
+    }
+
+    this.showDetails = (evt) => { // 车辆详情
+      let node = evt.currentTarget
+      // let type = node.getAttribute('data-type')
+      // type = type === 'VEHICLE' ? OD.VEHICLE : OD.STAFF
+      let type = this.getType(node)
+      let msg = null
+      if (type === 'ALL') {
+        msg = {
+          type: 'card',
+          subTypeID: this.getCardSubTypeID(type.toLowerCase()),
+          statType: type === 'LEADERSHIP' ? type : 'SUM',
+          composeType: 'type'
+        }
+      } else if (type === 'TDVEHICLE') {
+        msg = {
+          type: 'tdvehicle',
+          subTypeID: type,
+          statType: ST.SUM,
+          composeType: 'type'
+        }
+      } else {
+        msg = {
+          type: 'card',
+          subTypeID: type,
+          statType: ST.SUM,
+          composeType: 'type'
+        }
+      }
+      window.showDetailDialog(msg)
+    }
+
+    this.getCardSubTypeID = (subTypeName) => {
+      let subTypeGroup = xdata.metaStore.dataInArray.get('card_type')
+      subTypeName = subTypeName === 'leadership' ? 'staff' : subTypeName
+      for (let i = 0; i < subTypeGroup.length; i++) {
+        if (subTypeName === subTypeGroup[i].name) {
+          return subTypeGroup[i].card_type_id
+        }
+      }
+    }
+
+    xbus.on('CARD-STATE-CHANGED', () => {
+      this.update()
+    })
+  </script>
+</over-view>

@@ -1,0 +1,70 @@
+
+<foot-nav onclick={stopPropagation}>
+  <span each={ items } ref="{name}" onclick={ showSubPage } >
+    <svgicon icon="{icon}"></svgicon>
+    <span>{label}</span>
+  </span>
+
+  <script>
+    import '../sass/foot-nav.sass'
+
+    let footNavDef = [{
+      name: 'sp_monitor',
+      icon: 'icon-location',
+      label: '实时'
+    }, {
+      name: 'sp_history',
+      icon: 'icon-clock',
+      label: '历史'
+    },{
+      name: 'sp_rate',
+      icon: 'icon-clock',
+      label: '三率'
+    },{
+      name: 'sp_profile',
+      icon: 'icon-user',
+      label: '我的'
+    }]
+
+    this.items = footNavDef
+    this.activeItem = null
+
+    this.mainPage = this.parent
+
+    this.mixin('EventMixin')
+
+    this.on('mount', () => {
+      let node = this.refs['sp_monitor']
+      node.classList.add('active')
+      this.activeItem = node
+    })
+
+    this.setActiveItemByName = (nodeName) => {
+      let node = this.refs[nodeName]
+      node && this.setActiveItem(node)
+    }
+
+    this.setActiveItem = (node) => {
+      this.activeItem && this.activeItem.classList.remove('active')
+      node.classList.add('active')
+      this.activeItem = node
+    }
+
+    this.showSubPage = (evt) => {
+      let node = evt.currentTarget
+      if (node !== this.activeItem) {
+        this.setActiveItem(node)
+
+        let spName = node.getAttribute('ref')
+
+        let cl = this.parent.tagFooter.root.classList
+        spName === 'sp_monitor' ? cl.remove('hide') : cl.add('hide')
+
+        this.mainPage.gotoPage(spName, null)  // call the page-main's function
+      }
+
+      // stop the event's propagation
+      // evt.stopPropagation()
+    }
+  </script>
+</foot-nav>

@@ -1,0 +1,412 @@
+<basic-list>
+    <div class="basic-search-list" name={ name } ></div>
+    <div class="more">
+        <div class="more_toggle"  onclick={ showDown }>
+            <img class="angel-bouble hide" ref="angel-double-left" src="img/angle-double-left.png" alt="">
+            <i class="float-above">{showThird ? '收起' : '更多'}</i>
+            <img class="angel-bouble" ref="angel-double-right" src="img/angle-double-right.png" alt="">
+        </div>
+    </div>
+    <table ref='simbleTable'>
+        <thead>
+            <tr onclick={sortRows}>
+                <th each={ title in titles }>
+                  <span class="handShape">{title}</span>
+                  <img class="hide" src="/img/{isAscending ? 'angle-up.png' : 'angle-down.png'}" alt="">          
+                </th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr each={ list in lists } onclick={ pichOn } class={ list[name + '_id'] }>
+                <td title={ name === 'staff' ? list['staff_id'] : list['vehicle_id']}>{name === 'staff' ? list['staff_id'] : list['vehicle_id']}</td>
+                <td title={ list['name']}>{list['name']}</td>
+                <td title={ getcardIdent(list)}>{getcardIdent(list)}</td>
+                <td title={ getDeptName(list)}>{getDeptName(list)}</td>
+                <td if={ xdata.isCheck === 0 && name === 'staff' } title={ getDeptckName(list)}>{getDeptckName(list)}</td>
+                <td>
+                  <img src="/img/delete.png" onclick={ delete } class="hint--top-left" name={list[name + '_id']} aria-label="删除" />
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table ref="complexTable" class="hide" if={ name === 'staff' }>
+        <thead>
+          <tr onclick={sortRows}>
+            <th each={ title in titles2 }>
+              <span class="handShape">{ title }</span>
+              <img class="hide" src="/img/{isAscending ? 'angle-up.png' : 'angle-down.png'}" alt="">          
+            </th>
+            <th>
+              <label for="selectAll">全选</label>
+              <input type="checkbox" name="selectAll" id="selectAll" onchange={chooseAllOrNot} checked={checked}>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr each={ list in lists } onclick={ pichOn } class={ list[name + '_id'] }>
+            <td each={ field in fields } title={ getText(field, list[field], list) }>{ getText(field, list[field], list) }</td>
+            <td>
+              <input type="checkbox" class="chooseInput" onchange={chooseInput} name={list[name + '_id']} checked={selectInputs.get(list[name + '_id'])}>
+            </td>
+          </tr>
+        </tbody>
+    </table>
+    <table ref="complexTable" class="hide" if={ name === 'vehicle' }>
+        <thead>
+          <tr onclick={sortRows}>
+            <th each={ title in titles2 }>
+              <span class="handShape">{ title }</span>
+              <img class="hide" src="/img/{isAscending ? 'angle-up.png' : 'angle-down.png'}" alt="">          
+            </th>
+            <th>
+              <label for="selectAll">全选</label>
+              <input type="checkbox" name="selectAll" id="selectAll" onchange={chooseAllOrNot} checked={checked}>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr each={ list in lists } onclick={ pichOn } class={ list[name + '_id'] }>
+              <td each={ field in fields } title={ getText(field, list[field]) }>{ getText(field, list[field]) }</td>
+            <td>
+              <input type="checkbox" class="chooseInput" onchange={chooseInput} name={list[name + '_id']} checked={selectInputs.get(list[name + '_id'])}>
+            </td>
+          </tr>
+        </tbody>
+    </table>
+    <div class="pagination" data-is="pagination" totalpage={ totalPage } pageindex={ pageIndex } tablename={ tablename } if={totalPage>1}></div>
+    <div data-is="blank-message" message="没有符合条件结果" class="blank-message" if={ !hasdata }></div>
+    <script>
+        import {basicMsg} from '../../js/def/basic_msg_def.js'
+        import {allMsg, anyMsg} from '../../js/def/all_msg_def.js'
+        import './search-bar.html'
+        import {composeUpdateDBReq, clone, compare, checkClick } from '../../js/utils/utils.js'
+        let self = this
+        const sortByNumber = ['staff_id','coalface_id','drivingface_id']
+        this.getRows = () => {
+          let rows = null
+          if (xdata && (xdata.objRange === 1 || xdata.isCheck === 1)){
+            rows = this.name === 'staff' ? Array.from(xdata.metaStore.staffs.values()).filter(item => item.need_display === 1) : Array.from(xdata.metaStore.vehicles.values()).filter(item => item.need_display === 1)
+          } else {
+            rows = this.name === 'staff' ? Array.from(xdata.metaStore.staffs.values()) : Array.from(xdata.metaStore.vehicles.values())
+          }
+          if (xdata.depts) {
+            rows = this.name === 'staff' ? rows.filter(item => xdata.depts.includes(item.dept_id)) : rows.filter(item => xdata.depts.includes(item.dept_id))
+          }
+          return rows
+        }
+
+        this.on('mount', () => {
+          let name = opts.name
+          this.name = name
+          let theme = basicMsg[name]
+          this.titles = theme.table.labels
+          if (xdata.isCheck === 1) this.titles = this.titles.slice(0,4) 
+          let isCheck = xdata.isCheck === 1 ? true : false
+          this.titles2 = isCheck ? anyMsg[name].table.labels : allMsg[name].table.labels
+          this.types = isCheck ? anyMsg[name].table.types : allMsg[name].table.types
+          this.names = theme.table.names
+          this.fields = isCheck ? anyMsg[name].table.names : allMsg[name].table.names // 需要展示字段集合
+          this.sqlname = null
+          this.pageIndex = 0
+          this.total = -1
+          this.start = 0
+          this.end = PAGE_SIZE
+          this.rows = this.getRows() 
+          
+          if (this.rows.length > 0) {
+            this.lists = this.rows.slice(0, PAGE_SIZE)
+            this.hasdata = true
+          } else {
+            this.hasdata = false
+          }
+          this.searchbar = riot.mount('div.basic-search-list', 'search-bar', {
+            parentTag: self
+          })[0]
+          this.initPagination(this.rows.length)
+          // this.update()
+        })
+        this.sortRows = (evt) => { //排序
+          let target = evt && evt.target
+          let nodename = target.nodeName.toLowerCase()
+          let label = checkClick(target, nodename)
+          if(!label || label === '全选') return //为‘操作’时label无值，不能点击
+          this.isAscending = label === this.sortBasic ? !this.isAscending : true
+          this.sortBasic = label   
+          let labelIndex = this.titles2.indexOf(label)
+          let names = []
+          let types = []
+          if(this.name === 'staff'){
+            names = this.names
+            types = this.types
+          } else {
+            names = this.names
+            types = this.types
+          }
+          let condition = names[labelIndex]
+          let sortType = types[labelIndex] !== 'NUMBER' &&  types[labelIndex] !== 'SELECT' && !sortByNumber.includes(condition) ? 'chinese' : ''
+          this.rows.sort(compare(condition, sortType , this.isAscending ? null : 'reverse'))
+          if (this.rows.length > 0) {
+            this.lists = this.rows.slice(0, PAGE_SIZE)
+          } 
+          this.controlDisplay(target, nodename)
+        }  
+
+        //改变箭头的方向、显隐 2019-05-22 lmj
+        this.controlDisplay = (target, nodename) => {
+          this.preTarget && this.preTarget.querySelector('img').classList.add('hide')
+          if (!target) return
+          target = nodename === 'th' ? target : target.parentElement
+          target.querySelector('img').classList.remove('hide')
+          this.preTarget = target
+        }
+
+        this.getcardIdent = (list) => {
+          let cards = xdata.metaStore.data.card
+          let cardID = list['card_id']
+          let card = cards && cards.get(cardID)
+          return card ? card['ident'] : ''
+        }
+
+        this.getDeptName = (list) => {
+          return xdata.metaStore.getNameByID("dept_id", list['dept_id'])
+        }
+
+        this.getDeptckName = (list) => {
+          let deptCks = xdata.metaStore.data.dept_ck
+          return deptCks && deptCks.get(list.dept_id_ck) && deptCks.get(list.dept_id_ck).name
+        }
+
+        this.showDown = () => {
+          this.showThird = !this.showThird
+          this.root.parentNode.parentNode.querySelector('.basic_right').classList.toggle('hide')
+          this.refs['simbleTable'].classList.toggle('hide')
+          this.refs['complexTable'].classList.toggle('hide')
+          this.refs['angel-double-left'].classList.toggle('hide')
+          this.refs['angel-double-right'].classList.toggle('hide')
+        }
+
+
+        this.changeBoxStatus = (evt) => { // 改变选中状态
+          let ele = evt.target
+          let number = ele.parentElement.nextElementSibling.innerText
+          let preStatus = ele.getAttribute('checked')
+          let value, sql, type_id = null
+          if (preStatus) {
+            ele.setAttribute('checked', '')
+            value = 0// 不显示
+          } else {
+            ele.setAttribute('checked', 'checked')
+            value = 1
+          }
+        
+          type_id = this.name === 'staff' ? 'staff_id' : 'vehicle_id'
+          sql = `update dat_${this.name}_extend set need_display=${value} where ${type_id} =${number};`
+          // console.log(sql)
+          let req = composeUpdateDBReq('UPDATE', `${this.name}_extend`, number, sql)
+          xbus.trigger('META-UPDATE-DB', {
+            req: req
+          })
+          let cardid
+          if (this.name === 'staff' && value === 0) {
+            cardid = xdata.metaStore.data.staff_extend.get(Number(number)).card_id
+          } else if (this.name === 'vehicle' && value === 0) {
+            cardid = xdata.metaStore.data.vehicle_extend.get(Number(number)).card_id
+          }
+          // console.log('cardid', cardid)
+          xbus.trigger('REMOVE-MAP-CARD', {id: cardid, type: this.name})
+        }
+
+        this.initPagination = (total) => {
+          this.totalPage = Math.ceil(total / PAGE_SIZE)
+          this.pageIndex =  this.pageIndex ? this.pageIndex : 0
+          this.update()
+        }
+
+        xbus.on('META-DATA-UPDATE', (msg) => {
+          if(msg.def.name === 'staff' || msg.def.name === 'vehicle'){
+            // 更新搜索姓名 车辆名称结果集
+            this.searchbar.updateSearchList(msg.def.label,msg.def.name,msg.rows)
+          }
+          if (msg.def && (msg.def.name === `${this.name}` || msg.def.name === `${this.name}_extend`)) {
+            this.searchUpdate(this.staff, this.vehicle, this.deptname, this.cardname, 'update')
+
+          }
+        })
+
+        xbus.on('REPT-SHOW-RESULT', (ds) => {
+          if (ds.def.name === this.sqlname && ds.total){
+            window.xhint.close()
+            this.lists = ds.rows
+            if (this.lists && this.lists.length <= 0) {
+              this.hasdata = false
+            } else {
+              this.hasdata = true
+            }
+            this.tablename = ds.def.name
+            this.seTotal = ds.total
+            if (this.sqlname.match(/list/ig)) {
+              this.total = ds.total
+            } else if (this.sqlname.match(/search/ig)) {
+              this.pageIndex = ds.pageIndex
+            }
+            this.initPagination(ds.total)
+          }
+        })
+
+        this.getIsChecked = () => {
+          let elList = [].slice.call(this.root.querySelectorAll("input[class=chooseInput]:checked"), 0)
+          let elInputList = [].slice.call(this.root.querySelectorAll("input[class=chooseInput]"), 0)
+          let checkedArr = elList.map(function(el) { return Number(el.getAttribute('name'))})
+          this.checked = checkedArr.length === elInputList.length ? true : false
+          let selectAll = this.root.querySelector('#selectAll')
+          selectAll && (selectAll.checked = this.checked)
+        }
+
+        this.on('PAGEINDEX-CHANGE', (msg) => {
+          this.pageIndex = msg.pageIndex
+          this.start = this.pageIndex * PAGE_SIZE
+          this.end = this.start + PAGE_SIZE
+          this.lists = this.rows.slice(this.start, this.end)
+          window.xhint.close()
+          this.update()
+          this.getIsChecked()
+        })
+
+        this.clearSelectInput = () => {
+          let self = this
+          this.rows.forEach(item => self.selectInputs.delete(item[this.name + '_id']))
+          self.update()
+        }
+
+        this.searchUpdate = (staff, vehicle, deptname, cardname, type) => {
+          if (this.checked) this.clearSelectInput()
+          // let rows = clone(this.rows)
+          this.staff = staff
+          this.vehicle = vehicle
+          this.deptname = deptname
+          this.cardname = cardname
+          let rows = this.getRows()
+          // if (xdata && xdata.objRange === 1){
+          //   rows = this.name === 'staff' ? Array.from(xdata.metaStore.staffs.values()).filter(item => item.need_display === 1) : Array.from(xdata.metaStore.vehicles.values()).filter(item => item.need_display === 1)
+          // } else {
+          //   rows = this.name === 'staff' ? Array.from(xdata.metaStore.staffs.values()) : Array.from(xdata.metaStore.vehicles.values())
+          // }
+          if (staff) {
+            rows = rows.filter(item => item.staff_id === Number(staff))
+          }
+          if (vehicle) {
+            rows = rows.filter(item => item.name === vehicle)
+          }
+          if (deptname) {
+            rows = rows.filter(item => item.dept_id === parseInt(deptname))
+          }
+          if (cardname) {
+            // cardname = parseInt(cardname)
+            let cards = xdata.metaStore.data.card && Array.from(xdata.metaStore.data.card.values())
+            let card = this.name === 'staff' ? cards.filter(item => item.card_id === cardname && item.card_type_id === 1) : cards.filter(item => item.card_id === cardname && item.card_type_id !== 1)
+            // let cardID = card.length > 0 ? card[0].card_id : ''
+            let arr = []
+            for (let i = 0; i < card.length; i++) {
+              let cardID = card[i].card_id
+              let result = rows.filter(item => item.card_id === cardID)
+              result && result.length > 0 && arr.push(result[0]) 
+            }
+            rows = arr
+            arr = null
+          }
+          if (!staff && !deptname && !vehicle && !cardname) {
+            rows = this.getRows()       
+          }
+          this.rows = rows
+          if (this.rows.length > 0) {
+            this.hasdata = true
+          } else {
+            this.hasdata = false
+          }
+          if (type) {
+            this.lists = rows.slice(this.start, this.end)
+          } else {
+            this.lists = rows.slice(0, PAGE_SIZE)
+            this.pageIndex = 0
+          }
+          this.initPagination(rows.length)
+          if (this.checked) this.chooseAllOrNot()
+          // this.update()
+        }
+
+        this.pichOn = (evt) => {
+          let target = evt.currentTarget
+          let classname = parseInt(target.getAttribute('class'), 10)
+          let lists = this.root.querySelectorAll('tr')
+          for (let i = 0; i < lists.length; i++) {
+            let list = lists[i]
+            list.classList.remove('active')
+          }
+          target.classList.add('active')
+          this.parent.updateList(classname)
+        }
+
+        // this.dohandleDB = (name) => {
+          
+        //   this.update()
+        // }
+
+        this.delete = (evt) => {
+          evt.stopPropagation()
+          let target = evt.currentTarget
+          let idname = parseInt(target.getAttribute('name'), 10)
+          this.parent.handleDB(idname)
+        }
+
+        // 数字转换成文字 2019-05-24 chenl
+        this.getText = (name, value, list) =>{
+          if (name === 'dept_id_ck' && xdata.isCheck === 1) {
+            name = 'dept_id'
+            value = list['dept_id']
+          }
+          if (xdata.isCheck !== 1 && name === 'dept_id_ck') {
+            let depts = xdata.metaStore.data.dept_ck
+            let deptCk = depts && depts.get(value)
+            return deptCk ? deptCk['name'] : value
+          }
+          if(name === 'card_id'){
+            let cards = xdata.metaStore.data.card
+            let cardID = value
+            let card = cards && cards.get(cardID)
+            return card ? card['ident'] : ''
+          }else{
+            return name === 'staff_id' || name === 'vehicle_id' ? value : xdata.metaStore.getNameByID(name,value)
+          }
+        }
+
+        this.init = () => {
+          this.selectInputs = new Map()
+          this.checked  = false 
+          this.notChecked = new Map() 
+          this.isSelectAll = false
+        }
+
+        this.init()
+
+        this.chooseInput = (evt) => {
+          let row = evt.item.list
+          let key = row[this.name + '_id']
+          let checked = evt.target.checked
+          checked ? this.selectInputs.set(key, true) : this.selectInputs.delete(key)
+          if (this.isSelectAll) {
+            this.checked = !checked ? false : this.checked
+            !checked ? this.notChecked.set(key, true) : this.notChecked.delete(key)
+            if (this.notChecked.size === 0) this.checked = true
+            this.update()
+          }
+        }
+
+        this.chooseAllOrNot = (evt) => {
+          this.checked = evt ? evt.target.checked : this.checked
+          this.isSelectAll = this.checked
+          let self = this
+          this.rows.forEach(item => self.checked ? self.selectInputs.set(item[this.name + '_id'], true) : self.selectInputs.delete(item[this.name + '_id']))
+        }
+    </script>
+</basic-list>

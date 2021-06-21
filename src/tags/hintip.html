@@ -1,0 +1,30 @@
+<hintip>
+    <div class="hintip-cont" ref="hintip-cont">
+        <svg class="icon icon-tip {value}-tip"><use xlink:href="/icons/icons.svg#icon-{value}-tip"></use></svg>
+        <span>{tip}</span>
+    </div>
+    <script>
+        const BG = {
+            'success': '#DFF0D8',
+            'failure': '#F2DEDE',
+            'nochange': '#F80',
+            'notsave': '#F80'
+        }
+        this.open = (msg) => {
+            let value = msg.value
+            this.value = value
+            this.tip = msg.tip
+            this.root.classList.remove('hide')
+            this.refs['hintip-cont'].style = `background: ${BG[value]};`
+            this.update()
+            this.close()
+        }
+        this.close = () => {
+            let self = this
+            window.setTimeout(function () {
+                self.root.classList.add('hide') 
+            }, 3000)
+        }
+        
+    </script>
+</hintip>

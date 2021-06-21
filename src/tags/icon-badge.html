@@ -1,0 +1,45 @@
+<icon-badge>
+  <span class="badge-container" onclick={showDetail}>
+    <!-- <svg class="icon">
+      <use xlink:href="/icons/icons.svg#{iconName}"></use>
+    </svg> -->
+    <span class="icon {iconName}"></span>
+    <span class="badge-mark-container" if={mark}>
+      <span class="badge-mark">{mark}</span>
+    </span>
+  </span>
+
+  <script>
+    this.name = opts.name
+    this.iconName = opts.iconname
+    this.mark = opts.mark
+    this.cb = opts.cb   // 点击的回调函数
+
+    this.on('mount', () => {
+      this.mark = this.formatMark(this.mark)
+    })
+
+    xbus.on('BADGE-UPDATE', (msg) => {
+      if (msg.name === this.name) {
+        this.mark = this.formatMark(msg.content)
+        this.update()
+      }
+    })
+
+    this.updateMark = (msg) => {
+      this.mark = msg
+      this.update()
+    }
+
+    this.formatMark = (mark) => {
+      let s = mark || ''
+      return s.length >= 4 ? '･･･' : s
+    }
+
+    this.showDetail = (evt) => {
+      if (this.cb && typeof (a) === 'function') {
+        this.cb()
+      }
+    }
+  </script>
+</icon-badge>

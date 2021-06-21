@@ -1,0 +1,58 @@
+@import defs
+
+.search-bar
+  position: relative
+  font-size: $fontsize-s
+
+  .search-box
+    @include wh(17rem,1.6rem)
+    padding: 0 1.5rem 0 1rem
+    border-radius: 1rem
+    background: $main-bg
+    border: 0
+    .login-input
+      padding-left: 1.8rem
+  .search-box-fuzzy
+    background: none
+
+    &:focus
+      background: #FFF
+
+  .search-type-selector
+    @include line-height(1.4rem,1.4rem)
+    @include absolute(2px,50%)
+    margin-top: -0.7rem
+    padding: 0 4px
+    border-radius: 12px 0 0 12px
+    cursor: pointer
+    background: $active-bg
+
+  .search-icon
+    position: absolute
+    top: 1.2rem
+    left: 0
+
+    img
+      height: 22px
+      cursor: pointer
+
+
+  .selected-item
+    @include absolute(3rem,1px)
+    background: #666
+    padding: 0 4px
+    border-radius: 2rem
+    cursor: pointer
+    background: $active-bg
+
+  .type-panel
+    top: 1.8rem
+    width: 4rem
+    z-index: 9999
+
+.page-head
+  .search-icon
+      top: .1rem
+      right: .5rem
+      left: auto
+

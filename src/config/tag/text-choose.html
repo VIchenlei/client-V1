@@ -1,0 +1,96 @@
+<text-choose>
+  <div>
+    <div class="choose-top">
+        <span class="choose-title">{opts.text}</span>
+        <span class="hint--bottom-left" aria-label="添加信息" onclick={ insert }>
+          <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-add"></use></svg>
+        </span>
+        <span class="identify-search-{name}"></span>
+    </div>
+    <div class="choose-bottom">
+      <span each={list in lists} class="choose-list">
+        <span>{list.key}</span>
+        <img src="/img/close.png" alt="" class="icon" data-type={list.keyID} onclick={ deleteChoode }>
+      </span>
+    </div>
+  </div>
+  <script>
+    import {clone} from '../../js/utils/utils.js'
+    this.deleteChoode = (evt) => {
+      let target = evt.currentTarget
+      let dataType = target.getAttribute('data-type')
+      dataType = parseInt(dataType, 10)
+      this.showStore.delete(dataType)
+      this.insertStore.delete(dataType)
+      this.hasDataStore.get(dataType) && this.deleteStore.set(dataType, true) 
+      this.lists = Array.from(this.showStore.values())
+      this.update()
+    }
+
+    this.showChoose = () => {
+      let name = this.name === 'readers' ? 'reader' : 'staff'
+      let rows = this.name === 'readers' ? xdata.metaStore.data.reader : xdata.metaStore.data.staff
+      rows = rows && Array.from(rows.values())
+      let label = this.name === 'readers' ? '分站' : '人员'
+      this.typeDef = {
+        name: name,
+        label: label,
+        placeholder: this.name === 'readers' ? '分站号/分站简称' : '姓名/简拼/工号',
+        cb: this.getResult  // the callback when select an item.
+      }
+      this.dataSet = {
+        desc: this.name === 'readers' ? 'brief_name' : 'name',  // 显示结果集时，显示的字段：一般为描述字段
+        keys: ['name', 'spy', 'staff_id', 'brief_name'],  // 参与搜索的列名称
+        data: rows
+      }
+      this.fuzz = riot.mount(`span.identify-search-${this.name}`, 'fuzzy-search2', { typeDef: this.typeDef, dataSet: this.dataSet, searchIcon: true })[0]
+      this.update()
+    }
+
+    this.getResult = (result) => {
+      if (result) {
+        if(this.root.querySelector('#searchinput').value){
+            let key = this.name === 'readers' ? 'reader_id' : 'staff_id'
+            key = result[key]
+            this.insertStore.set(key, result)
+            let value = this.name === 'readers' ? `${result['brief_name']}分站` : `${result['name']}`
+            let type = this.name === 'readers' ? 'reader_id' : 'staff_id'
+            this.showStore.set(this.name === 'readers' ? result[type] : result[type], {
+                key: value,
+                keyID: this.name === 'readers' ? result[type] : result[type]
+            })
+            this.lists = Array.from(this.showStore.values())
+        }
+      }
+      this.update()
+    }
+
+    this.insert = (evt) => {
+      if (!this.fuzz) this.showChoose()
+    }
+
+    this.init = (opts) => {
+      let values = opts.value
+      this.name = opts.name
+      let editable = this.parent.parent.opts.message.editable
+      let sensorID = editable && editable.editSensor
+      let store = null
+      if (editable) {
+        store = opts.name === 'readers' ? editable.parent.readersStore.get(sensorID) : editable.parent.driversStore.get(sensorID)
+        this.lists = store && Array.from(store.values())
+        this.hasDataStore = store
+      }
+      
+      this.showStore = new Map() // 显示store
+      if (store) {
+        let storecopy = clone(store)
+        storecopy.forEach(item => {
+          this.showStore.set(item[0], item[1])
+        })
+      }
+      this.insertStore = new Map() // 插入store
+      this.deleteStore = new Map() // 删除sotre
+    }
+    this.init(opts)
+  </script>
+</text-choose>

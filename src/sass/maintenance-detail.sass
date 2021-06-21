@@ -1,0 +1,20 @@
+@import './defs'
+.maintenance-dialog
+    @include absolute(20%,20%)
+    td
+        input
+            @include wh(20px,15px)
+            float: left
+            margin-top: 14px
+            &:nth-child(1)
+                margin-left: 100px
+            &.changeNum
+                @include wh(100%,100%)
+                margin: 0
+
+        label
+            float: left
+            display: inline-block
+            width: 40px
+            line-height: 40px
+           

@@ -1,0 +1,93 @@
+@import '../../sass/defs'
+
+$processbar-height: .25rem
+
+.player-controlbar
+  @include align-middle-between
+  flex: 0 0 3rem
+  order: 0
+  flex-flow: row nowrap
+  background: $body-bg
+  font-size: $fontsize-s
+  position: relative
+
+  .play-pause
+    @include align-middle-between
+    fill: #000
+    padding-left: .5rem
+
+    .player-button
+      @include align-center-middle
+      @include wh(1.6rem,1.6rem)
+      cursor: pointer
+
+      &:first-child
+        border: 1px solid $body-ft
+        border-radius: 50%
+        &:hover
+          border: 1px solid $active-bg
+          .icon
+            fill: $active-bg
+      &:last-child
+        transform: scale(.8)
+
+      .icon
+        fill: $body-ft
+
+    .time-bar
+      display: flex
+      color: $body-ft
+
+  .speed-controler
+    @include align-middle-between
+    padding-right: 1rem
+
+    .select-tag
+      @include align-center-middle
+      @include wh(3rem,2rem)
+      border: 1px solid $body-sp
+      cursor: pointer
+      &:nth-child(2)
+        @include wh(5rem,2rem)
+      &.active
+        background: $active-bg
+        border: none
+        color: $active-ft
+
+  .process-container
+    @include absolute(0,0)
+    flex: auto
+    display: flex
+    width: 100%
+
+    .whole-process
+      flex: auto
+      height: $processbar-height
+      position: relative
+      cursor: pointer
+      background: #d5d0d0
+
+    .active-process
+      height: $processbar-height
+      width: 100%
+      background: $active-bg
+      border-radius: .25rem
+      position: absolute
+
+      .process-indicator
+        @include absolute-right(0,-0.3rem)
+        @include wh(1rem,1rem)
+        background: $color-white
+        border: .3rem solid $active-bg
+        border-radius: 50%
+        cursor: pointer
+
+.query-switcher
+  @include absolute(1rem,1rem)
+  @include wh(2.4rem,2.4rem)
+  @include align-center-middle
+  background: rgba(255, 255, 255, 0.5)
+  border-radius: 2px
+  cursor: pointer
+  .icon
+    fill: $minor-color

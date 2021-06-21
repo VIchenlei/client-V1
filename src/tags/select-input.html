@@ -1,0 +1,28 @@
+<select-input>
+    <div class="select-input">
+        <select class="query-option query-select" data-is="meta-select" name={ opts.name } value={ opts.dataValue || opts.name === 'sex_id' ? opts.dataValue : 'all' } onfocus={changeHr} onblur={changeHrOrigin}></select>
+        <svg class="icon">
+            <use xlink:href="/icons/icons.svg#{opts.icon}"></use>
+        </svg>
+        <hr class="input_bottom {opts.name}" ref="hr">
+    </div>
+    <script>
+        import './meta-select.html'
+        let parent = opts
+        this.needAll = this.parent.needAll
+        this.changeHr = (evt) => {
+            if (this.refs.hr) {
+                this.refs.hr.style.transform = `scale(1)`
+            }
+        }
+
+        this.changeHrOrigin = (evt) => {
+            if (this.refs.hr) {
+                this.refs.hr.style.transform = `scale(0)`
+            }
+            if (opts.blurname) {
+                this.parent[opts.blurname](evt)
+            }
+        }
+    </script>
+</select-input>

@@ -1,0 +1,42 @@
+<user-bar>
+  <span onclick={ showBox } ontouchstart={ showBox }>
+    <!-- <svg class="icon user-icon">
+      <use id="MenuButton" xlink:href="/icons/icons.svg#icon-user-person"></use>
+    </svg> -->
+    <span class="icon user-icon"></span>
+    <span>{ username }</span>
+  </span>
+
+  <script>
+    import './user-profile.html'
+    
+    this.username = opts.username || '尚未登录'   // eslint-disable-line
+
+    this.showTag = false
+    this.pcFlag = window.isPC
+    
+    this.showBox = (evt) => {
+      if (!this.tagUserProfile) {
+        this.tagUserProfile = riot.mount('user-profile', {username: this.username})[0]
+      }
+      this.showTag = !this.showTag
+      if(this.showTag){
+        this.tagUserProfile.root.classList.remove('node-hide')
+        this.tagUserProfile.show()
+      }else{
+        this.tagUserProfile.hide()
+      }
+      evt.stopPropagation()
+    }
+
+    xbus.on('HIDE-ALL-POPUP', () => {
+      this.showTag = false
+    })
+
+    xbus.on('USERINFO-UPDATE', (userinfo) => {
+      this.username = userinfo.name
+      this.userCName = userinfo.userCName
+      this.update()
+    })
+  </script>
+</user-bar>

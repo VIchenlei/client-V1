@@ -1,0 +1,397 @@
+<alarm-list-class>
+  <div class="alarm-block">
+    <p class="sub-title">
+      <span class="alarm-sub-title">
+        <svgicon icon={opts.dataIcon}></svgicon>
+        <span>{ opts.dataName !== 'arrDeviceCommit' && opts.dataName !== 'arrDevicePower' ? title : '设备告警-'+title }</span> 
+        <span class="alarmNumber">(告警条数:{ arr || credentialsArr ? (arr ? arr.length : credentialsArr.length) : 0 })</span>
+      </span>
+      <button if={xdata.roleID === 1 && xdata.isCheck === 0} class="recover-alarm-btn" onclick={doRecoverAlarm}>恢复告警</button>
+    </p>
+    <div class="alarm-title {opts.dataName === 'arrDeviceCommit' || opts.dataName === 'arrDevicePower' ? 'special' : ''}">
+      <input type="checkbox" name="checkAllAlarm" class="checkAllAlarm" onchange={storeOrDeleteAllAlarmsReset}>
+      <span>告警类型</span>
+      <span>告警开始时间</span>
+      <span>{ opts.dataName ==='arrDeviceCommit' || opts.dataName === 'arrDevicePower' ? '分站号' : '部门/区域' }</span>
+      <span if={opts.dataName !== 'arrDeviceCommit' && opts.dataName !== 'arrDevicePower'}>告警对象</span>
+    </div>
+    <p if={opts.dataName != 'credentialsArr'} each={i in arr} id={ i.obj_id + i.start_time } class="item {opts.dataName === 'arrDeviceCommit' || opts.dataName === 'arrDevicePower' ? 'special-item' : ''}" data-value={ i.event_id }>
+      <!-- <span class="point {i.color}"></span> -->
+      <input type="checkbox" name="" id="" checked={isChecked(i.event_id)} onchange={storeOrDeleteReset}>
+      <span if={opts.dataName != 'warnfaceArr' && opts.dataName != 'carzwArr'} class="alarmName" title={xdata.metaStore.getNameByID('event_type_id', i.type_id)}>{ xdata.metaStore.getNameByID('event_type_id', i.type_id) }</span>
+      <span if={opts.dataName == 'warnfaceArr'} class="alarmName">{ getTitle(i.type_id) }</span>
+      <span if={opts.dataName == 'carzwArr'} class="carPlate">{ getcarPlate(i.obj_id)}</span>
+      <span class="alarmTime">{ getTime(i.cur_time) }</span>
+      <span if={opts.dataName ==='arrGlobal' || opts.dataName === 'arrArea'} class="number overaea" name="area" title={xdata.metaStore.getNameByID('area_id', i.area_id)}>{xdata.metaStore.getNameByID('area_id', i.area_id)}</span>
+      <span if={opts.dataName ==='arrGlobal' || opts.dataName === 'arrArea'} class="number" name="area" style="color: red" onclick={ showDetail } data-name={ staffWhole.includes(i.type_id) ? 'staff' : 'vehicle' }>{ i.cur_value }{staffWhole.includes(i.type_id) ? '人' : '车'}</span>
+      <span if={opts.dataName === 'arrDeviceCommit' || opts.dataName === 'arrDevicePower' || opts.dataName === 'arrSection'} class="number" name={ i.obj_id } mapid={ i.map_id } type={ i.obj_type_id } objX={ i.x } objY={ i.y } typeName={ 'watch-' + i.obj_id } onclick={showAllAlarm}>{ parseInt(i.obj_id, 10) }#</span>
+      <span if={opts.dataName === 'arrCard' || opts.dataName === 'arrstopcard'} class="dept" title={getDeptName(i.obj_id,i.lmid,i.type_id, i.area_id)}>{getDeptName(i.obj_id,i.lmid,i.type_id, i.area_id)}</span>
+      <span if={opts.dataName === 'arrCard' || opts.dataName === 'arrstopcard'} class="number" name={ i.obj_id } mapid={ i.map_id } type={ i.obj_type_id } objX={ i.x } objY={ i.y } typeName={ 'watch-' + i.obj_id } onclick={showAllAlarm}>{ getNameByID(i.obj_id) }</span>
+      <!-- <span if={opts.dataName === 'arrDeviceCommit'} class="number"></span> -->
+      <span if={opts.name === 'warnfaceArr'}>{i.faceName}</span>
+      <span if={opts.dataName === 'arrCard' || opts.dataName === 'arrstopcard' || opts.dataName === 'arrDeviceCommit' || opts.dataName === 'arrDevicePower' || opts.dataName === 'carzwArr'} dataName={ opts.dataName } class="number local" name={ i.obj_id } mapid={ i.map_id } onclick={ toggleLocate } type={ i.obj_type_id } objX={ i.x } objY={ i.y } typeName={ 'watch-' + i.obj_id } type_id={i.type_id}>
+        <b class="circle-b" if={ !isspecial }>
+          <i class="circle"></i>
+          <img class="icon opicon { i.isLocating ? 'activated' : ''} {i.type_id === 7 ? 'routeplan' : ''}" src="../img/{ i.isLocating ? 'locating.png' : 'location.png'}" title="定位" >
+        </b>
+      </span>
+      <span class="cancel_icon" name={ i.obj_id } mapid={ i.map_id } onclick={ cancelAlarm }>
+        <img src="/img/closeblue.png" icon="icon-close"/>
+      </span>
+    </p>
+    <p if={opts.dataName == 'credentialsArr'} each={ i in credentialsArr } class="credentials item" data-value={ i.credentials_staff_id }>
+      <input type="checkbox" name="" id="" checked={isChecked(i.credentials_staff_id)} onchange={storeOrDeleteReset}>
+      <span class="alarmCert">{ i.documents }到期</span>
+      <span class="alarmTime">{ i.expire_time }</span>
+      <span class="alarmName">{ i.deptname }</span>
+      <span class="number">{ i.name }</span>
+      <span class="cancel_icon" name={ i.credentials_staff_id } onclick={ cancelAlarmCredentials }>
+        <img src="/img/closeblue.png" icon="icon-close"/>
+      </span>
+    </p>
+  </div>
+  <script>
+    import { CARD } from '../../js/def/state.js'
+    import { ST } from '../../js/def/odef.js'
+    import {temp} from '../../js/def/alarm_title_list.js'
+    import './detail-table.html'
+    import tables from '../../js/def/detail_table_def.js'
+
+    const uncover = 1000
+    let defaultMap = parseInt(xdata.metaStore.defaultMapID, 10)
+    let self = this
+
+    this.init = (opts) => {
+      this.title = opts.dataTitle
+      this.staffWhole = [1, 3, 13, 15, 17, 19]
+      this.resetAlarms = this.parent.resetAlarms
+
+      opts.dataName === "credentialsArr" ? this.credentialsArr = opts.data : this.arr = opts.data
+      // if (this.credentialsArr) this.credentialsArr.flat(2)
+      if (this.arr) {
+        this.arr.map(item => item.isLocating = xdata.locateStore.get(item.obj_id))
+      }
+    }
+    this.init(opts)
+
+    xbus.on('InitIcon',(fromWhere) => {
+      if(fromWhere === 'topbar'){
+        if(opts.dataName === 'arrDeviceCommit' || opts.dataName === 'arrDevicePower'){
+          self.arr && self.arr.map(item => item.isLocating = false)
+        }
+      } else{
+        self.arr && self.arr.map(item => item.isLocating = false)
+      }
+      this.update()
+    })
+
+    this.getTime = (value) => {
+      return new Date(value).format('MM-dd hh:mm')
+    }
+
+    this.isChecked = (eventID) => {
+      return this.resetAlarms.get(eventID) ? true : false
+    }
+
+    this.getDeptName = (id, lmid, tyId, areaID) => {
+      let obj = xdata.metaStore.getCardBindObjectInfo(id)
+      let deptID = obj && obj.dept_id
+      let deptName = ''
+      if(tyId===38 && lmid){
+        deptName = xdata.metaStore.data.geofault && xdata.metaStore.data.geofault.get(lmid) && xdata.metaStore.data.geofault.get(lmid).geofault_name
+      } else {
+        deptName = deptID && xdata.metaStore.getNameByID('dept_id', deptID)
+        if (tyId >= 15 && tyId <= 20) {
+          let areaname = xdata.metaStore.getNameByID('area_id', areaID)
+          deptName = areaname ? `${areaname}-${deptName}` : deptName
+        }
+      }
+      return deptName ? deptName : ''
+    }
+
+    this.getNameByID = (id) => {
+      let obj = xdata.metaStore.getCardBindObjectInfo(id)
+      return obj && obj.name ? obj.name : Number(id)
+    }
+
+    this.getTitle = (rec) => {
+      return temp[rec].title
+    }
+
+    this.getcarPlate = (id) => {
+      let carArr = id && id.split('&')
+      let str = carArr.map(item => xdata.metaStore.getCardNameByID(item)).join('与')
+      return str
+    }
+
+    this.triggerAlarmObject = (rows) => {
+      if (!rows) return []
+      let alarm = xdata.alarmStore.onAlarming.get(this.wholeAlarmEventID)
+      let startTime = alarm.cur_time
+      let triggerAlarmDetails = rows.filter(item => item[8] >= startTime)
+      return triggerAlarmDetails
+    }
+
+    this.showDetail = (evt) => {
+      let target = evt.currentTarget
+      let name = target.getAttribute('name')
+      let item = evt.item['i']
+      let eventID = item.event_id
+      this.wholeAlarmEventID = eventID
+      let alarmName = this.staffWhole.includes(item.type_id) ? 1 : 2
+      // let alarmName = target.getAttribute('data-name') === 'staff' ? 1 : 2
+      let msg = null
+      if (name === 'area') {
+        // let dataType = Number(target.getAttribute('data-type'))
+        let dataType = Number(item.area_id)
+        msg = {
+          type: 'card',
+          subTypeID: alarmName,
+          statType: 'area',
+          groupID: dataType,
+          from: 'ALARM',
+          cb: this.triggerAlarmObject
+        }
+        this.toggleLocate(evt)
+      } else {
+        msg = {
+          type: 'card',
+          subTypeID: alarmName,
+          statType: ST.SUM,
+          composeType: 'type',
+          from: 'ALARM',
+          cb: this.triggerAlarmObject
+        }
+      }
+      window.showDetailDialog(msg)
+
+      evt.preventUpdate = true
+    }
+
+    this.toggleLocate = (evt) => {
+      let target = evt.currentTarget
+      let id = evt.currentTarget.getAttribute('name')
+      let dataName = evt.currentTarget.getAttribute('dataName')
+      let typeId = evt.target.parentNode.parentNode.getAttribute('type_id') // 告警类型ID
+      xbus.trigger('TOUCH-NAV', {
+        spName: 'sp_monitor',
+        msg: null
+      })
+      if(dataName === 'arrCard' || dataName === 'arrstopcard'){
+        let card = xdata.cardStore.getLastState(id)
+        if (!card) {
+          let msg = {
+            value: 'nochange',
+            tip: '当前井下没有此卡'
+          }
+          window.hintip.open(msg)
+          return
+        }
+        let areaID = card && Number(card[CARD.area_id])
+        areaID = areaID ? areaID : parseInt(target.getAttribute('data-type'), 10)
+        let areaType = xdata.metaStore.data.area && xdata.metaStore.data.area.get(areaID)
+        let areaTypeID = areaType && areaType.area_type_id
+        target.classList.toggle('activated')
+        let isVisible = target.classList.contains('activated')
+        if (Number(typeId) === 7) {
+          let routePlans = this.root.querySelectorAll('.routeplan')
+          let routePlanId = [], attDate = null
+          routePlans.forEach(e => {
+            routePlanId.push(e.parentNode.parentNode.getAttribute('name'))
+          });
+          for (let i = 0; i < this.arr.length; i++) {
+            let item = this.arr[i]
+            if (item.type_id === Number(typeId) && item.obj_id === id) {
+              attDate = new Date(item.cur_time).format('yyyy-MM-dd hh:mm:ss')
+            }
+          }
+          xbus.trigger('MAP-SHOW-ROUTEPLAN',{id: id, checked: isVisible, attDate: attDate})
+        } else if (areaTypeID === uncover || id === 'area') {
+          let message = {
+            type: 'ALARM',
+            mapType: 'MONITOR',
+            isVisible: isVisible,
+            mapID: 5,
+            areas: [areaID]
+          }
+          if (isVisible) {
+            xdata.locateStore.locateAreas.set(areaID, 'alarm')
+          } else {
+            xdata.locateStore.locateAreas.delete(areaID)
+          }
+          xbus.trigger('MAP-SHOW-AREA', message)
+        } else {
+          let msg = {
+            cards: [id],  // [cardid, ...]
+            type: 'ALARM'     // ALARM, ...; default is null, means simple locating
+          }
+          window.triggerLocating(msg)
+        }
+      } else if(opts.dataName === 'arrDeviceCommit' || opts.dataName === 'arrDevicePower') {
+        let message = {
+            cards: [id],
+            type: 'ALARM',
+            mapType: 'MONITOR',
+            isVisible: true,
+            mapID: 5,
+        }
+        xbus.trigger('MAP-SHOW-READER', message)
+      }
+      this.arr.forEach((item) =>{if(item.type_id === Number(typeId) && item.obj_id === id){item.isLocating = !item.isLocating}})
+      this.update()
+    }
+
+    this.storeOrDeleteReset = (evt) => {
+      let target = evt.currentTarget
+      let isChecked = target.checked
+      let eventID = target.parentElement.getAttribute('data-value')
+      isChecked ? this.resetAlarms.set(eventID, evt.item.i) : this.resetAlarms.delete(eventID)
+    }
+
+    this.storeOrDeleteAllAlarmsReset = (evt) => {
+      let target = evt.currentTarget
+      let isChecked = target.checked
+      let alarms = this.arr || this.credentialsArr
+      let alarmKeyName = this.arr ? 'event_id' : 'credentials_staff_id'
+      alarms.forEach(item => {
+        isChecked ? self.resetAlarms.set(item[alarmKeyName], item) : self.resetAlarms.delete(item[alarmKeyName])
+      })
+    }
+
+    this.alarmDone = (evt) => {
+      let msg = {
+        cmd: 'alarm_done',
+        data: [evt.item.i]
+      }
+      xbus.trigger('ALARM-DONE-REQ', msg)
+    }
+
+    this.cancelAlarm = (evt) => {
+      let target = evt.currentTarget
+      let eventID = target.parentElement.getAttribute('data-value')
+      let id = target.getAttribute('name')
+      let areaID = Number(target.getAttribute('area'))
+      // xdata.alarmStore.DistinguishMapAlarm.get(defaultMap) && xdata.alarmStore.DistinguishMapAlarm.get(defaultMap).delete(eventID)
+      // xbus.trigger('ALARM-LIST-CHANGED')
+      let message = xdata.alarmStore.DistinguishMapAlarm.get(defaultMap) && Array.from(xdata.alarmStore.DistinguishMapAlarm.get(defaultMap).values())
+
+      this.alarmDone(evt)
+      let stopLocating = {
+        cards: [id]
+      }
+      window.cardStopLocating(stopLocating)
+      let alarmType = target.parentElement.getAttribute('data-type')
+      if (alarmType === 'card') {
+        if (xdata.locateStore.locates.has(id)) {
+          let msg = {
+            cards: [id],  // [cardid, ...]
+            type: 'ALARM'     // ALARM, ...; default is null, means simple locating
+          }
+          window.triggerLocating(msg)
+        }
+      } else if (alarmType === 'area') {
+        let disLocationArea = {
+          type: 'ALARM',
+          cancel: 'cancel',
+          mapType: 'MONITOR',
+          isVisible: false,
+          mapID: 5,
+          areas: [areaID]
+        }
+        xbus.trigger('MAP-SHOW-AREA', disLocationArea)
+        xdata.locateStore.locateAreas.delete(areaID)
+      }
+    }
+
+    this.cancelAlarmCredentials = (evt) => {
+      let target = evt.currentTarget
+      let eventID = parseInt(target.parentElement.getAttribute('data-value'), 10)
+      let id = target.getAttribute('name')
+      let areaID = Number(target.getAttribute('area'))
+      // xdata.alarmStore.cateAlarm && xdata.alarmStore.cateAlarm.delete(eventID)
+      let data = Array.from(xdata.alarmStore.cateAlarm.values())
+      // xbus.trigger('ALARM-LIST-CHANGED')
+      this.alarmDone(evt)
+    }
+
+    this.updateAlarmList = () => {
+      let name = opts.dataName
+      name === "credentialsArr" ? this.credentialsArr = this.parent[`${name}`] : this.arr = this.parent[`${name}`]
+      if(this.arr){
+        this.arr.map(item => item.isLocating = xdata.locateStore.get(item.obj_id))
+      }
+      // if (this.credentialsArr) this.credentialsArr.flat(2)
+    }
+
+    xbus.on('REPT-SHOW-RESULT', (ds) => {
+      if (ds.def.name === 'person_reader_detail_monitor') {
+        if (this.detailTable) {
+          this.detailTable.unmount(true)
+        }
+        let rows = ds.rows
+        if (ds.rows.alarmSql) rows = ds.rows.alarmSql.concat(ds.rows.wellSql)
+        // if (ds.def.type === 'staff') rows = ds.rows.alarmSql.concat(ds.rows.wellSql)
+        this.detailTable = riot.mount('detail-table', {
+          tableName: 'person_reader_detail',
+          title: '历史告警信息',
+          tables: tables.person_reader_detail,
+          rows: rows,
+          def: ds.def
+        })[0]
+      }
+    })
+
+    this.inquireDB = (sqlName, sql, name, type) => {
+      window.xhint.showLoading()
+      let message = {
+        cmd: 'query',
+        data: {
+          name: sqlName,
+          sql: sql
+        }
+      } 
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: sqlName,
+          objID: name,
+          type: type
+        }
+      })
+    }
+
+    this.doRecoverAlarm = (evt) => {
+      let dataObj = this.opts.dataObj // 告警对象
+      let dataType = this.opts.dataType // 告警类型
+      let dataTypeNot = this.opts.dataTypeNot // 该告警对象中不包含的告警类型
+      this.parent.doRecoverAlarm({dataObj, dataType, dataTypeNot})
+    }
+
+    this.showAllAlarm = (evt) => {
+      return
+      let target = evt.currentTarget
+      let name = target.getAttribute('name')
+      let length = name.length
+      let type = length === 13 ? 'staff' : 'reader'
+      let cardType = length === 13 && xdata.metaStore.data.card.get(name)
+      cardType = cardType && cardType.card_type_id
+      if (cardType && cardType !== 1) return
+      let sql = JSON.parse(JSON.stringify(tables.person_reader_detail.sqlTmpl))
+      sql = type === 'staff' ? sql.staff : sql.reader
+      let beforeDate = new Date(new Date().getTime() - 14 * 24 * 60 * 60 * 1000).format('yyyy-MM-dd hh:mm:ss')
+      if (typeof sql === 'object') {
+        let staffID = xdata.metaStore.getCardBindObjectInfo(name)
+        staffID = staffID && staffID.staff_id
+        name = staffID
+        if (!staffID) return
+        sql.alarmSql = sql.alarmSql.replace('{exprString}', `and s.staff_id = ${staffID} and hed.cur_time >= '${beforeDate}' and hed1.cur_time <= '${new Date().format('yyyy-MM-dd hh:mm:ss')}'`)
+        sql.wellSql = sql.wellSql.replace('{exprString}', `and s.staff_id = ${staffID} and ras.start_time >= '${beforeDate}' and ras.end_time <= '${new Date().format('yyyy-MM-dd hh:mm:ss')}'`)
+      } else {
+        sql = sql.replace('{exprString}', `and r.reader_id = ${name} and hed.cur_time >= '${beforeDate}' and hed1.cur_time <= '${new Date().format('yyyy-MM-dd hh:mm:ss')}'`)
+      }
+      console.log(sql)
+      let sqlName = 'person_reader_detail_monitor'
+      this.inquireDB(sqlName, sql, name, type)
+    }
+  </script>
+</alarm-list-class>

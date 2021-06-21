@@ -1,0 +1,157 @@
+<search-filter>
+  <div class="icon-input card_icon-input">
+    <div if={ needSearchIcon } class="search-icon card_search-icon" id="selecticon"><img src="./img/search.png"></div>
+    <input type='search' class="card_search" id="searchinput" ref='searchinput' class="login-input" placeholder={
+      typeDef.placeholder } onkeyup={ enterForLogin } onfocus={ changeHr } onblur={ changeHrOrigin } oninput={ searchInput }>
+    <svg class="icon svg_icon">
+      <use xlink:href="/icons/icons.svg#icon-down"></use>
+    </svg>
+    <hr class="input_bottom searchinput" ref="hr">
+  </div>
+  <div if={ isShowResultList} class="card_list popup-list">
+    <span if={ hasresult } class="list-item" each={ item, i in resultList } data-name={item} onclick={ chooseItem }
+      data-type={ item[name + '_id'] } data-index={ i }>{ item[dataSet.desc] }</span>
+    <span if={ !hasresult } class="tips"> 无符合条件的{ typeDef.label } </span>
+  </div>
+  <script>
+    import { unique , clone , trim } from '../js/utils/utils.js'
+    const specialResult=['rt_person_forbid_down_mine','his_patrol_data','his_maintenance','leader_arrange','dat_vehicle_state','dat_vehicle_drive','staff','vehicle']
+    this.init = (opts) =>{
+      this.needSearchIcon = opts.searchIcon || false
+      this.typeDef = opts.typeDef ? opts.typeDef : this.parent.typeDef
+      this.dataSet = opts.dataSet ? opts.dataSet : this.parent.dataSet
+      this.name = this.typeDef.name
+    }
+    this.init(opts)
+    /**
+     * @description: 卡号输入框聚焦 显示蓝色边框线
+     * @param {type} 
+     * @return: 
+     */
+    this.changeHr = (evt) => {
+      this.refs.hr.style.transform = `scale(1)`
+      this.root.querySelector('.svg_icon').style = `fill: #09f;`
+      this.opts.onfocus && this.opts.onfocus()
+    }
+
+    /**
+     * @description: 卡号输入框失去焦点 隐藏蓝色边框线
+     * @param {type} 
+     * @return: 
+     */
+    this.changeHrOrigin = (evt) => {
+      this.refs.hr.style.transform = `scale(0)`
+      this.root.querySelector('.svg_icon').style = `fill: #999;`
+      if (opts.blurname) {
+        this.parent[opts.blurname](evt)
+      }
+    }
+
+    /**
+     * @description: 检索所需要的卡号
+     * @param {type} 
+     * @return: 
+     */
+    this.enterForLogin = (evt) => {
+      let s = evt.target.value
+      let lists = this.dataSet.data
+      let list = null
+      if (this.name === 'card') {
+        let num = s.substr(0, 3)
+        if (num === '0' || num === '00') num = '001'
+        if (s.length <= 10) {
+          switch (num) {
+            case '001':
+            case '002':
+            case '004':
+            case '005':
+              list = lists.filter(item => item.card_id.toString().substr(0, 3) === num).slice(0, 20)
+              break
+            default:
+              list = lists.filter(item => item.ident === parseInt(s))
+              break
+          }
+          this.resultList = list
+        } else {
+          list = lists.filter(item => item.card_id === s)
+        }
+        this.backResult = clone(list)
+      } else {
+        let _keys = this.dataSet.keys
+        s = (/^[A-Za-z]{1,}$/g).test(s) ? s.toUpperCase() : s
+        let reg =  new RegExp(s) 
+        list = lists.filter(item => reg.test(item[_keys[0]]) || reg.test(item[_keys[1]]) || reg.test(item[_keys[2]]) || reg.test(item[_keys[3]]) || reg.test(item[_keys[4]]))
+        this.backResult = clone(list)
+        let dittoname = clone(list)
+        if (this.typeDef.connect) {     
+          dittoname.forEach(e => {
+            e.name = `${e.name} - ${xdata.metaStore.getNameByID('dept_id', e.dept_id)}`
+          });       
+          this.resultList = dittoname          
+        } else if (this.dataSet.desc === 'name') {
+          this.resultList = unique(list, this.dataSet.desc)
+        } else {          
+          this.resultList = dittoname
+        } 
+      }
+      this.isShowResultList = true
+      list.length > 0 ? this.hasresult = true : this.hasresult = false
+      if (s === '') {
+        this.isShowResultList = false
+      }
+    }
+
+    /**
+     * @description: 在卡号检索面板中选择卡号来检索
+     * @param {type} 
+     * @return: 
+     */
+    this.chooseItem = (evt) => {
+      evt.stopPropagation()
+      let t = evt.currentTarget
+      let v = t.getAttribute('data-index')
+      let i = v && parseInt(v, 10)
+      let self = this
+      let value = this.dataSet.desc==='name' ? this.resultList[i].name : this.backResult[i][this.dataSet.desc]
+      // 历史轨迹name取人名判断
+      if(this.typeDef.pageName && this.name ==='staff'  && value.indexOf('-')){
+        value = trim(value.split('-')[0])
+      }
+      // 获取name重复的集合
+      // if(this.dataSet.desc==='name'){
+      //   var resultArr=[]  
+      //   for (let i = 0; i < this.backResult.length; i++) {
+      //     if(this.backResult[i].name===value){
+      //       resultArr.push(this.backResult[i])
+      //     }
+      //   }
+      //   resultArr.length > 0 ? this.typeDef.cb(resultArr) : this.typeDef.cb(self.backResult)
+      // }else{
+      this.typeDef.cb(self.backResult[i])
+      // }
+      this.isShowResultList = false
+      this.update()
+      evt.preventUpdate = true
+    }
+
+    /**
+     * @description: 清空输入框 隐藏检索面板
+     * @param {type} 
+     * @return: 
+     */
+    // this.searchInput = (evt) => {
+    //   let value = evt.target.value
+    //   if (value === "") {
+    //     if (specialResult.includes(this.name) || this.typeDef.hasOwnProperty('isValue')) {
+    //       // isValue只在报表中存在该属性
+    //       let rows = []
+    //       this.typeDef.cb(rows)
+    //     } else {
+    //       let rows = Array.from(xdata.metaStore.data[this.name].values())
+    //       this.typeDef.cb(rows)
+    //     }
+    //     this.isShowResultList = false
+    //   }
+    // }
+  </script>
+</search-filter>

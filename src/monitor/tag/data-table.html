@@ -1,0 +1,64 @@
+<data-table>
+  <table name={def.name} id={ 'TABLE_' + def.name }>
+    <thead>
+      <tr>
+        <!--
+        <th each={label in def.fields.labels}>{label}</th>
+        -->
+        <th>时间</th>
+        <th>X</th>
+        <th>Y</th>
+        <th>区域</th>
+      </tr>
+    </thead>
+    <tbody if={hasdata}>
+      <tr each={row in rows} onclick={ trackToHere }>
+        <!--
+        <td each={name, value in row}>{ name == def.fields.names[def.keyIndex] ? value : xdata.metaStore.getNameByID(name, value) }</td>
+        -->
+        <td class="oplink">{new Date(row.cur_time).format('hh:mm:ss')}</td>
+        <td>{row.x}</td>
+        <td>{row.y}</td>
+        <td>{xdata.metaStore.getNameByID('area_id', row.area_id)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <script>
+    /*
+      def = {
+        name: xxx,
+        label: xxx,
+        keyIndex: #,
+        fields: {
+          names: [],
+          labels: [],
+          types: []
+        }
+      }
+     */
+    this.def = opts.def
+    this.rows = opts.rows
+    this.hasdata = this.rows && this.rows.length > 0
+    this.activeTr = null
+
+    this.trackToHere = (evt) => {
+      // set display active
+      if (this.activeTr) {
+        this.activeTr.classList.remove('active')
+      }
+      this.activeTr = evt.currentTarget
+      this.activeTr.classList.add('active')
+
+      let row = evt.item.row
+      xbus.trigger('HISTORY-TRACK-HERE', row)
+    }
+    // this.on('update', () => {
+    //   debugger
+    //   if( this.parent.visible ){
+    //     this.initMap()
+    //   }
+    //   console.log('data-table.tag: update()')
+    // })
+  </script>
+</data-table>

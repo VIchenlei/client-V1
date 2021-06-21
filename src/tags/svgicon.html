@@ -1,0 +1,11 @@
+<svgicon class="icon-container">
+  <svg class="{iconclass} icon-close"><use xlink:href="{uri}"></use></svg>
+
+  <script>
+    let svgfile = opts.svg || '/icons/icons.svg'
+    let iconname = opts.icon
+    this.uri = svgfile + '#' + iconname
+
+    this.iconclass = opts.iconclass || 'icon'
+  </script>
+</svgicon>

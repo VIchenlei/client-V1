@@ -1,0 +1,32 @@
+<sp-history>
+  <div id="history_player_container" data-is="history-player" class="history-player-container"></div>
+  <div id="history_query_container" data-is={ subComponent } class={ window.isPC ? "history-querypc":
+    "history-query-container"}></div>
+  <script>
+    import './history-player.html'
+    import './history-query.html'
+    import './history-querypc.html'
+
+    this.subComponent = window.isPC ? "history-querypc" : "history-query"
+    this.on('mount', () => {
+      this.tagQuery = this.tags[this.subComponent]
+      this.tagPlayer = this.tags['history-player']
+
+      // if(opts && opts.cardID) {
+      //   this.fastQuery(opts.cardID)
+      // }
+    })
+
+    // 监听跳转，来自 main-nav
+    this.on('update', (msg) => {
+      if (msg && msg.cardID) {
+        this.fastQuery(msg.cardID, msg.numberId, msg.name, msg.time, msg.endTime)
+      }
+    })
+
+    // 快速轨迹查询
+    this.fastQuery = (cardID, numberId, name, time, endtime) => {
+      this.tagQuery.fastQuery(cardID, numberId, name, time, endtime)
+    }
+  </script>
+</sp-history>

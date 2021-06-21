@@ -1,0 +1,118 @@
+<helpme-list>
+  <div class="dlg-window helpme-dialog {hasData ? '' : 'hide'}">
+    <dialog-head title="呼救" closer="no"></dialog-head>
+    <div each={ row in list } class="hm-item">
+      <span class="hm-label">{ row.name }</span>
+      <!-- <span class="hm-map">{ xdata.metaStore.getNameByID('map_id', row.map_id) }</span> -->
+      <span class="hm-pos" data-id={ row.obj_id } onclick={ locate }><img class="ticon" src="../img/location.png">{ xdata.metaStore.getPositionDesc(row.lmid, row.lmdirect, row.lmdistance) }</span>
+      <span class="hm-time">{ new Date(row.cur_time).format('MM-dd hh:mm') }</span>
+
+      <!-- <button class="btn" id={ row.obj_id } className={ row.map_id }>定位</button> -->
+      <button class="btn" data-id={ row.obj_id } onclick={ settled }>标记</button>
+    </div>
+  </div>
+
+  <script>
+    // this.list = opts.list  // eslint-disable-line
+    this.helpList = opts.list
+    this.hasData = false
+
+    this.on('mount', () => {
+      window.setDialogDraggable(this.root)
+    })
+
+    this.show = () => {
+      if (this.helpList.size > 0) {
+        this.list = Array.from(this.helpList.values())
+        this.hasData = true
+      } else {
+        this.list = null
+        this.hasData = false
+      }
+    }
+
+    xbus.on('HELPME-LIST-CHANGED', () => {
+      this.helpList = xdata.helpmeStore.helpms
+      this.show()
+      this.update()
+    })
+
+    this.settled = (evt) => {
+      let target = evt.currentTarget
+      let eventID = target.getAttribute('data-id')
+      this.helpList.delete(eventID)
+      let msg1 = {
+        cards: [eventID],  // [cardid, ...]
+        type: 'HELP'     // ALARM, ...; default is null, means simple locating
+      }
+      window.cardStopLocating(msg1)
+
+      let msg = {
+        cmd: 'call_help_confirm',
+        data: {
+          card_id: eventID,
+          confirm_time: new Date().format('yyyy-MM-dd hh:mm:ss')
+        }
+      }
+      xbus.trigger('HELP-ME-CONFIRM', msg) // 通知采集呼救确认
+      console.log('help_confirm', msg)
+      this.show()
+      this.update()
+    }
+
+    // this.settled = (evt) => {
+    //   // stop locating
+    //   let id = evt.currentTarget.getAttribute('data-id')
+    //   let msg1 = {
+    //     cards: [id],  // [cardid, ...]
+    //     type: 'HELP'     // ALARM, ...; default is null, means simple locating
+    //   }
+    //   window.cardStopLocating(msg1)
+
+    //   // 向采集发送数据
+    //   let helpme = xdata.helpmeStore.hms.get(id)
+    //   let msg = {
+    //     cmd: 'helpme_done',
+    //     version: '1.0.0.1',
+    //     data: {
+    //       id: id,
+    //       event_id: Number(helpme.event_id),
+    //       status: 1,
+    //       user_id: xdata.metaStore.gstore.userName
+    //     }
+    //   }
+    //   xbus.trigger('HELPME-DONE-REQ', msg)
+
+    //   // save process request to db
+    //   this.doInsert(helpme)
+    // }
+
+    // this.doInsert = (current) => {
+    //   var date = new Date().format('yyyy-MM-dd hh:mm:ss')
+
+    //   let values = current.event_id + ',' + 1 + ',' + 24 + ',' + 9 + ',' + current.obj_id + ',' + current.map_id + ',' + current.area_id + ',' + current.x + ',' + current.y + ',' + current.limit_value + ',' + current.cur_value + ',' + '"' + date + '"' + ',' + '"' + xdata.metaStore.gstore.userName + '"'
+    //   let sql = `INSERT into his_event_data VALUES(${values})`
+
+    //   let msg = {
+    //     cmd: 'update', // update, CMD.META.UPDATE
+    //     data: {
+    //       op: 'INSERT',
+    //       sql: sql
+    //     }
+    //   }
+    //   xbus.trigger('META-UPDATE-DB', { req: msg })
+    // }
+
+    this.locate = (evt) => {
+      let target = evt.currentTarget
+      let id = target.getAttribute('data-id')
+
+      let msg = {
+        cards: [id],  // [cardid, ...]
+        type: 'HELP'     // ALARM, ...; default is null, means simple locating
+      }
+
+      window.cardStartLocating(msg)
+    }
+  </script>
+</helpme-list>

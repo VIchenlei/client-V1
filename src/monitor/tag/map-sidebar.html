@@ -1,0 +1,145 @@
+<map-sidebar>
+  <div class="nav-bar">
+    <span class="panel-switcher" onclick={ switchPanel }>
+      <!-- <svg class="icon">
+        <use xlink:href="/icons/icons.svg#{ isShowPanel ? 'icon-caret-left' : 'icon-caret-right'}"></use>
+      </svg> -->
+      <span class="icon { isShowPanel ? 'icon-caret-left' : 'icon-caret-right'} "></span>
+    </span>
+    <topic-nav id="topic_nav" class="topic-nav"></topic-nav>
+  </div>
+  <div class="topic-main" ref="topic-main" name="topic-main">
+    <!-- <searcher-demo id="searcher" class="topic-title"></searcher-demo> -->
+    <div class="topic-title" ref="topictitle">{ activeTopic ? activeTopic.label : '' }</div>
+    <div id="topic_panel"></div>
+  </div>
+
+  <script>
+    import { TOPIC, TopicDef } from '../../js/def/topic_def.js'
+
+    import './group-list.html'
+    // import './alarm-list.html'
+    import './call-personnel.html'
+
+    import './reader-list.html'
+    import './topic-nav.html'
+
+    import '../../coalface/tag/coal-face.html'
+    import '../../drivingface/tag/driving-face.html'
+
+    import './patrol-list.html'
+    import './lights-list.html'
+    import './help-side-list.html'
+    // import './searcher-demo.html'
+
+    this.activeTopic = null
+    // this.activeTag = null
+
+    this.isShowPanel = true
+    this.needUpdateMap = false
+    this.papa = opts.papa
+    this.isEdit = false
+    this.on('mount', () => {
+      this.selectInputs = new Map()
+      this.init()
+    })
+
+    this.on('update', () => {
+      let cl = this.root.querySelector('.topic-main').classList
+      let rootEle = this.root.classList
+      // let rateRight = this.parent.root.querySelector('.three-rate')
+      // let rateBottom = this.parent.root.querySelector('.three-bottom-rate')
+      if (this.isShowPanel) {
+        rootEle.remove('map-sidebar-narrow')
+        rootEle.add('map-sidebar-full')
+        // rateRight.classList.remove('hide')
+        // rateBottom.classList.remove('hide')
+        // rootEle.remove('slideOutLeft')
+        // rootEle.add('slideInLeft')
+      } else {
+        rootEle.remove('map-sidebar-full')
+        rootEle.add('map-sidebar-narrow')
+        // rateRight.classList.add('hide')
+        // rateBottom.classList.add('hide')
+        // rootEle.remove('slideInLeft')
+        // rootEle.add('slideOutLeft')
+      }
+      if (this.needUpdateMap) {
+        xbus.trigger('MAP-UPDATE-SIZE', {})
+        this.needUpdateMap = false
+      }
+    })
+
+    this.init = () => {
+      riot.mount('topic-nav', { papa: this })
+      riot.mount('state-left', {})
+      // riot.mount('searcher-demo', {})[0]
+
+      this.activeTopic = TopicDef[TOPIC.VEHICLE_BY_AREA]
+      this.refs.topictitle.innerHTML = this.activeTopic ? this.activeTopic.label : ''
+
+      this.activeTag = riot.mount('div#topic_panel', this.activeTopic.tagName, {})[0]
+    }
+
+    // 切换 panel 的显隐
+    this.switchPanel = (evt) => {
+      this.isShowPanel = !this.isShowPanel
+      this.needUpdateMap = true  // need update map
+    }
+
+    // 分站编辑覆盖范围时，重置地图左边分站列表状态，同时隐藏左边分站列表
+    xbus.on('CHANGE-SWITCH-PANEL', (msg) => {
+      this.isEdit = true
+      if (this.activeTopic && this.activeTag && this.activeTopic.name === 'readerList') {
+        this.selectInputs = new Map()
+        this.activeTag.initData()
+      }
+    })
+
+    xbus.on('SHOW-READEDIALOG-EDIT',() => {
+      this.isEdit = false
+      if (this.activeTopic && this.activeTag && this.activeTopic.name === 'readerList') {
+        this.selectInputs = new Map()
+        this.activeTag.initData()
+      }
+    })
+
+    this.showPanel = () => {
+      if (!this.isShowPanel) {
+        this.isShowPanel = true
+        this.needUpdateMap = true  // need update map
+        this.update()
+      }
+    }
+
+    this.switchToItem = (topicName) => {
+      // 新的 topicName 不是原来的 topicName
+      let self = this
+      if (topicName !== this.activeTopic.name) {
+        let topic = TopicDef[topicName]
+        if (topic.tagName !== this.activeTopic.tagName) {
+          // unmount current tag
+          this.activeTag.unmount(true)
+
+          // mount new tag
+          this.activeTag = riot.mount('div#topic_panel', topic.tagName, {parenTag:self})[0]
+        }
+        this.activeTopic = topic
+        this.refs.topictitle.innerHTML = this.activeTopic.label
+
+        // update the tag's data
+        this.activeTag.update(topicName)
+      }
+    }
+
+    this.isChecked = (id) => {
+      return this.selectInputs.get(id)
+    }
+
+    this.handleSelect = (msg) => {
+      let id = Number(msg.name)
+      let checked = msg.checked
+      checked ? this.selectInputs.set(id, checked) : this.selectInputs.delete(id)
+    }
+  </script>
+</map-sidebar>

@@ -1,0 +1,276 @@
+<parts-record>
+    <p>
+        <span class="searchDay">
+            <span onclick = { queryDay } type='last'>上一天</span>
+            <span onclick = { queryDay } type='next'>下一天</span>
+        </span>
+        <span class="title">配件消耗记录</span>
+        <span class="tableTime">
+            <span>{time}</span>
+            <span class="printButton hint--bottom-left" aria-label="打印" name="printPDF" onclick={askFile} data-value="his_special_vehicle_transport">
+                <svg name="printPDF" class="icon black-icon"><use name="printPDF" xlink:href="/icons/icons.svg#icon-printer"></use></svg>
+            </span>
+            <span class="printButton hint--bottom-left" aria-label="导出CSV" name="csv" onclick="{askFile}" data-value="his_special_vehicle_transport">
+                <svg name="csv" class="icon black-icon"><use name="csv" xlink:href="/icons/icons.svg#icon-file-excel"></use></svg>
+            </span>
+        </span>
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th each={label in labels}>{label}</th>
+                <th>操作
+                    <svg class="icon black-icon add hint--bottom-left"  onclick={addRow}><use xlink:href="/icons/icons.svg#icon-add"></use></svg>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr id={ row.parts_record_id ? 'update' + row.parts_record_id : 'insert' + i }  each={ row in data} >
+                <td each={ value, key in row } if={ key !== "parts_record_id"} class="content">      
+                    <span>{key === "cur_time" && row[key] ? new Date(row[key]).format("yyyy-MM-dd hh:mm"):row[key]}</span>
+                    <input class="hide" data-type={key} type={key==="cur_time"?"datetime-local":"text"} onblur={saveField}> </input>
+                </td>
+                <td class="operate">
+                    <svg class="icon black-icon" onclick={editRow}><use xlink:href="/icons/icons.svg#icon-edit"></use></svg>
+                    <svg class="hide icon black-icon"  onclick={saveRow}><use xlink:href="/icons/icons.svg#icon-store"></use></svg>
+                    <svg class="icon black-icon" onclick={deleteRow}><use xlink:href="/icons/icons.svg#icon-delete"></use></svg>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+ <script> 
+        import {composeUpdateDBReq} from '../../js/utils/utils.js'
+        this.fields = opts.def.fields
+        this.labels = this.fields.labels.slice(1)
+        this.time = new Date().format("yyyy-MM-dd")
+        this.opMsg = new Object()
+        this.data = []
+        this.i = 0
+
+        // 初始化表格
+        this.init = (time) => {
+            let nextDay = new Date(new Date(this.time).getTime() + 24*60*60*1000).format("yyyy-MM-dd")
+            let sql = `select parts_record_id,cur_time,into_parts,into_version,into_number,out_parts,out_version,out_number,surplus,send_user,description from his_parts_use_record where cur_time >= '${ time }' and cur_time < '${ nextDay}' `
+            let message = {
+                cmd: 'query',
+                data: {
+                    name: 'parts',
+                    sql: sql
+                }
+            }
+            xbus.trigger('REPT-FETCH-DATA', {
+                req: message,
+                def: {
+                    name: 'parts'
+                }
+            })
+
+        }
+
+        xbus.on('REPT-SHOW-RESULT', (ds) => {
+            if(ds.def.name === 'parts'){
+                this.data = ds.rows
+                this.update()
+            }
+        })
+        
+        xbus.on('META-UPDATE-DB-RES', (res) => {
+            if(res.data.name === 'parts-record'){
+                if (res.code === 0) {
+                    this.init(this.time)
+                }
+            }
+        })
+
+        this.init(this.time)
+        
+        // 添加行
+        this.addRow = (evt) => {
+            let partsObj = {'cur_time':'','into_parts':'','into_version':'','into_number':null,'out_parts':'','out_version':'','out_number':null,'surplus':null,'send_user':'','description':''}
+            this.data.push(partsObj)
+            this.i += 1
+            this.update()
+        }
+
+        // 编辑行
+        this.editRow = (evt) => {
+            evt.preventUpdate = true            
+            let target = evt.currentTarget
+            let curRow = target.parentNode.parentNode
+            let tds = curRow.querySelectorAll('.content')
+            for(let i = 0; i < tds.length; i++){
+                if(tds[i].children[0].innerText){
+                    tds[i].children[1].value = tds[i].children[0].innerText.split(' ').join('T')
+                }
+                tds[i].children[0].classList.add('hide')
+                tds[i].children[1].classList.remove('hide')
+            }   
+            target.classList.add('hide')
+            target.nextElementSibling.classList.remove('hide')
+        }
+
+        // 删除行
+        this.deleteRow = (evt) => {
+            let target = evt.currentTarget
+            let row = target.parentNode.parentNode
+            let id = row.getAttribute('id')
+            this.deleteMsg(id)
+            row.parentNode.removeChild(row)
+        }
+
+        // 光标变换保存字段
+        this.saveField = (evt) => {
+            let target = evt.currentTarget
+            let value = target.value
+            let key = target.getAttribute('data-type')
+            let rowId = target.parentNode.parentNode.getAttribute('id')
+            if(!this.opMsg[rowId]){
+                this.opMsg[rowId] = {}
+            }
+            let check = this.checkValue(key,value)
+            console.log(check)
+            if(check){
+                this.opMsg[rowId][key] = value
+            }else{
+                this.popupErrorTips(target)
+            }
+        }
+
+        // 校验保存值是否合规
+        this.checkValue = (key, value) => {
+            switch(key){
+                case 'into_number':
+                case 'out_number':
+                case 'surplus':
+                    if(parseInt(value) >= 0){
+                        return true
+                    }else{
+                        return false
+                    }
+                    break
+            }
+            return true
+        }
+
+        // 弹出输入错误提示
+        this.popupErrorTips = (target) => {
+            let errorDOM = document.createElement('div')
+            errorDOM.innerText = '数量不能为负数'
+            errorDOM.classList.add('errorTip')
+            target.parentNode.appendChild(errorDOM)
+
+            setTimeout(() => {
+                target.parentNode.removeChild(errorDOM)
+                target.value = ''
+            }, 2000);
+        }
+
+        // 保存行
+        this.saveRow = (evt) => {
+            let target = evt.currentTarget
+            let row = target.parentNode.parentNode
+            let optype = row.getAttribute('id')
+            if(optype.slice(0,6) == 'update'){
+                this.updateMsg(optype)
+            }else if(optype.slice(0,6) == 'insert'){
+                this.insertMsg(optype)
+            }
+        }        
+        
+        // 更新操作
+        this.updateMsg = (optype) => {
+            let recordId = parseInt(optype.slice(6))
+            let row = this.opMsg[optype]
+            let fields = Object.keys(row)
+            let updateArr = []
+            for(let key in row){
+                let field = key + '=' + `'${row[key]}'`
+                updateArr.push(field)
+            }
+            let updateStr = updateArr.join(',')
+            let sql = `UPDATE his_parts_use_record hpur set ${updateStr} where parts_record_id = ${recordId}`
+            let req = composeUpdateDBReq('UPDATE', 'parts-record', '', sql)
+            xbus.trigger('META-UPDATE-DB',{
+                req: req
+            }) 
+        }
+
+        // 插入操作
+        this.insertMsg = (optype) => {
+            let row = this.opMsg[optype]
+            let fields = Object.keys(row).join(',')
+            let values = []
+            for(let key in row){
+                if(key !== 'into_number' && key !== 'out_number' && key !== 'surplus'){
+                    let value = `'${row[key]}'`
+                    values.push(value)
+                }else{
+                    values.push(row[key])
+                }
+            }
+            let insertStr = values.join(',')
+            let sql = ` INSERT into his_parts_use_record (${fields}) VALUES(${insertStr}) `
+            let req = composeUpdateDBReq('INSERT', 'parts-record', '', sql)
+            xbus.trigger('META-UPDATE-DB',{
+                req: req
+            })
+        }
+
+        // 删除操作
+        this.deleteMsg = (id) => {
+            let recordId = parseInt(id.slice(6))
+            let sql = `DELETE FROM his_parts_use_record WHERE parts_record_id = ${recordId}`
+            let req = composeUpdateDBReq('DELETE', 'parts-record', '', sql)
+            xbus.trigger('META-UPDATE-DB',{
+                req: req
+            }) 
+        }
+        
+        // 查询上一天或下一天的数据
+        this.queryDay = (evt)=>{
+            let type = evt.target.getAttribute('type')
+            if(type ==='last'){
+                this.num = -1
+            }else if(type === 'next'){
+                this.num = 1
+            }
+            this.time = this.GetDateStr(this.num)
+            this.init(this.time)
+        }
+
+        this.GetDateStr=(AddDayCount) =>{ 
+            let curtimeStamp = new Date(this.time).getTime()
+            let timeStamp =  new Date(curtimeStamp + this.num*24 * 60 * 60 * 1000)
+            let dateStr = timeStamp.format('yyyy-MM-dd')
+
+            return dateStr
+        }
+
+        this.askFile = (evt) => {
+            evt.preventUpdate = true
+            let printType = evt.target.getAttribute('name')
+            let fields = ['日期时间','进库配件', '进库型号', '进库数量', '出库配件','出库型号','出库数量','余量','发放人','备注']
+            let type = ['DATETIME-LOCAL','STRING','STIRNG','NUMBER','STRING','STRING','NUMBER','NUMBER','STRING','STRING']
+            let name = ['cur_time','into_parts','into_version','into_number','out_parts','out_version','out_number','surplus','send_user','decription']
+            let title = '配件消耗记录'
+            // let time = this.cur_time.split(' ')[0]
+            let sqlString = ` select date_format(cur_time,'%Y-%m-%d %h:%i:%s'),into_parts,into_version,into_number, out_parts,out_version,out_number,surplus,send_user, description from his_parts_use_record where cur_time = '${ this.time }' `
+            let reptTime = new Date().getTime()
+            let defNames = evt.currentTarget.getAttribute('')
+            let msg = {
+                cmd : 'file',
+                exprList : [],
+                fileType : printType,
+                labels : fields,
+                name : '',
+                namesInShort : name,
+                title : title,
+                reptIndex: reptTime,
+                types : type,
+                sql : sqlString,
+                userName : xdata.userName
+            }
+            xbus.trigger('REPT-FETCH-FILE', msg)
+        }
+    </script>
+</parts-record>

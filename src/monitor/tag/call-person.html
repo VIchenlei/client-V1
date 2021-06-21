@@ -1,0 +1,320 @@
+<call-person>
+  <div class="dlg-bg animated" onclick={ hideList }>
+    <div class="dlg-window call-person-dialog animated zoomIn">
+      <div data-is="dialog-head" title="发起呼叫" closer="yes"></div>
+      <div if={ hasdata } class="content-area">
+      <div class="content-panel">
+        <div class="content-block content-value">
+          <p>
+            <span class="content-block content-title">发起人员：</span>
+            <span class="content-cont">{ xdata.userName }</span>
+          </p>
+          <p>
+            <span class="content-block content-title">呼叫模式：</span>
+            <span class="content-cont">
+              <span class="point" onclick={ callTypeChange } call-type="all" >
+                  <input type="radio" name="sex" id="male" checked/>
+                  <label for="male">全员</label>
+              </span>
+              <span class="point" onclick={ callTypeChange } call-type='special'>
+                  <input type="radio" name="sex" id="female"/>
+                  <label for="female">定员</label>
+              </span>
+            </span>
+          </p>
+          <p>
+            <span class="content-block content-title">呼叫类型：</span>
+            <span class="content-cont">
+              <span class="point" onclick={ judgeCallType } call-type="callNormal">
+                  <input type="radio" name="call" id="maleNor" checked/>
+                  <label for="maleNor">一般</label>
+              </span>
+              <span class="point" onclick={ judgeCallType } call-type='callNow' >
+                  <input type="radio" name="call" id="femaleUn"/>
+                  <label for="femaleUn">紧急</label>
+              </span>
+            </span>
+          </p>
+          <p>
+            <span class="content-block content-title">井下区域：</span>
+            <span class="content-cont" if={ callALL }>{ Array.from(xdata.metaStore.data.area).length } 个</span>
+            <span class="content-cont" if={ callSpecial } id="callSpecial">
+              <span each={ i in readers } class="chooseListDown">
+                <span data-type={ i.areaID } class="areaName">{ i.area }</span>
+                <img src="/img/close.png" alt="" class="icon" onclick={ deleteChoode } name="reader">
+              </span>
+              <span type="button" class="expr-builder__button" onclick={ show } name="area" onblur={ hideList }>
+                + 新增区域
+              </span>
+              <div id="call-list" class="call-list-area"></div>
+            </span>
+          </p>
+          <p>
+            <span class="content-block content-title">井下人员：</span>
+            <span class="content-cont" if={ callALL }>{ staffNumber && staffNumber.length }人</span>
+            <span class="content-cont" if={ callSpecial } id="callSpecialStaff">
+              <span each={ i in staffs } class="chooseListDown">
+                <span data-type={ i.card }>{ i.cardid }</span>
+                <img src="/img/close.png" alt="" class="icon" onclick={ deleteChoode } name="staff" data-type={ i.card }>
+              </span>
+              <span if={ showNull } class="shownull">当前区域无人员</span>
+              <span type="button" class="expr-builder__button" onclick={ show } name="staff" onblur={ hideList }>
+                + 新增人员
+              </span>
+              <div id="call-list" class="call-list-staff"></div>
+            </span>
+          </p>
+          <p>
+            <span class="content-block content-title">持续时间：</span>
+            <select class="content-cont" id="calltime" onchange={ chooseTime }>
+              <option selected value="5">5分钟</option>
+              <option value="10">10分钟</option>
+              <option value="20">20分钟</option>
+              <option value="60">60分钟</option>
+            </select>
+          </p>
+        </div>
+      </div>
+      <div class="dlg-foot">
+        <button class="btn-sure" onclick={ sendCall }>确认</button>
+        <button class="btn-cancel" onclick={ cancelCall }>取消</button>
+      </div>
+    </div>
+
+    <div data-is="blank-message" message="当前井下没有人员。" class="blank-message" if={ !hasdata }></div>
+    </div>
+  </div>
+
+  <script>
+    import { OD, ST } from '../../js/def/odef.js'
+
+    let self = this
+    this.showNull = false
+    // 全员/定员
+    this.callTypeChange = (evt) => {
+      let target = evt.currentTarget
+      let currentID = target.getAttribute('call-type')
+      target.getElementsByTagName('input')[0].checked = true
+      if (currentID === 'all') {
+        this.callALL = true
+        this.callSpecial = false
+        this.cal_type = 0
+      } else {
+        this.callALL = false
+        this.showNull = false
+        this.callSpecial = true
+        this.cal_type = 1
+      }
+    }
+
+    this.on('mount', () => {
+      this.root.classList.remove('hide')
+      window.setDialogDraggable(this.root)
+      this.showCallTable()
+      this.init()
+    })
+
+    this.judgeCallType = (evt) => {
+      let target = evt.currentTarget
+      let callType = target.getAttribute('call-type')
+      target.getElementsByTagName('input')[0].checked = true
+      this.call_type_id = callType === 'callNormal' ? 1 : 2
+    }
+
+    this.show = (evt) => {
+      evt.stopPropagation()
+      let target = evt.currentTarget
+      let name = target.parentElement.getAttribute('id')
+      let chooseName = target.getAttribute('name')
+
+      let parentTarget = this.root.querySelector('.call-person-dialog')
+      if (this.callList) {
+        this.callList.unmount(true)
+      }
+      let tagName = 'div.call-list-' + chooseName
+      this.callList = riot.mount(tagName, 'popup-list', {
+        target: target,
+        name: name,
+        self: self,
+        parentTarget: parentTarget,
+        areas: Array.from(this.chooseAreas.values()),
+        isEnableSearch: true
+      })[0]
+    }
+
+    this.showCallTable = () => {
+      let data = xdata.cardStore.getDetail(OD.STAFF, ST.SUM)
+      this.staffNumber = data || '0'
+    }
+
+    this.enterForSearch = (evt) => {
+      let searchTarget = evt.currentTarget.getElementsByTagName('input')[0]
+      this.callList.enterForSearch(searchTarget)
+    }
+
+    this.chooseTime = (evt) => {
+      let target = evt.currentTarget
+      this.choosedTime = Number(target.options[target.selectedIndex].value)
+    }
+
+    this.insertChoosed = (result, name) => {
+      let nametitle = name === 'callSpecial' ? 'name' : 'n'
+      let key = name === 'callSpecial' ? 'area_id' : 'c'
+      let keyName = name === 'callSpecial' ? result[nametitle] : result[nametitle].split('-')[1]
+      if (name === 'callSpecial') {
+        let msg = {
+          area: keyName,
+          areaID: result[key]
+        }
+        this.chooseAreas.set(keyName, msg)
+        // this.chooseArea.push(Number(target.getAttribute('data-type')))
+        this.readers = Array.from(this.chooseAreas.values())
+      } else {
+        // console.log(target)
+        let cardID = result[key]
+        let msg = {
+          cardid: cardID,
+          cardtype: 1
+        }
+        this.chooseStaff.set(cardID, msg)
+        let message = {
+          card: cardID,
+          cardid: keyName
+        }
+        this.showStaff.set(cardID, message)
+        this.staffs = Array.from(this.showStaff.values())
+      }
+      this.update()
+    }
+
+    this.deleteChoode = (evt) => {
+      let target = evt.currentTarget
+      let choosed = target.previousElementSibling.innerText
+      let choosedID = target.previousElementSibling.getAttribute('data-type')
+      choosedID = choosedID
+      let name = target.getAttribute('name')
+      if (name === 'reader') {
+        this.chooseAreas.delete(choosed)
+        // this.chooseArea.remove(Number(choosedID))
+        this.readers = Array.from(this.chooseAreas.values())
+      } else {
+        this.chooseStaff.delete(choosedID)
+        this.showStaff.delete(choosedID)
+        this.staffs = Array.from(this.showStaff.values())
+      }
+      this.update()
+    }
+
+    this.format = () => {
+      let chooseArea = Array.from(this.chooseAreas.values())
+      for (let i = 0, len = chooseArea.length; i < len; i++) {
+        let areacards = xdata.cardStore.getDetail(1, 'area', chooseArea[i].areaID)
+        this.formatDetailData(areacards)
+      }
+    }
+
+    this.formatDetailData = (areacards) => {
+      for (let i = 0, len = areacards.length; i < len; i++) {
+        let card = areacards[i]
+        this.areastaffs.push(card)
+      }
+    }
+
+    this.callType = () => {
+      let cards = []
+      if (this.cal_type === 0) { // 全员呼叫
+        cards.push({
+          cardid: '0',
+          cardtype: 1
+        })
+      } else { // 定员呼叫
+        if (Array.from(this.chooseStaff.values()).length > 0) {
+          cards = Array.from(this.chooseStaff.values())
+        } else if (Array.from(this.chooseAreas.values()).length > 0) {
+          // let areastaffs = this.callList.areastaffs
+          this.format()
+          if (this.areastaffs.length > 0) {
+            for (let i = 0, len = this.areastaffs.length; i < len; i++) {
+              let cardID = this.areastaffs[i][0]
+              let msg = {
+                cardid: cardID,
+                cardtype: 1
+              }
+              cards.push(msg)
+            }
+          } else {
+            return
+          }
+        } else {
+          this.cal_type = 0
+          cards.push({
+            cardid: '0',
+            cardtype: 1
+          })
+        }
+      }
+      return cards
+    }
+
+    this.sendCall = (evt) => {
+      let cards = this.callType()
+      
+      if (!cards) {
+        let msg = {
+          value: 'nochange',
+          tip: '该区域没有人员可以呼叫！'
+        }
+			  window.hintip.open(msg)
+        return
+      }
+      
+      let time = Number(new Date().getTime())
+      let msgData = {
+        cmd: 'call_card_req',
+        data: {
+          call_type_id: this.cal_type, // 全员呼叫:0 定员呼叫:1
+          call_time_out: this.choosedTime, // 呼叫时长
+          call_level_id: this.call_type_id, // 呼叫类型 一般呼叫:1 紧急呼叫:2
+          user_name: xdata.userName, // 呼叫人
+          call_time: time, // 呼叫时间戳
+          stations: [{ stationid: 0 }], // 分站 0为全员
+          cards: cards // 人员 0为全员
+        }
+      }
+      console.log(msgData)
+      xbus.trigger('CALL-CARD-START', msgData)
+      cards.forEach(card => {
+        let key = `${xdata.userName}-${card.cardid}`
+        xdata.callStore.selfcallCardList.set(key, card)
+      })
+      // let key = xdata.userName + '-' + time
+      // xdata.callStore.selfcallCardList.set(key, cards)
+      cards = null
+      this.cancelCall()
+    }
+
+    this.cancelCall = (evt) => {
+      this.unmount(true)
+    }
+
+    this.hideList = (evt) => {
+      if (self.callList) {
+        self.callList.unmount(true)
+      }
+    }
+
+    this.init = () => {
+      this.hasdata = !!xdata.cardStore.scards.size
+      this.callALL = true
+      this.callSpecial = false
+      this.chooseAreas = new Map() // 分站
+      this.chooseStaff = new Map() // 人员 发给采集
+      this.showStaff = new Map() // 人员 显示
+      this.areastaffs = []
+      this.choosedTime = 5
+      this.call_type_id = 1
+      this.cal_type = 0
+      this.update()
+    }
+  </script>
+</call-person>

@@ -1,0 +1,270 @@
+@import defs
+.ol-overviewmap-map
+    width: 19.5rem !important
+    left: 1.3rem !important
+    background: #202020 !important
+    border: 2px solid $angle-map !important
+    height: 9rem !important
+
+.ol-overviewmap button
+    position: absolute !important
+    bottom: 13px !important
+
+.ol-overviewmap:not(.ol-collapsed) button
+    bottom: 13px !important
+.ol-overviewmap-box
+    border: 2px solid #009fff !important
+.ol-viewport
+    // width: auto !important
+    // height: auto !important
+    background: url(/img/mapBgnew.png) center center
+    // background-size: cover
+    // background: #000040
+    .ol-unselectable
+        display: inline-block !important
+
+.ol-overviewmap
+    position: absolute !important
+    bottom: -0.5rem !important
+    background: none !important
+    padding: 0 !important
+    @media screen and (min-width: 700px)
+        left: 17rem !important
+    @media screen and (min-width: 880px)
+        left: 22rem !important
+    @media screen and (min-width: 1000px)
+        left: 28rem !important
+    @media screen and (min-width: 1100px)
+        left: 33.5rem !important
+    @media screen and (min-width: 1200px)
+        left: 41.5rem !important
+    @media screen and (min-width: 1300px)
+        left: 51.5rem !important
+    @media screen and (min-width: 1500px)
+        left: 60.5rem !important
+    @media screen and (min-width: 1600px)
+        left: 70.5rem !important
+    @media screen and (min-width: 1800px)
+        left: 75.5rem !important
+
+.meetingCars
+    @include wh(120px,120px)
+    background: url(/img/meetingCar.gif) no-repeat center center
+    background-size: 120px 120px
+    border-radius: 50%
+    background-color: #98D3FC
+.lightFlash
+    @include wh(20px,20px)
+    background: url(/img/lightflash.gif) no-repeat center center
+    background-size: 16px 16px
+
+
+.mapcontainer
+    flex: 1 1 auto
+    position: relative
+    overflow: hidden
+    display: flex
+    flex-flow: column nowrap
+
+    .map
+        @include wh(100%,100%)
+        display: flex
+        flex: auto
+        .ol-zoom, .ol-control
+            bottom: 6rem
+            background: none
+            right: .6rem
+            &:hover
+                background: none
+        .ol-zoom 
+            position: absolute
+            top: 3rem
+            right: 1rem
+        .ol-overlaycontainer-stopevent
+            position: relative
+            .ol-attribution
+                display: none !important
+            .ol-zoomslider
+                background: rgba(255,255,255,0.4)
+                height: 11rem
+                right: 1rem
+                top: -16.58rem !important
+            .ol-zoom-in, .ol-zoom-out
+                min-width: 30px
+                position: absolute
+                right: -0.8rem
+                top: -22rem
+
+            .ol-zoom-out
+                top: -8rem
+        .ol-rotate
+            position: absolute
+            top: -22.2rem
+            height: 2.5rem
+            bottom: 0 
+            right: 0.05rem
+            button
+                min-width: 2rem
+                height: 2rem
+                border-radius: 1rem
+                background: rgba(255,255,255,.5)
+            img
+                @include wh(80%,80%)
+        @media screen and (max-width: $width-medium) and (orientation: landscape)
+            .ol-rotate
+                 top: 3rem
+
+    .map-info
+        position: absolute
+        text-align: right
+        width: 400px
+        top: calc(100% - 50px)
+        left: 5px
+        height: 36px
+        background: $main-bgcolor-a
+
+        color: #FFF
+        padding: 5px 10px
+        border-radius: 2px
+        display: none
+
+
+    .ol-mouse-position
+        position: fixed
+        right: 15%
+        z-index: 99
+        top: 101.5%
+
+
+.map-canvas, .grid-canvas
+    flex: auto
+    @include wh(100%,100%)
+    overflow: hidden
+    display: flex
+    flex-flow: column nowrap
+    overflow: auto
+    @media screen and (max-width: $width-medium) and (orientation: landscape)
+        justify-content: inherit
+    .yellow,.red,.green
+        color: #000
+        padding: 4px 5px
+        border-radius: 5px
+        font-size: 0.8rem
+    .yellow
+        background: #e1e828
+    .red
+        background: #ec625a
+    .green
+        background: #27ca41
+
+    #css_animation, #css_animation_alarm
+        @include wh(50px,50px)
+        border-radius: 25px
+        transform: scale(0)
+        animation: myfirst 3s
+        animation-iteration-count: infinite
+
+    #css_animation
+        background: rgba(255, 255, 255, 0.9)
+    #css_animation_alarm
+        background: rgba(255, 0, 0, 0.9)
+    @keyframes myfirst
+        to
+            transform: scale(2)
+            background: rgba(0, 0, 0, 0)
+
+.tooltip
+    position: relative
+    background: rgba(0, 0, 0, 0.5)
+    border-radius: 4px
+    color: white
+    padding: 4px 8px
+    opacity: 0.7
+    white-space: nowrap
+
+.tooltip-measure
+    opacity: 1
+    font-weight:bold
+    &:before
+        border-top: 6px solid rgba(0, 0, 0, 0.5)
+        border-right: 6px solid transparent
+        border-left: 6px solid transparent
+        content: ""
+        position: absolute
+        bottom: -6px
+        margin-left: -7px
+        left: 50%
+
+.tooltip-static
+    background: white
+    color: black
+    border: 1px solid #0099ff
+    &:before
+        border-top: 6px solid rgba(0, 0, 0, 0.5)
+        border-top-color: #ffcc33
+        border-right: 6px solid transparent
+        border-left: 6px solid transparent
+        content: ""
+        position: absolute
+        bottom: -6px
+        margin-left: -7px
+        left: 50%
+.tooltip-radius
+    @include wh(45px,20px)
+    font:12px/20px
+
+.deletebox
+    position: relative
+    background: rgba(0, 0, 0, 0.5)
+    // color: white
+    padding: 0 4px 2px 4px
+    opacity: 0.7
+    white-space: nowrap
+
+.deletebox-static
+    background-color: white
+    color: red
+    font-weight: bold
+    cursor: pointer
+
+.tooltip-help
+    @include wh(100px,30px)
+    position: absolute
+    font-size: 0.8rem
+    border: 1px solid #09f
+    background: #f5f5f5
+    text-align: center
+    padding-top: 5px
+
+.tooltip-help-change
+    @include wh(150px,40px)
+    text-align: left
+
+.tooltip-help-end
+    width: 80px
+
+.map-card
+    @include align-center-middle
+    width: $map-cart-height
+    height: $map-cart-width
+    padding: 20px
+    margin: 10px
+    border: 1px solid rgba(0, 0, 0, 0.15)
+    border-radius: 5px
+    box-shadow: 0 0 4px #f0f0f0
+    cursor: pointer
+    overflow: auto
+    transition: $transition
+    @media screen and (max-width: $width-medium)
+        @include wh(80%,100px)
+    @media screen and (max-width: $width-medium) and (orientation: portrait)
+        height: 11.53rem
+        margin-right: 0.6rem
+    @media screen and (max-width: $width-medium) and (orientation: landscape)
+        height: 11.53rem
+        margin: 10px 0.67rem 10px 0
+    @media screen and (max-width: $width-small)
+        height: 100px
+        margin: 10px 10px 10px 4%
+
+

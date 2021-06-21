@@ -1,0 +1,42 @@
+<modify-pwd-dialog>
+  <div class="dlg-bg" onclick={stopPropagation}>
+    <div ref="pwddialog" class="dlg-window modify-dialog animated zoomIn">
+      <div class="dlg-head">
+        <span class="dlg-title">
+          <grip type="grip-horizontal"></grip>
+          <span>{ title }</span>
+        </span>
+        <span onclick={ hide }>
+          <svg class="icon"><use xlink:href="/icons/icons.svg#icon-close"></use></svg>
+        </span>
+      </div>
+      <div class="dlg-body dlg-body-for-modify">
+        <modify-pwd id="modipwd" username={name}></modify-pwd>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    this.title = opts.title
+    this.tagModifyPwd = null
+    this.name = opts.username
+
+    this.mixin('EventMixin')  // mixin the stopPropagation(evt)
+
+    this.on('mount', () => {
+      this.tagModifyPwd = this.tags['modify-pwd']
+
+      if (window.isPC) {
+        window.setDialogDraggable(this.root)
+      }
+    })
+
+    this.show = () => {
+      this.root.classList.remove('hide')
+    }
+
+    this.hide = (evt) => {
+      this.unmount(true)
+    }
+  </script>
+</modify-pwd-dialog>

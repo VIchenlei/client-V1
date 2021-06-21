@@ -1,0 +1,77 @@
+@import '../../sass/defs'
+
+.display-report-tag
+    font-size: 14px
+    .nav-tool
+        height: 1rem
+        img
+            @include line-height(.8rem,.8rem)
+            float: right
+            cursor: pointer
+    article
+        display: flex
+        height: 100%
+        .content-area
+            display: flex
+            flex-direction: column
+            justify-content: space-evenly
+            height: 100%
+            flex: 1
+            .select-area
+                .control-bar
+                    margin-bottom: .5rem
+                    display: flex
+                    div
+                        width: 30%
+                        &:nth-child(2)
+                            width: 50%
+                        @include align-middle
+                        select
+                            width: 5rem
+                .worktype-bar
+                    height: 2rem
+                    margin-bottom: .5rem
+                    @include align-middle-between
+                    padding: 0 2rem 0 30%
+                    span
+                        @include line-height(2rem,2rem)
+                        border-bottom: 1px solid #c0c2c3
+                        font-size: 14px
+                        cursor: pointer
+                        &:nth-child(1)
+                            border-bottom: none
+                            cursor: none
+                        &.active
+                            color: #09f
+            .basic_list
+                margin-top: 5rem
+                height: 85%
+                overflow-y: scroll
+                tr
+                    height: 2.7rem !important
+                .state-area
+                    @include align-middle
+                    padding-left: 9%
+                    span
+                        margin-right: 1.8rem
+
+        section
+            height: 85%
+            overflow-y: scroll
+            div
+                @include align-middle-between
+                border-bottom: 1px dotted #ccc
+                height: 2.2rem
+                &:hover,&.active
+                    background: #e3e3e3
+                span
+                    width: 5rem
+                    text-align: center
+                    &.detail
+                        cursor: pointer
+                        color: #09f
+                    &.labelTitle
+                        color: #000
+                input 
+                    width: 1rem
+                

@@ -1,0 +1,117 @@
+<page-login>
+  <div class="login-head">
+    <!-- <img src="/img/luanlogo.png" class="customer-logo"/> -->
+  </div>
+  <div class="login-body">
+    <div class="slogan-panel">
+      <div class="slogan">智慧矿山精准定位综合安全管理系统</div>
+      <div class="minor-slogan">精益化生产 · 精准化管控 · 精细化操作</div>
+    </div>
+    <div class="login-form">
+      <!-- <div id="titlebox" class="form-head">
+        <span>- 请登录 -</span>
+        
+        <span class="dot bg-warning"></span>
+        
+      </div> -->
+      <div class="form-body" id="form-body">
+        <div class="login-field">
+          <text-filed idname="username" type="text" text="请输入您的帐号..." icon="icon-account" classname="login-input" onkeydown={ hideMessage }></text-filed>
+        </div>
+        <div class="login-field">
+          <text-filed idname="userpwd" type="password" text="请输入您的密码..." icon="icon-lock" classname="login-input" onkeydown={ hideMessage }></text-filed>
+        </div>
+        <div class="error-message {message ? '' : 'node-hide'}">{ message }</div>
+      </div>
+      <div class="form-footer" onclick="{summitLogin}">
+        <button id="login-button" class="login-button">登  录</button>
+        <!-- <span class="ripple-span"></span> -->
+      </div>
+    </div>
+  </div>
+  <div class="login-foot">
+    <img src="/img/logo.png" alt="永安信通" class="hide-on-mb">
+    <span>©2017 永安信通</span>
+  </div>
+
+  <script>
+    import '../sass/login-body.sass'
+
+    // import { getCookie } from '../../js/utils/cookie.js'
+    import { encrypt } from '../../js/utils/utils.js'
+    import { setUserCredential } from '../../user/Credential.js'
+
+    this.user = opts.user
+    this.message = null
+
+    this.pcFlag = window.isPC
+
+    this.on('mount', () => {
+      this.nodeName = this.root.querySelector('.username')
+      this.nodePwd = this.root.querySelector('.userpwd')
+      let nameLabel = this.root.querySelectorAll('label')[0]
+      let pwdLabel = this.root.querySelectorAll('label')[1]
+
+      setUserCredential(this.nodeName, this.nodePwd, nameLabel, pwdLabel)
+
+
+      // let username = getCookie('username')
+      // if (username) {
+      //   this.nodeName.value = username
+      //   this.nodePwd.value = ''
+      // }
+
+      // this.nodeName.focus()
+    })
+
+    this.changeRedSvg = () => {
+      let svgs = this.root.querySelector('.login-body').getElementsByTagName('svg')
+      for (let i = 0; i < svgs.length; i++) {
+        svgs[i].style = `fill: #ff5454;`
+      }
+    }
+
+    this.summitLogin = () => {
+      let username = this.nodeName.value
+      let userpwd = this.nodePwd.value
+      userpwd = username && userpwd && encrypt(username, userpwd)
+      if (username !== '' && userpwd !== '') {
+        xbus.trigger('USER', {
+          cmd: 'LOGIN',
+          data: {
+            user_name: username,
+            user_pwd: userpwd
+          }
+        })
+      } else {
+        this.message = '请先输入用户名、密码，再按 ”登录“ '
+        this.changeRedSvg()
+      }
+    }
+
+    this.hideMessage = (evt) => {
+      if (this.message) {
+        this.message = null
+      }
+
+      // 在自定义tag中，riot 默认阻止事件传递。
+      // 所以，这里 return true 显式要求传递事件
+      return true
+    }
+
+    xbus.on('SHOW-USER-TIPS', (msg) => {
+      let svgs = this.root.querySelector('.login-body').getElementsByTagName('svg')
+      for (let i = 0; i < svgs.length; i++) {
+          svgs[i].style = `fill: #ff5454;`
+      }
+      this.message = msg.msg
+      this.changeRedSvg()
+      this.update()
+    })
+
+    xbus.on('enter-login', () => {
+      let enterLink = this.root.querySelector('#login-button')
+      enterLink.click()
+    })
+  </script>
+</page-login>

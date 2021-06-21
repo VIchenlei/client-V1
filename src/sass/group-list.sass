@@ -1,0 +1,109 @@
+@import defs
+
+.group-list-container
+    flex: auto
+    overflow-y: auto
+    overflow-x: hidden
+    padding: 1rem 0
+
+    .group-panel
+
+        .group-list
+            @include line-height(1.5rem,1.5rem)
+            display: flex
+            justify-content: space-between
+            padding: 0 1rem
+
+            span:nth-child(1)
+                text-align: start
+                flex: auto
+                white-space: nowrap
+            span:nth-child(2)
+                text-align: end
+                flex: 0 0 4rem
+
+        .group-list-title
+            @include line-height(2.4rem,2.4rem)
+            cursor: auto
+            // border-bottom: 1px solid $main-mapbgcolor
+            color: #999
+
+        .group-list-item
+            @include line-height(2.2rem,2.2rem)
+            margin: 1px
+            cursor: pointer
+            border-bottom: 1px dotted $main-mapbgcolor
+
+    .detail-panel
+
+        .detail-list
+            margin: 0 3px
+            padding: 5px
+            font-size: $fontsize-s
+            span
+                text-align: center
+                text-overflow: ellipsis
+            span:nth-child(1)
+                flex: 0 0 3.5rem
+            .vehicle-topic
+                flex: 0 0 4rem
+            .vehicle-topic-speed
+                flex: 0 0 3rem
+                text-align: end
+            span:nth-child(4)
+                flex: 0 0 4rem
+            .staff-topic-date
+                flex: 0 0 6rem
+            .staff-topic-null
+                flex: 0
+        .detail-list-title
+            display: flex
+            font-weight: bold
+            background: rgba(0, 14, 35, 0.5)
+            color: #efefef
+            span:nth-child(2)
+                flex: 0 0 4rem
+            span:nth-child(3)
+                flex: 0 0 4rem
+
+        .detail-list-item
+            cursor: pointer
+            // background: $map-right-cont
+            border-bottom: 1px solid $main-mapbgcolor
+            color: #efefef
+
+            img
+                @include wh(15px,15px)
+            p:nth-child(1)
+                display: flex
+                span:nth-child(4)
+                    flex: 0 0 7rem
+            p:nth-child(2)
+                text-align: right
+                // color: #666
+
+    .content-coal-cutting
+        @include line-height(2rem,2rem)
+        display: flex
+        justify-content: space-around
+        padding: 0 1rem
+        span:nth-child(1)
+            flex: 0 0 7rem
+        span:nth-child(2)
+            flex: 0 0 5rem
+        .icon
+            fill: $disabled-bdcolor
+            &:hover,&.active
+                fill: $active-bg
+    .callingList
+        display: flex
+        justify-content: space-around
+        span:nth-child(1)
+            flex: 0 0 2rem
+        span:nth-child(2),span:nth-child(3)
+            flex: 0 0 3rem
+        span:nth-child(4)
+            flex: 0 0 2rem
+            cursor: pointer
+            &:hover
+                color: $active-bg

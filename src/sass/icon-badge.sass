@@ -1,0 +1,22 @@
+@import './defs'
+
+.badge-container
+    position: relative
+    @include align-middle
+    cursor: pointer
+
+    .badge-mark-container
+        @include wh(1.6rem,1rem)
+        position: absolute
+        top: -4px
+        right: -.7rem
+        @include align-center-middle
+        border-radius: .5rem
+        border: 1px solid $head-ft
+        font-size: $fontsize-xs
+        background: $color-error
+        color: $head-ft
+        padding: 0 2px
+
+        .badge-mark
+            position: relative

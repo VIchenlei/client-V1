@@ -1,0 +1,175 @@
+<meta-edit>
+<div class="dlg-bg animated" onclick={ hidelist }>
+  <div name="meta-edit" ref="meta-edit" class="dlg-window meta-dialog animated">
+    <dialog-head title={title}></dialog-head>
+    <div class="dlg-body">
+      <div class="content-panel meta-edit">
+        <table>
+          <tbody>
+            <tr each={rows}>
+              <td>
+                <span>{field_label}</span>
+                <icon-input idname={ field_name } ref={field_name} type="text" placeholder="" icon="icon-down" classname="login-input" data-type={ field_type } value={ field_value } readonly={readonly.includes(field_name)} onclick={addList}></icon-input>
+                <div if={field_name === 'secondline' || field_name === 'frontline'} id="{field_name}-list-panel" class="popup-list hide input-popup-list"></div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button op-name="save-update" class="btn-sure" onclick={ save }>{cmd == 'DELETE' ? '删除' : '保存'}</button>
+      <button op-name="cancel-update" class="btn-cancel" onclick={ close }>取消</button>
+    </div>
+  </div>
+</div>
+<script>
+  import {clone, composeUpdateDBReq} from '../js/utils/utils.js'
+  this.readonly = ['dept_id', 'name']
+  let self = this
+  this.registerGlobalEventHandlers = () => {
+    xbus.on('META-UPDATE-DB-RES', (res) => {
+      if (res.data.name === this.topicName) {
+        let msg = {
+          value: res.code === 0 ? 'success' : 'failure',
+          tip: res.code === 0 ? '更新成功' : '更新失败，请联系系统管理员'
+        }
+        window.hintip.open(msg)
+        if (res.code === 0) {
+          let tr = this.deptStaffLevel.root.querySelector('.dept' + this.key)
+          let fronttd = tr && tr.querySelector('.frontline')
+          if (fronttd) fronttd.innerHTML = Array.from(this.frontline.keys()).length
+          let secondtd = tr && tr.querySelector('.secondline')
+          if (secondtd) secondtd.innerHTML = Array.from(this.secondline.keys()).length
+        }
+        this.close()
+      }
+    })
+  }
+
+  this.on('mount', () => {
+    window.setDialogDraggable(this.root)
+  })
+
+  this.init = (opts) => {
+    this.title = opts.title
+    this.rows = opts.rows
+    this.cmd = opts.cmd
+    this.key = opts.key
+    this.deptStaffLevel = opts.deptStaffLevel
+    this.frontline = new Map() // 一线员工
+    this.secondline = new Map() // 二线员工
+    this.noneline = new Map() // 非一线、二线员工
+    let staffs = xdata.metaStore.staffs && Array.from(xdata.metaStore.staffs.values())
+    let lists = staffs && staffs.filter(item => item.dept_id == this.key)
+    this.staffLists = clone(lists)
+    // this.staffLists.forEach(item => item.work_line = 0)
+    this.staffLists.forEach(item => {
+      if (item.work_line == 1) {
+        this.frontline.set(item.staff_id, item)
+      } else if (item.work_line == 2) {
+        this.secondline.set(item.staff_id, item)
+      }
+    })
+    this.registerGlobalEventHandlers()
+  }
+  this.init(opts)
+
+  this.getInputType = (fieldType) => {
+    if (fieldType !== 'SELECT') {
+      let ret = 'text'
+      switch (fieldType) {
+        case 'NUMBER':
+          ret = 'number'
+          break
+        default:
+          ret = 'text'
+      }
+      return ret
+    }
+  }
+
+  this.addList = (evt) => {
+    evt.stopPropagation()
+
+    let target = evt.currentTarget
+    let parentTarget = this.root.querySelector('.dlg-window')
+    let name = target.getAttribute('idname')
+    if (this.callList) {
+      this.callList.root.classList.add('hide')
+      this.callList.unmount(true)
+    }
+    let vessel = `div#${name}-list-panel`
+    this.callList = riot.mount(vessel, 'input-popup-list', {
+      target: target,
+      name: name,
+      self: self,
+      parentTarget: parentTarget
+    })[0]
+  }
+
+  this.changeCheck = (isChecked, item, name, staffID) => {
+    if (isChecked) {
+      this[name].set(item.staff_id, true)
+      this.noneline.delete(item.staff_id)
+      item.work_line = this.callList.title === 'frontline' ? 1 : 2
+    } else {
+      this[name].delete(item.staff_id)
+      this.noneline.set(item.staff_id, true)
+      item.work_line = 0
+    }
+  }
+
+  this.addLine = (isChecked, staffID, name, row) => {
+    if (staffID === 'all') {
+      this.callList.lists.forEach(item => {
+        this.changeCheck(isChecked, item, name, staffID)
+      })
+      this.callList.update()
+    } else {
+      this.changeCheck(isChecked, row, name, staffID)
+    }
+    // this.root.querySelector('#' + name).value = staffID === 'all' ? this.callList.lists.length : Array.from(this[name].values()).length
+    this.root.querySelector('#' + name).value = Array.from(this[name].values()).length
+  }
+
+  this.hidelist = (evt) => {
+    if (this.callList) {
+      this.callList.root.classList.add('hide')
+      this.callList.unmount(true)
+    }
+  }
+
+  this.getSql = (name, sql, type) => {
+    let lineSql = ''
+    let arr = Array.from(this[name].keys())
+    let length = arr.length
+    for (let i = 0; i < length; i++) {
+      lineSql += i === 0 ? `staff_id=${arr[i]} ` : `OR staff_id=${arr[i]} `
+    }
+    sql = lineSql ? `${sql} WHEN ${lineSql} THEN ${type}` : sql
+    return sql
+  }
+
+  this.save = () => {
+    let sql = `UPDATE dat_staff_extend${ xdata.isCheck === 1 ? '_ck' : '' } SET work_line =(CASE`
+    sql = this.getSql('frontline', sql, 1)
+    sql = this.getSql('secondline', sql, 2)
+    sql = this.getSql('noneline', sql, 0)
+    sql = `${sql} ELSE work_line END)`
+    // sql = `UPDATE dat_staff_extend SET work_line = (CASE WHEN ${frontSql} THEN 1 WHEN ${secondSql} THEN 2 WHEN ${noneSql} THEN 0 ELSE work_line END)`
+    console.log(sql)
+    this.topicName = `staff_extend${ xdata.isCheck === 1 ? '_ck' : '' }`
+    let req = composeUpdateDBReq('UPDATE', this.topicName, '', sql)
+    xbus.trigger('META-UPDATE-DB', {
+      req: req
+    })
+  }
+
+  this.close = () => {
+    // this.callList.clear()
+    this.root.querySelector('.dlg-bg').classList.add('zoomNone')
+    this.root.querySelector('.dlg-window').classList.add('zoomOut')
+  }
+</script>
+</meta-edit>

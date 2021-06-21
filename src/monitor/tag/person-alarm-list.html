@@ -1,0 +1,96 @@
+<person-alarm-list>
+  <div>
+    <span class="card">卡号</span>
+    <span class="name">姓名</span>
+    <span class="dept">部门</span>
+    <span class="time">开始时间</span>
+    <span class="time">结束时间</span>
+    <span class="msg">详情</span>
+    <span>关闭</span>
+  </div>
+  <div each={ item in lists }>
+    <span class="card">
+      <span>{item.first_card}</span>
+      <span>{item.sec_card}</span>
+    </span>
+    <span class="name">
+      <span>{item.first_name}</span>
+      <span>{item.sec_name}</span>
+    </span>
+    <span class="dept">
+      <span>{xdata.metaStore.getNameByID('dept_id', item.first_dept)}</span>
+      <span>{xdata.metaStore.getNameByID('dept_id', item.sec_dept)}</span>
+    </span>
+    <span class="time">{getTime(item.limit_value)}</span>
+    <span class="time">{getTime(item.cur_value)}</span>
+    <span class="msg" data-id={item.event_id}>
+      <span class="{xdata.alarmStore.alarmTrack.get(Number(item.event_id)) ? 'active' : ''}" onclick={showtrack}>显示路径</span>
+      <span class="char" onclick={showchar}>折线图</span>
+    </span>
+    <span data-id={item.event_id} onclick={ cancelAlarm }>
+      <svgicon icon="icon-close"></svgicon>
+    </span>
+  </div>
+  <script>
+    import './personcards-chart.html'
+    let defaultMapID = parseInt(xdata.metaStore.defaultMapID, 10)
+    this.updateList = (rows) => {
+      this.rows = rows
+      this.lists = Array.from(rows.values())
+      this.update()
+    } 
+
+    this.getTime = (time) => {
+      return new Date(time).format('MM-dd hh:mm')
+    }
+
+    this.showInit = (evt) => {
+      let target = evt.currentTarget
+      let eventID = parseInt(target.parentElement.getAttribute('data-id'), 10)
+      let row = this.rows.get(eventID)
+      return {
+        eventID: eventID,
+        row: row,
+        target: target
+      }
+    }
+
+    this.showtrack = (evt) => {
+      xbus.trigger('TOUCH-NAV', {
+        spName: 'sp_monitor',
+        msg: null
+      })
+      let showGroup = this.showInit(evt)
+      let eventID = showGroup.eventID
+      let row = showGroup.row
+      showGroup.target.classList.toggle('active')
+      let status = showGroup.target.classList.contains('active')
+      xdata.alarmStore.alarmTrack.clear()
+      if (status) xdata.alarmStore.alarmTrack.set(eventID, true)
+      let msg = {
+        status: status,
+        row: row
+      }
+      xbus.trigger('DRAW-PERSON-TRACK', msg)
+    }
+
+    this.showchar = (evt) => {
+      let showGroup = this.showInit(evt)
+      if (this.alarmChar) {
+        this.alarmChar.unmount(true)
+      }
+      this.alarmChar = riot.mount('personcards-chart', showGroup)[0]
+    }
+
+    this.cancelAlarm = (evt) => {
+      let target = evt.currentTarget
+      let eventID = parseInt(target.getAttribute('data-id'), 10)
+      xdata.alarmStore.personCardsMapAlarm.get(defaultMapID) && xdata.alarmStore.personCardsMapAlarm.get(defaultMapID).delete(eventID)
+      let msg = {
+        status: false
+      }
+      xbus.trigger('DRAW-PERSON-TRACK', msg)
+      xbus.trigger('ALARM-LIST-CHANGED')
+    }
+  </script>
+</person-alarm-list>

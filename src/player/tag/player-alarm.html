@@ -1,0 +1,37 @@
+<player-alarm>
+  <div class="player-alarm-block" if={ isShow }>
+    <div class="player-alarm-title">
+      <span each={title in titles}>{ title }</span>
+    </div>
+    <p class="item" each={alarmData, i in alarmDatas}>
+      <span class="alarmName" each={name in names} >{ getNameById(name, alarmData[name]) }</span>
+    </p>
+  </div>
+  <script>
+    import '../sass/player-alarm.sass'
+    this.titles = ['告警类型', '告警开始时间', '部门', '告警对象']
+    this.names = ['event_type_id', 'start_time', 'dept_id', 'card_id']
+    
+    this.getNameById = (name, value) => {
+      let dealValue = value
+      if (name === 'card_id') return xdata.metaStore.getCardNameByID(value)
+      if (name.includes('_id')) {
+        dealValue = xdata.metaStore.formatField(name, value, 'SELECT')
+      }
+      return dealValue
+    }
+
+    this.updateDatas = (rows) => {
+      this.isShow = (rows && rows.length > 0) ? true : false
+      this.alarmDatas = rows
+      this.update()
+    }
+
+    this.init = (opts) => {
+      this.alarmDatas = null
+      this.isShow = false
+    }
+
+    this.init(opts)
+  </script>
+</player-alarm>

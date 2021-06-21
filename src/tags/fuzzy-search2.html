@@ -1,0 +1,278 @@
+<fuzzy-search2>
+  <div if={ needSearchIcon } class="search-icon" id="selecticon" onclick={ doSearch }><img src="./img/search.png"></div>
+  <icon-input oninput={ searchInput } idname="searchinput" type="search" class="search-box search-box-fuzzy" text={ typeDef.placeholder} placeholder={typeDef.placeholder} icon="icon-down" classname="login-input" reg-type="CENR" onkeyup={ checkInput } onfocus={ focusInput } blurname='hiddenResult' ></icon-input>
+
+  <div if={ isShowResultList } class="popup-list">
+    <span if={ hasresult } class="list-item"  each={ item, i in result  } data-name={item} onclick={ chooseItem } data-type={ item[name + '_id'] } data-index={ i }>{ item[dataSet.desc] }</span>
+    <span if={ !hasresult } class="tips"> 无符合条件的{ typeDef.label } </span>
+  </div>
+
+  <script>
+    /**
+    通用模糊查找组件。
+
+    使用方法：
+    input :
+    // 搜索框定义
+    typeDef={
+      label: '人员',
+      placeholder: '请输入姓名或姓名首字母...',
+      cb: fn  // 选中搜索记录时的回调函数
+    }
+
+    // 搜索数据定义
+    dataSet={
+      desc: 'a',  // 定义显示搜索结果集时显示的字段：一般为描述字段，比如姓名
+      keys:['a', 'b', ...],  // 参与搜索的列名称
+      data:[{'a':'x', 'b':'y', ...}, ...]  // 被搜索的数据集
+    }
+
+    output:
+    // 被选中的 dataSet.data 中的记录，如 {'a':'x', 'b':'y', ...}
+    */
+    // console.log(opts)
+    import Fuse from 'fuse.js'
+    import { unique , clone , trim, judgeAreaIsneedDisplay } from '../js/utils/utils.js'
+    // 特殊集合
+    const specialResult=['his_patrol_data','his_maintenance','leader_arrange','dat_vehicle_state','dat_vehicle_drive','staff','vehicle']
+    // 最多取多少个结果
+    const MAX_ITEM_COUNT = 50
+
+    this.hasresult = false
+    this.needSearchType = opts.searchType  // 是否显示左边的搜索类型
+    this.needSearchIcon = opts.searchIcon  // 是否显示右边的搜索图标
+    this.isShowResultList = false
+    this.isShowTypeList = false
+
+    this.typeDef = opts.typeDef ? opts.typeDef : this.parent.typeDef
+    this.dataSet = opts.dataSet ? opts.dataSet : this.parent.dataSet
+    this.name = this.typeDef.name
+    // [
+    //   { key: 'vehicle', id: 2, label: '车辆', prefix: '002', placeholder: '车牌、车牌首字母、卡号' },
+    //   { key: 'staff', id: 1, label: '人员', prefix: '001', placeholder: '姓名、姓名首字母、卡号' }
+    // ]
+
+    this.updateData = (msg) => {
+      this.typeDef = msg.typeDef ? msg.typeDef : this.parent.typeDef
+      this.dataSet = msg.dataSet ? msg.dataSet : this.parent.dataSet
+      this.name = this.typeDef.name
+      // this.root.querySelector('#searchinput').value = ''
+      this.updateSearchDataSet(this.dataSet)
+      this.update()
+    }
+
+    this.registerGlobalEvent = () => {
+      xbus.on('HIDE-ALL-POPUP', () => {
+        let needUpdate = false
+        if (this.isShowResultList) {
+          this.isShowResultList = false
+          needUpdate = true
+        }
+        if (this.isShowTypeList) {
+          this.isShowTypeList = false
+          needUpdate = true
+        }
+        needUpdate && this.update()
+      })
+    }
+
+    let opts = {
+      threshold: 0,
+      // includeMatches: true,
+      minMatchCharLength: 2,
+      location: 0,
+      tokenize: true,
+      matchAllTokens: true,
+      keys: this.dataSet.keys
+      // keys: ['id', 'n', 'b']
+      // id: 'id'
+    }
+
+    let fuse = new Fuse(null, opts)
+    this.registerGlobalEvent()
+
+    // 回车 或 key 长度大于2并且不是数字，或 是数字且长度大于等于 3 ，自动搜索
+    this.checkInput = (evt) => {
+      let startSearch = false
+
+      if (evt.keyCode === 13) {
+        startSearch = true
+      } else {
+        let s = this.tags["icon-input"].refs.searchinput.value
+        if (s && s.length >= 1) {
+          // if (!isNaN(parseInt(s, 10))) {
+          //   if (s.length >= 3) { // 数字需要至少三个字符
+          //     startSearch = true
+          //   }
+          // } else { // 自动查找，字符只需要两个字符
+          //   startSearch = true
+          // }
+          startSearch = true
+        } else {
+          this.isShowResultList = false
+        }
+      }
+
+      if (startSearch) {
+        this.doSearch()
+      }
+      return true
+    }
+
+    // fuse.list 为空 或 类型不是上次的类型 或 类型相同但距离上次更新时间 > TIME_OUT，更新搜索数据集
+    // TODO 把数据准备的工作放到 webworker 中，并行处理，不影响主线程，避免卡顿
+    this.updateSearchDataSet = (dataSet) => {
+      if (this.name === 'staff') {
+        let userDeptID = parseInt(xdata.userDept, 10)
+        let depts = xdata.depts
+        if (depts) dataSet.data = dataSet.data.filter(item => item.dept_id && depts.includes(item.dept_id))
+      }
+      fuse.list = dataSet.data
+      opts.keys = dataSet.keys
+    }
+
+    this.dealSpecialMatchs = (matchs) => {
+      if (this.name === 'dept') {
+        //根部权限不同 员工级别管理检索结果只展示相对应的部门
+        matchs = matchs && matchs.filter(dept => {
+          if (!xdata.depts || xdata.depts.includes(dept.dept_id)) return dept
+        })
+      } else if (this.name === 'reader' || this.name === 'landmark') {
+        matchs = matchs && matchs.filter(item => judgeAreaIsneedDisplay(item))
+      } else if (this.name === 'area') {
+        matchs = matchs && matchs.filter(item => {
+          if (xdata.isCheck !== 1 || item.need_display !== 0) return item
+        })
+      }
+      return matchs
+    }
+
+    this.doSearch = () => {
+      let s = this.tags["icon-input"].refs.searchinput.value
+      s = trim(s)
+      if (!s && s.length < 2) { // 少于两个字符不查询
+        return
+      }
+
+      this.result = null
+      this.hasresult = false
+      let matchs = null
+
+      let keys = this.dataSet.keys
+
+      matchs = fuse.search(s)
+      matchs = this.dealSpecialMatchs(matchs)
+      
+      if (matchs && matchs.length > 0) {
+        matchs = matchs.slice(0, MAX_ITEM_COUNT)
+        // console.log(this.name)
+        if (['staff', 'vehicle'].includes(this.name) && (xdata.objRange === 1 || xdata.isCheck === 1)) {
+          matchs = this.filterNeedDislayCard(matchs)
+        }
+        this.backResult = clone(matchs)
+        let dittoname = clone(matchs)
+        if (this.typeDef.connect) {     
+          dittoname.forEach(e => {
+            let deptName = xdata.metaStore.getNameByID('dept_id', e.dept_id) || '无部门信息'
+            e.name = `${e.name} - ${deptName}`
+          });       
+          this.result = dittoname          
+        } else if (this.dataSet.keys.includes('staff_id')) {
+          dittoname.forEach(e => {
+            e.name = e.hasOwnProperty('reader_id') ? e.name : `${e.staff_id}-${e.name}-${xdata.metaStore.getNameByID('dept_id', e.dept_id) || '无部门信息'}`
+          });       
+          this.result = dittoname   
+        } else if (this.dataSet.desc === 'name' && !this.dataSet.keys.includes('staff_id')) {
+          this.result = unique(matchs, this.dataSet.desc)
+        } else {          
+          this.result = dittoname
+        }           
+        this.hasresult = true
+      }
+      this.isShowResultList = true
+      this.update()
+    }
+    
+    this.chooseItem = (evt) => {
+      evt.stopPropagation()
+      let t = evt.currentTarget
+      let v = t.getAttribute('data-index')
+      let i = v && parseInt(v, 10)
+      let self = this
+      let value = this.backResult[i].name && this.dataSet.desc==='name' && !this.dataSet.keys.includes('staff_id') ? this.result[i].name : this.backResult[i][this.dataSet.desc]  
+      // 历史轨迹name取人名判断
+      if(this.typeDef.pageName && this.name ==='staff'  && value.indexOf('-')){
+        value = trim(value.split('-')[0])
+      }
+      // 获取name重复的集合
+      if(this.dataSet.desc==='name' && !this.dataSet.keys.includes('staff_id')){
+        var resultArr=[]  
+        for (let i = 0; i < this.backResult.length; i++) {
+          if(this.backResult[i].name===value){
+            resultArr.push(this.backResult[i])
+          }
+        }
+        resultArr.length > 0 ? this.typeDef.cb(resultArr) : this.typeDef.cb(self.backResult)
+      }else{
+        this.typeDef.cb(self.backResult[i])
+      }
+      
+      
+      this.isShowResultList = false
+      this.update()
+      this.tags["icon-input"].refs.searchinput.setAttribute('data-type', t.getAttribute('data-type'))
+      evt.preventUpdate = true
+    }
+
+    this.hiddenResult = (evt) =>{
+      this.isShowResultList = false
+    }
+
+    this.clearSearchInput = () => {
+      this.refs.searchinput.value = ''
+    }
+
+    this.initSearchList = () => {
+      this.hasresult = true
+      let inputValue = this.tags["icon-input"].root.querySelector('input').value
+      this.result = this.result && inputValue ? this.result : this.dataSet.data
+      this.backResult = clone(this.result)
+      // this.result = this.singMatchs
+      this.update()
+    }
+
+    this.focusInput = (evt) => {
+      this.isShowResultList = this.typeDef['isShowResultList'] ? this.typeDef['isShowResultList'] : false
+      this.isShowTypeList = false
+      if (this.isShowResultList) this.initSearchList()
+    }
+    
+    this.searchInput = (evt) => {
+      let value = evt.target.value
+      if (value === "") {
+        if (specialResult.includes(this.name) || this.typeDef.hasOwnProperty('isValue')) {
+          // isValue只在报表中存在该属性
+          let rows = []
+          this.typeDef.cb(rows)
+        } else {
+          let rows = xdata.metaStore.dataInArray.get(this.name)
+          rows = this.dealSpecialMatchs(rows)   
+          this.typeDef.cb(rows)
+        }
+        
+        this.isShowResultList = false
+      }
+    }
+    this.updateList = () => {
+      this.clearSearchInput()
+      this.updateSearchDataSet()
+    }
+
+    this.updateSearchDataSet(this.dataSet)
+
+    this.filterNeedDislayCard = (matchs) => {
+      let data = matchs.filter((item) => item.need_display != 0)
+      return data
+    }
+  </script>
+</fuzzy-search2>

@@ -1,0 +1,205 @@
+<dept-staff-level>
+  <span class="seek-staff">
+    <span class="identify-staff2 search-bar"></span>
+    <!-- <button onclick={ accurateSearch }>查询</button> -->
+  </span>
+  <table if={hasdata}>
+    <thead>
+      <tr onclick={sortRows}>
+        <th each={label in labels}>
+          <span class={ label !== '一线员工数' && label !== '二线员工数' ? 'handShape' : '' }>{label}</span>
+          <img class="hide" src="/img/{isAscending ? 'angle-up.png' : 'angle-down.png'}" alt="">          
+        </th>
+        <th>编辑</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr each={ row in rows } class={row && 'dept' + row.dept_id}>
+        <td title={ row && row.dept_id }>{row && row.dept_id}</td>
+        <td title={ row && row.name }>{row && row.name}</td>
+        <td title={ getLineNum(row, 'front') } class="frontline">{getLineNum(row, 'front')}</td>
+        <td title={ getLineNum(row, 'second') } class="secondline">{getLineNum(row, 'second')}</td>
+        <td>
+          <span onclick={ edit } data-id={row && row.dept_id} class="hint--top-left" aria-label="编辑">            
+            <img src="/img/edit.png" alt="">
+            <!-- <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-edit"></use></svg> -->
+          </span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="pagination" data-is="pagination" totalpage={totalPage} pageindex={pageIndex} tablename={name} if={totalPage>1}></div>
+  <div data-is="blank-message" message="当前数据库中没有相关记录！请查证后再试。" class="blank-message" if={ !hasdata }></div>
+  <script>
+    import {manages} from '../../js/def/manage_def.js'
+    import {getRows, getMessage, clone , compare, getSearchData, checkClick } from '../../js/utils/utils.js'
+    import fuzzySearch from '../../js/def/fuzzy_search'
+    this.root.classList.remove('hide')
+    const STAFFS = (xdata.objRange === 1 || xdata.isCheck === 1) ? Array.from(xdata.metaStore.staffs.values()).filter(item => item.need_display === 1) : Array.from(xdata.metaStore.data.staff_extend.values())
+    const FRONTLINE = 1 // 一线员工
+    const SECONDLINE = 2 // 二线员工
+    let self = this
+    let typeDef = null
+    let dataSet = null
+    const sortByNumber = ['staff_id','coalface_id','drivingface_id']
+
+    this.getLineNum = (row, type) => {
+      let deptID = row && row.dept_id
+      let typeline = type === 'front' ? FRONTLINE : SECONDLINE
+      let line = STAFFS && STAFFS.filter(item => item.dept_id === deptID && item.work_line === typeline)
+      return line.length
+    }
+
+    this.sortRows = (evt) => { //排序
+			let target = evt && evt.target
+      let nodename = target.nodeName.toLowerCase()
+      let label = checkClick(target, nodename)
+      if(!label) return //为‘操作’时label无值，不能点击
+			this.isAscending = label === this.sortBasic ? !this.isAscending : true
+      this.sortBasic = label   
+      let labelIndex = this.fields.labels.indexOf(label)
+			let condition = this.fields.names[labelIndex]
+      if(condition === 'frontline' || condition === 'secondline') return 
+		  let sortType = this.fields.types[labelIndex] !== 'NUMBER'  && this.fields.types[labelIndex] !== 'SELECT' && !sortByNumber.includes(condition) ? 'chinese' : ''
+      this.lists.sort(compare(condition, sortType , this.isAscending ? null : 'reverse'))
+      this.total = this.lists && this.lists.length
+      this.rows = this.total && this.lists.slice(0, PAGE_SIZE)
+      this.controlDisplay(target, nodename)
+    }  
+
+    //改变箭头的方向、显隐 2019-05-22 lmj
+    this.controlDisplay = (target, nodename) => {
+      this.preTarget && this.preTarget.querySelector('img').classList.add('hide')
+      if (!target) return
+      target = nodename === 'th' ? target : target.parentElement
+      target.querySelector('img').classList.remove('hide')
+      this.preTarget = target
+    }  
+
+    this.initPagination = () => {
+      this.totalPage = Math.ceil(this.total / PAGE_SIZE)
+      this.pageIndex = this.pageIndex ? this.pageIndex : 0
+      this.update()
+    }
+
+    this.accurateSearch = () => {
+      let value = this.root.querySelector('.search-box') && this.root.querySelector('.search-box').querySelector('#searchinput').value,filterdata,searchData
+      let name = 'dept'
+      filterdata = xdata.metaStore.dataInArray.get(name)
+      if(value){
+        if(fuzzySearch.hasOwnProperty(name)){
+          let len = fuzzySearch[name].keys.length
+          for(let i=0; i<len; i++){
+            searchData = filterdata.filter(item => {
+              value = fuzzySearch[name].keys[i] === 'name' ? value : Number(value)
+              return item[fuzzySearch[name].keys[i]] === value
+            })
+            if (searchData.length > 0) {
+              break;
+            }
+          }
+        }else{
+          searchData = filterdata.filter(item => item.name === value)
+          if (searchData.length <= 0) {
+            searchData = filterdata.filter(item => item[name+'_id'] === Number(value))
+          }
+        }
+      } else {
+        searchData = xdata.metaStore.dataInArray.get(name)
+      }
+      xbus.trigger('HIDE-ALL-POPUP')
+      this.lists = searchData
+      this.total = this.lists && this.lists.length
+      this.rows = this.total && this.lists.slice(0, PAGE_SIZE)
+      this.hasdata = !!this.total
+      this.initPagination()
+      this.update()
+    }
+
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+      this.pageIndex = msg.pageIndex
+      this.start = this.pageIndex * PAGE_SIZE
+      this.end = this.start + PAGE_SIZE
+      this.rows = this.lists.slice(this.start, this.end)
+      window.xhint.close()
+      this.update()
+    })
+
+    this.edit = (evt) => {
+      let target = evt.currentTarget
+      let row = clone(evt.item)
+      let deptID = target.getAttribute('data-id')
+      let tr = target.parentElement.parentElement
+      let frontline = tr.querySelector('.frontline').innerHTML
+      let secondline = tr.querySelector('.secondline').innerHTML
+      row.row['frontline'] = parseInt(frontline, 10)
+      row.row['secondline'] = parseInt(secondline, 10)
+      let rows = getRows(row, manages['staffDeptLevel'], this.maxid)
+      let msg = getMessage('UPDATE', rows, manages['staffDeptLevel'], this.maxid)
+      msg['key'] = deptID
+      msg['deptStaffLevel'] = self
+      xbus.trigger('META-EDIT-MSG', msg)
+    }
+
+    this.getResult = (result) => {
+      let chosedStaff = result
+      let desc=dataSet.desc
+      // 检索之后 页面分页为第一页
+      this.pageIndex = 0
+      if(this.root.querySelector('#searchinput').value){
+        if(desc!=='name'){     
+          this.root.querySelector('#searchinput').value = result[desc]
+          this.lists = [result]
+        }else{
+          this.root.querySelector('#searchinput').value = result[0][desc]   
+          this.lists = result
+          this.total = this.lists && this.lists.length
+          this.rows = this.total && this.lists.slice(0, PAGE_SIZE)
+          this.hasdata = !!this.total
+          this.initPagination()
+        }
+      }else{
+        this.lists = result
+        this.total = this.lists && this.lists.length
+        this.rows = this.total && this.lists.slice(0, PAGE_SIZE)
+        this.hasdata = !!this.total
+        this.root.querySelector('#searchinput').value = ''  
+        this.initPagination()   
+      }
+      
+      this.update()
+    }
+
+    this.getList = () => {
+      let depts = xdata.metaStore.data.dept && Array.from(xdata.metaStore.data.dept.values())
+      depts = depts && depts.filter(dept => {
+        if (!xdata.depts || xdata.depts.includes(dept.dept_id)) return dept
+      })
+      return depts
+    }
+
+    this.init = () => {
+      this.fields = manages['staffDeptLevel'].fields
+      this.labels = manages['staffDeptLevel'].fields.labels
+      this.label = manages['staffDeptLevel'].label
+      this.lists = this.getList()
+      this.total = this.lists && this.lists.length
+      this.rows = this.total && this.lists.slice(0, PAGE_SIZE)
+      let results = getSearchData(this.label, 'dept', this.rows, this.getResult)
+      typeDef = results.typeDef
+      dataSet = results.dataSet
+      this.hasdata = !!this.total
+      this.initPagination()
+    }
+    this.init()
+
+    this.on('mount', () => {
+      this.fuzz = riot.mount('span.identify-staff2', 'fuzzy-search2', { typeDef: typeDef, dataSet: dataSet, searchIcon: true})[0]
+    })
+
+    this.on('unmount', () => {
+      this.root.classList.add('hide')
+      xbus.off('META-UPDATE-DB-RES')
+    })
+  </script>
+</dept-staff-level>

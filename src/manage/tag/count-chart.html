@@ -1,0 +1,206 @@
+<count-chart>
+  <div class='queryTime'>
+    <input type="month" placeholder="请选择查询时间"></input>
+    <select>
+            <option>所有</option>
+            <option each={ row in vehicleNumber }>{row.name}</option>
+        </select>
+    <button onclick={ doQueryByMonth }>查询</button>
+  </div>
+  <div id="main" style="width: 1300px;height:400px;"></div>
+  <script>
+    import echarts from 'echarts'
+
+    this.vehicleNumber = opts.vehicleNumber
+
+    this.on('mount', () => {
+      let dateTime = new Date((new Date(opts.times).getTime())).format('yyyy-MM')
+      this.doQueryData(dateTime, 'all')
+    })
+
+    this.doQueryByMonth = (evt) => {
+      let date = this.root.querySelector('input').value
+      let condition = this.root.querySelector('select').value
+      let type = condition === '所有' ? 'all' : 'special'
+      type === 'special' ? this.formatCardID(date, condition) : this.doQueryData(date, type)
+    }
+
+    this.formatCardID = (date, condition) => {
+      console.log('this.vehicleNumber', this.vehicleNumber)
+      let cardID = this.vehicleNumber.filter(item => item.name === condition)[0].card_id
+      this.doQueryData(date, 'special', cardID)
+    }
+
+    this.doQueryData = (dateTime, type, cardID) => {
+      let sql = null
+      if (type === 'all') {
+        sql = `select date_format(hvo.cur_time,"%Y-%m-%d") as times,sum(hvo.oli_wear) as oil
+from his_vehicle_oilwear hvo where date_format(hvo.cur_time,"%Y-%m") = '${dateTime}'
+group by date_format(hvo.cur_time,"%Y-%M-%d")`
+      } else if (type === 'special') {
+        sql = `select date_format(hvo.cur_time,"%Y-%m-%d") as times,sum(hvo.oli_wear) as oil
+from his_vehicle_oilwear hvo where date_format(hvo.cur_time,"%Y-%m") = '${dateTime}' and card_id = ${cardID}
+group by date_format(hvo.cur_time,"%Y-%M-%d")`
+      }
+
+      console.log(sql)
+      let msg = {
+        cmd: 'query',
+        data: {
+          name: 'oilCount',
+          sql: sql
+        }
+      }
+
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: msg,
+        def: {
+          name: 'oilCount'
+        }
+      })
+    }
+
+    xbus.on('REPT-SHOW-RESULT', (msg) => {
+      switch (msg.def.name) {
+        case 'oilCount':
+          this.countData = msg.rows
+          this.dealData(this.countData)
+          break
+      }
+    })
+
+    this.dealData = (data) => {
+      let dataNumber = []
+      let dataOil = []
+      if (!data) {
+        return console.warn('没有相关数据！')
+      }
+      for (let i = 0, len = data.length; i < len; i++) {
+        dataNumber.push(data[i].times)
+        dataOil.push(data[i].oil)
+      }
+
+      this.initChart(dataNumber, dataOil)
+    }
+
+    this.initChart = (dataNumber, dataOil) => {
+      if (!dataNumber || !dataOil) {
+        return
+      }
+      let myChart = echarts.init(this.root.querySelector('#main'))
+      let dataAxis = dataNumber
+      let data = dataOil
+
+      // let yMax = 500
+      let dataShadow = []
+
+      if (!data) {
+        return console.warn('没有相关数据！')
+      }
+
+      for (let i = 0; i < data.length; i++) {
+        dataShadow.push(data[i])
+      }
+
+      let option = {
+        tooltip: {
+          trigger: 'item'
+        },
+        title: {
+          text: '油耗当月统计记录',
+          left: 'center'
+          // subtext: 'Feature Sample: Gradient Color, Shadow, Click Zoom'
+        },
+        xAxis: {
+          name: '时间(日)',
+          data: dataAxis,
+          axisLabel: {
+            inside: true,
+            textStyle: {
+              color: '#fff'
+            }
+          },
+          axisTick: {
+            show: false
+          },
+          axisLine: {
+            show: false
+          },
+          z: 10
+        },
+        yAxis: {
+          name: '油耗(L)',
+          axisLine: {
+            show: false
+          },
+          axisTick: {
+            show: false
+          },
+          axisLabel: {
+            textStyle: {
+              color: '#999'
+            }
+          }
+        },
+        dataZoom: [
+          {
+            type: 'inside'
+          }
+        ],
+        series: [
+          { // For shadow
+            type: 'bar',
+            itemStyle: {
+              normal: { color: 'rgba(0,0,0,0.05)' }
+            },
+            barGap: '-100%',
+            barCategoryGap: '40%',
+            data: dataShadow,
+            animation: false
+          },
+          {
+            type: 'bar',
+            itemStyle: {
+              normal: {
+                color: new echarts.graphic.LinearGradient(
+                  0, 0, 0, 1,
+                  [
+                    { offset: 0, color: '#83bff6' },
+                    { offset: 0.5, color: '#188df0' },
+                    { offset: 1, color: '#188df0' }
+                  ]
+                )
+              },
+              emphasis: {
+                color: new echarts.graphic.LinearGradient(
+                  0, 0, 0, 1,
+                  [
+                    { offset: 0, color: '#2378f7' },
+                    { offset: 0.7, color: '#2378f7' },
+                    { offset: 1, color: '#83bff6' }
+                  ]
+                )
+              }
+            },
+            data: data
+          }
+        ]
+      }
+
+      // Enable data zoom when user click bar.
+      let zoomSize = 6
+      myChart.on('click', function (params) {
+        if (!dataAxis[Math.max(params.dataIndex - zoomSize / 2, 0)]) {
+          return
+        }
+        myChart.dispatchAction({
+          type: 'dataZoom',
+          startValue: dataAxis[Math.max(params.dataIndex - zoomSize / 2, 0)],
+          endValue: dataAxis[Math.min(params.dataIndex + zoomSize / 2, data.length - 1)]
+        })
+      })
+
+      myChart.setOption(option)
+    }
+  </script>
+</count-chart>

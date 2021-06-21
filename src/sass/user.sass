@@ -1,0 +1,48 @@
+@import defs
+
+.user-canvas
+  flex: auto
+  height: 100%
+  overflow: scroll
+  @include align-center-middle
+  flex-flow: column nowrap
+  color: $minor-color
+
+  div
+    display: block
+    flex-flow: row nowrap
+    width: 100%
+    text-align: center
+    padding: 2px
+
+    .username
+      display: inline-block
+      line-height: 42px
+      position: relative
+      color: $minor-color
+      font-weight: bolder
+
+    label
+      width: 150px
+      display: inline-block
+      text-align: end
+      padding-right: 10px
+
+    input
+      width: 200px
+    span
+      position: absolute
+      width: 200px
+      text-align: left
+      line-height: 50px
+      color: #F00
+      padding-left: 5px
+
+
+  .title
+    background: none
+    font-size: 1.5em
+
+  .tips
+    background: none
+    flex: none

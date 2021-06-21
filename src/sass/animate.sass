@@ -1,0 +1,46 @@
+
+
+/* Ripple Out */
+@keyframes hvr-ripple-out
+  100%
+    top: -12px
+    right: -12px
+    bottom: -12px
+    left: -12px
+    opacity: 0
+
+
+.hvr-ripple-out
+  display: inline-block
+  vertical-align: middle
+  transform: translateZ(0)
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0)
+  backface-visibility: hidden
+  position: relative
+
+.hvr-ripple-out:before
+  content: ''
+  position: absolute
+  border: #e1e1e1 solid 6px
+  top: 0
+  right: 0
+  bottom: 0
+  left: 0
+  animation-duration: 1s
+
+.hvr-ripple-out:hover:before, .hvr-ripple-out:focus:before, .hvr-ripple-out:active:before
+  animation-name: hvr-ripple-out
+
+.colorful-stripe
+  position: absolute
+  top: 50%
+  left: 50%
+  transform: translate(-50%, -50%)
+  width: 300px
+  line-height: 200px
+  text-align: center
+  color: #fff
+  font-size: 200%
+  border-radius: .5em
+  background: linear-gradient(limegreen, transparent), linear-gradient(90deg, skyblue, transparent), linear-gradient(-90deg, coral, transparent)
+  background-blend-mode: screen

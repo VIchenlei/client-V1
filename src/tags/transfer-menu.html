@@ -1,0 +1,102 @@
+<transfer-menu>
+    <div each={ i in data } onclick={ activateItem } class="menu">
+        <side-list each={ i } def={ this } if={isShow(this)}></side-list>
+    </div>
+    <div if={ show } class="changeTag" onclick={ changeIndex }>></div>
+    <script>
+        import './side-list.html'
+        import {getMenus} from '../js/utils/utils.js'
+        this.menus = opts.menus
+        this.name = opts.name
+        const DEPTSPEACIAL = ['车辆报表查询','三率报表查询','设备报表查询']
+        this.active_item = null
+        let arr = []
+        const showNumber = 100 //设置成100，暂时隐藏滚动
+        this.show = this.menus.length > showNumber
+
+        this.isShow = (row) => {
+            if (DEPTSPEACIAL.includes(row.title) && xdata.roleID === 2) return false
+            if (this.roleRankID !== 2) return true
+            let menuID = row.menuID
+            if (!menuID) return true
+            if (this.checkedMenu.includes(menuID)) return true
+            return false
+        }
+
+        this.init = () => {
+            let roleID = xdata.roleID
+            let menuRes = getMenus(roleID)
+            this.roleRankID = menuRes.roleRankID
+            this.checkedMenu = menuRes.checkedMenu
+            for (var i = 0, len = this.menus.length; i < len; i += showNumber) {
+                arr.push(this.menus.slice(i, i + showNumber))
+                this.data = arr
+            }
+        }
+
+        this.init()
+       
+        this.changeIndex = () => {
+            let ele = this.root.classList
+            let tabEle = this.root.querySelector('.changeTag').classList
+            if (ele.contains('translateToLeft')) {
+                ele.remove('translateToLeft')
+                ele.add('translateToRight')
+                tabEle.remove('changeLeft')
+                tabEle.add('changeRight')
+            } else {
+                ele.remove('translateToRight')
+                ele.add('translateToLeft')
+                tabEle.remove('changeRight')
+                tabEle.add('changeLeft')
+            }
+        }
+
+        // arrow function 绑定了 this
+        this.activateItem = (evt) => {
+            let name = null
+            let msg = null
+
+            if (evt.cardID) {
+                msg = evt
+                // if (evt.name === 'staff') {
+                //     name = 'person'
+                // } else {
+                //     name = 'vehicle_updown_mine'
+                // }
+                name = evt.report
+                this.name = 'REPT'
+            } else {
+                let el = evt.target
+
+                if (this.active_item) {
+                    this.active_item.classList.remove('active')
+                }
+                this.active_item = el
+                this.active_item.classList.add('active')
+                name = this.active_item.getAttribute('name')
+
+                // sessionStorage.setItem('select', name)
+            }
+
+            if (name) {
+                let eventName = `${this.name}-SWITCH-MENU`
+                xbus.trigger(eventName, {
+                    menuname: name,
+                    msg: msg
+                }) // META-SWITCH-MENU, REPT-.., STATUS-..
+            }
+        }
+
+        xbus.on('SHOW-REPORT', (msg) => {
+            this.activateItem(msg)
+        })
+
+        xbus.on('SIDE-MENU-UPDATE', (msg) => {
+            if (msg.name === this.name) {
+                this.menus = msg.menus
+                this.update()
+            }
+        })
+    </script>
+</transfer-menu>

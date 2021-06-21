@@ -1,0 +1,58 @@
+<drivingface-realChart>
+    <div class="draw-content">
+        <div class="draw-top draw-tunnerller">
+          <span class="base-line"> 基准点</span>
+          <div class="bgVehicle">
+            <span>{ overDistance }(m)</span>
+            <span class="warnLine"></span>
+            <span class="vertical-distance">已掘进{ realDis }m</span>
+            <span class="doatVehicle"></span>
+          </div>
+        </div>
+        <div class="draw-footer">大巷</div>
+      </div>
+      <script>
+          this.on('mount', () => {
+            console.log('mount')
+          })
+          xbus.on('REPT-SHOW-RESULT', (msg) => { // 接受数据库数据
+            console.log('--------', msg.rows)
+            if (msg.def.name === 'tunnellerFaceDis') {
+              msg.rows && this.initTotalLength()
+            } else if (msg.deg.name === 'tunnellerFace') {
+              msg.rows && this.initPlanLength()
+            }
+            this.init()
+            this.update()
+          })
+
+          this.initTotalLength = (data) => {
+            this.realDis = data.total_length
+          }
+
+          this.initPlanLength = (data) => {
+            this.planDis = data.plan_length
+          }
+
+          this.init = () => {
+            this.overDistance = (this.planDis - this.realDis).toFixed(0)
+            let bgVehicle = this.root.querySelector('.bgVehicle')
+            if (!bgVehicle) return
+            bgVehicle.style.height = (this.totallength - this.realDis) / this.totallength * 100 + '%'
+          }
+
+          xbus.on('UPDATE-TOTAL-LENGTH', (msg) => {
+            this.initTotalLength(msg)
+            this.init()
+            this.setWarnLinePos()
+            this.update()
+          })
+
+          this.setWarnLinePos = (msg) => {
+            let warnLine = this.root.querySelector('.warnLine')
+            if (warnLine) {
+              warnLine.style.top = msg.top
+            }
+          }
+      </script>
+</drivingface-realChart>

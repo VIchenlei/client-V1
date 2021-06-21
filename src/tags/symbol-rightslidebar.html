@@ -1,0 +1,1300 @@
+
+<symbol-rightslidebar>
+   <div class="dlg-bg">
+      <span class="span" if={ pcFlag }></span>
+      <span class="span" if={ pcFlag }></span>
+      <span class="span" if={ pcFlag }></span>
+      <span class="span" if={ pcFlag }></span>
+
+    <div name="symbol_dialog" class="dlg-window symbol-dialog">
+      <div class="bar-title" >
+          <span class="tittle-container" if={ pcFlag }>
+            <span id="alarm" class="activeTag" onclick={ switchItem }>
+              <svg class="icon"><use xlink:href="/icons/icons.svg#icon-warning"></use></svg>
+            </span>
+            <span>告警</span>
+          </span>
+          <span class="tittle-container">
+            <span id="vehicle" class="disActiveTag" onclick={ switchItem }>
+              <svg class="icon"><use xlink:href="/icons/icons.svg#icon-bus-5"></use></svg>
+            </span>
+            <span if={ pcFlag }>车辆</span>
+          </span>
+          <span class="tittle-container" if={ pcFlag }>
+            <span id="reader" class="disActiveTag" onclick={ switchItem }>
+              <svg class="icon"><use xlink:href="/icons/icons.svg#icon-bstation"></use></svg>
+            </span>
+            <span>分站</span>
+          </span>
+          <span class="tittle-container" if={ pcFlag }>
+            <span id="light" class="disActiveTag" onclick={ switchItem }>
+              <svg class="icon"><use xlink:href="/icons/icons.svg#icon-traffic-light"></use></svg>
+            </span>
+            <span>红绿灯</span>
+          </span>
+          <!--
+          <span onclick={ close }>
+             <svg class="icon"><use xlink:href="/icons/icons.svg#icon-close"></use></svg>
+          </span>
+          -->
+      </div>
+       <div data-is="right-titlebar"></div>
+      <!--
+      <div name="symbol_title" class="dlg-head">
+        <span class="dlg-title">
+          <grip type="grip-horizontal"></grip>
+          { title }
+        </span>
+        <span onclick={ close }>
+          <svg class="icon"><use xlink:href="/icons/icons.svg#icon-close"></use></svg>
+        </span>
+      </div>
+      -->
+      <div class="dlg-body">
+        <div class="tab-bar">
+            <!--
+            <side-rightmenu each={subtype in subtypes}  class="tab"> </side-rightmenu>
+            -->
+            <div id="alarm-detail" class="tabBarDetail">
+              <alarm-panel-pc></alarm-panel-pc>
+            </div>
+            <div id="vehicle-detail" class={ pcFlag ? "hide tabBarDetail" : ''}>
+              <!--<div class="op-panel no-margin ">
+                  <span class="op-title alarm-op-title">车辆</span>
+                </div>-->
+              <div class="content-panel" if={vehicleHasData}>
+                <svg class="icon-close" onclick={ vehicleClose } if={ !pcFlag }>
+                  <use xlink:href="/icons/icons.svg#icon-circle-cross"></use>
+                </svg>
+                <div class="dlg-vehicle">
+                  <p if={ vehicle.over_time_vehicle }>
+                    <span>井下车辆超时</span>
+                    <span class="vehicle-4 icon" onclick={ showDetail }>{ vehicle.over_time_vehicle }</span>
+                  </p>
+                  <p each={ area in areas }>
+                    <span>{xdata.metaStore.getNameByID('area_id', area[0])}车辆超时</span>
+                    <span class="vehicle-5 icon" onclick={ showDetail }>{ area[1] }</span>
+                  </p>
+                </div>
+                <div class="vehicleArea">
+                  <div each={ area in areaRow }>
+                    <p class="vehicle-title">
+                      <span class={ area.areaID }>{ area.area }:</span>
+                      <span onclick={ showArea } class={ area.areaID }>{ area.profit.length }</span>
+                    </p>
+                    <p each={ vRow in area.profit } class="vehicles { !area.isSpecial ? 'noSpecial' : ''}">
+                      <span>{ vRow[2] }</span>
+                      <span>{ xdata.metaStore.driverData.get(vRow[2]).name ? xdata.metaStore.driverData.get(vRow[2]).name : '' }</span>
+                     
+                      <span class="vehicleSpeed" if={ area.isSpecial }>{ Math.abs(vRow[15]).toFixed(1) }</span>
+                      <span if={ area.isSpecial }>
+                        <!--<svg class="icon local{ vRow[0] } { xdata.locateStore.get(vRow[0]) ? 'activated' : ''}" onclick={ toggleLocate } callid={ xdata.userName + '-type-' + vRow[0]} id = { vRow[0] }>
+                            <use class={ 'watch-' + vRow[0] } xlink:href="/icons/icons.svg#icon-location-2"></use>
+                        </svg>
+                        <svg class="icon track{ vRow[0] } { xdata.trackStore.get(vRow[0]) ? 'activated' : ''}" onclick={ toggleTrack } callid={ xdata.userName + '-type-' + vRow[0]} id = { vRow[0] }>
+                            <use class={ 'watch-' + vRow[0] } xlink:href="/icons/icons.svg#icon-earth"></use>
+                        </svg>-->
+                        <img  class="{ 'watch-' + vRow[0] } icon { xdata.locateStore.get(vRow[0]) ? 'activated' : ''}" src="{ xdata.locateStore.get(vRow[0]) ? '../img/locating.png' : '../img/location.png'}" onclick={ toggleLocate } id = { vRow[0] }>
+                        <img class="{ 'watch-' + vRow[0] } icon { xdata.trackStore.get(vRow[0]) ? 'activated' : ''}" src="{ xdata.trackStore.get(vRow[0]) ? '../img/earthing.png' : '../img/earth.png'}" onclick={ toggleTrack } id = { vRow[0] }>
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div if={!vehicleHasData} class="tips">
+                没有相关记录！
+              </div>
+            </div>
+            <div id="reader-detail" class="hide tabBarDetail">
+              <!--<div class="op-panel no-margin ">
+                <span class="op-title alarm-op-title">设备</span>
+              </div>-->
+              <div class="content-panel" if={readerHasData}>
+                <table id="symbol-table">
+                  <thead>
+                    <tr>
+                      <!--
+                      <th each={label,i in readerLabel} if={ !blockedIndex.includes(i) }>{label}</th>
+                      -->
+                      <th>分站号</th>
+                      <th>分站名</th>
+                      <th>分站状态</th>
+                      <!--<th if={ localReader }>操作</th>-->
+                      <!--
+                      <th>呼叫</th>
+                      -->
+                    </tr>
+                  </thead>
+                  <tbody class="readerDetail">
+                    <tr each={rRow in reader}>
+                      <!--
+                      <td each={name, i in readerNames} if={ !blockedIndex.includes(i) }>{ row[i] }</td>
+                      -->
+                      <td onclick={ toggleLocation } class={ 'watch-' + rRow.reader_id } id={ rRow.reader_id } locx={ rRow.x } locy={ rRow.y}>{ rRow.reader_id }</td>
+                      <td class="readerName">{ rRow.name }</td>
+                      <td class={ rRow.state === 0 ? 'normal' : 'abnormal' } id={'reader' + rRow.reader_id + 'reader' + rRow.device_type_id} >{ rRow.state === 0 ? '正常' : '异常' }</td>
+                      <!--<td if={ localReader }>
+                        <svg class="icon" onclick={ toggleLocation } class={ 'watch-' + rRow.reader_id } id={ rRow.reader_id } locx={ rRow.x } locy={ rRow.y}>
+                              <use class={ 'watch-' + rRow.reader_id } id={ rRow.reader_id } xlink:href="/icons/icons.svg#icon-location-2" locx={ rRow.x } locy={ rRow.y}></use>
+                        </svg>
+                      </td>-->
+                      <!--
+                      <td>
+                        <svg class="icon" callid={ xdata.userName + '-type-' + rRow[0] } id={ rRow[0] } onclick = { toggleCall }>
+                            <use xlink:href="/icons/icons.svg#icon-phone_in_talk"></use>
+                        </svg>
+                      </td>
+                       -->
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div if={!readerHasData} class="tips">
+                没有相关记录！
+              </div>
+            </div>
+            <div class="rebuild">
+                <div class="bar-title " >
+                      <span>修改信息</span>
+                </div>
+                <div>
+                  <p>
+                    <svg class="icon sidebar-icon" >
+                        <use xlink:href="/icons/icons.svg#icon-bstation"></use>
+                    </svg>
+                    <span id="xid">{ xid }</span>
+                  </p>
+                  <table>
+                     <tr>
+                       <td>X坐标</td>
+                       <td><input type="text" id="device_x"></input></td>
+                     </tr>
+                     <tr>
+                       <td>Y坐标</td>
+                       <td><input type="text" id="device_y"/></input></td>
+                     </tr>
+                     <!--
+                     <tr>
+                       <td>天线角度</td>
+                       <td><input type="text" id="device_ang"/></input></td>
+                     </tr>
+                     -->
+                  </table>
+                   <div class="dlg-foot" >
+                      <button op-name="save-to-remote" onclick={ startUpload } >
+                          保存
+                      </button>
+                      <button op-name="close" onclick={ hidecurrent }>
+                          取消
+                      </button>
+                  </div>
+                  <div class="Editsucess">修改成功</div>
+                </div>
+            </div>
+            <div id="light-detail" class="hide tabBarDetail">
+              <div class="content-panel" if={ lightHasData }>
+                <div class="totleDetail">
+                  红绿灯总计<span>{ xdata.deviceStore.stateCount[0].sum }</span>个,
+                  正常<span>{ xdata.deviceStore.stateCount[0].normalCount
+ }</span>个,
+                  异常<span>{ xdata.deviceStore.stateCount[0].unnormalCount
+ }</span>个
+                </div>
+                <div name="all" class="all" onclick={ controlTrifficLight }>控制全部</div>
+                <table id="symbol-table" class="symbolTableLight">
+                  <tbody>
+                    <tr each={ light in lights } class={ 'light' + light.device_id + 'tr' }>
+                      <td id={ 'light' + light.device_id }>{ xdata.metaStore.getNameByID('light_id',light.device_id) }</td>
+                      <td class="lightColor">
+                        <span class={ light.color } if={ light.color === 'redsolid' || light.color === 'redhollow' || light.color === 'breakdown' }></span>
+                        <span class="redfork" if={ light.color === 'redfork' }>
+                          <svg class="icon">
+                            <use xlink:href="/icons/icons.svg#icon-circle-cross"></use>
+                          </svg>
+                        </span>
+                        <span class="greenup" if={ light.color === 'greenup' }>↑</span>
+                        <span class="greendown" if={ light.color === 'greendown' }>↓</span>
+                        <span class="greenleft" if={ light.color === 'greenleft' }>←</span>
+                        <span class="greenright" if={ light.color === 'greenright' }>→</span>
+                        <span class="redblink" if={ light.color === 'redblink' }></span>
+                        <span class="greenblink" if={ light.color === 'greenblink' }></span>
+                      </td>
+                      <td name={ light.device_id + '+' + light.state } onclick={ controlTrifficLight }>
+                        <svg class="icon">
+                          <use xlink:href="/icons/icons.svg#icon-edit-2"></use>
+                        </svg>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+      	</div>
+        
+      </div>
+    </div>
+  </div>
+
+  <div class="light-call hide">
+    <div class="lcTitle">
+      <span class="lightcontrol">控制</span>
+      <span class="callout">发起呼叫</span>
+    </div>
+    <ul class="detail">
+      <li>
+        <span>设备名称</span>
+        <span class="lightName" name={ 'lightName' + lightName } if={ !allLights }>{ lightName }#红绿灯</span>
+        <span class="lightName" if={ allLights }>红绿灯</span>
+      </li>
+      <li>
+        <span>当前状态</span>
+        <span class="light-state" if={ !allLights } data-value = "3">
+          <span class="redsolid" if={ lightState === '1' }></span>
+          <span class="redhollow" if={ lightState === '2' }></span>
+          <span class="redfork" if={ lightState === '3' }>
+            <svg class="icon">
+              <use xlink:href="/icons/icons.svg#icon-circle-cross"></use>
+            </svg>
+          </span>
+          <span class="greenup" if={ lightState === '4' }>↑</span>
+          <span class="greendown" if={ lightState === '5' }>↓</span>
+          <span class="greenleft" if={ lightState === '6' }>←</span>
+          <span class="greenright" if={ lightState === '7' }>→</span>
+          <span class="redblink" if={ lightState === '8' }></span>
+          <span class="greenblink" if={ lightState === '9' }></span>
+        </span>
+        <span class="light-state" if={ allLights }>
+          <span class="allTrafficLight active" data-value = "0" onclick={ changeAllTriffic }>全部</span>
+          <span class="allTrafficLight" data-value = "1" onclick={ changeAllTriffic }>上行</span>
+          <span class="allTrafficLight" data-value = "2" onclick={ changeAllTriffic }>下行</span>
+        </span>
+      </li>
+      <li>
+        <span>转化状态</span>
+        <span class="light-color">
+          <span name="1" class="redsolid active" onclick={ showColor }></span>
+          <span name="2" class="redhollow" onclick={ showColor }></span>
+          <span name="3" class="redfork" onclick={ showColor }>
+            <svg class="icon">
+              <use xlink:href="/icons/icons.svg#icon-circle-cross"></use>
+            </svg>
+          </span>
+          <span name="4" class="greenup" onclick={ showColor }>↑</span>
+          <span name="5" class="greendown" onclick={ showColor }>↓</span>
+          <span name="6" class="greenleft" onclick={ showColor }>←</span>
+          <span name="7" class="greenright" onclick={ showColor }>→</span>
+          <span name="8" class="redblink" onclick={ showColor }></span>
+          <span name="9" class="greenblink" onclick={ showColor }></span>
+        </span>
+      </li>
+      <!--<li>
+        <span>持续时间</span>
+        <span>
+          <span class="timetag select-tag active" data-value="0" onclick={setEndTime}>永久</span>
+          <span class="timetag select-tag" data-value="5" onclick={setEndTime}>5分钟</span>
+          <span class="timetag select-tag" data-value="10" onclick={setEndTime}>10分钟</span>
+          <span class="timetag select-tag custome-set-tag" data-value="-1" onclick={setEndTime}>自定义</span>
+        </span>
+      </li>-->
+      <li class="btn">
+        <button class="makeSure" name={ lightName } onclick={ makeSureChange } data-value={ !allLights ? lightState : '' }>确定</button>
+        <button class="cancel" onclick={ cancelChange }>取消</button>
+      </li>
+    </ul>
+  </div>
+
+  <script>
+    import { CARD } from '../js/def/state.js'
+
+    //this.view = true
+    
+    //let rows = msg.rows
+    this.reader = opts.reader
+    this.lights = opts.lights
+    this.lightName = opts.lightName
+    this.lightState = opts.lightState
+    this.areas = opts.areas
+    this.localReader = false
+   
+    this.areaRow = opts.areaRow
+    this.allLights = false
+    let lightControlColor = null
+  
+    this.pcFlag = window.isPC
+
+    this.blockedIndex = [0, 1, 3, 4, 5, 6, 7, 9, 11, 12, 13]
+    this.activeTag = null
+    this.vehicleData = null
+
+    this.showDetail = (evt) => {
+      let target = evt.currentTarget
+      let countType = Number(target.getAttribute('class').split(' ')[0].split('-')[1])
+      let areaID = Number(target.getAttribute('name')) ? Number(target.getAttribute('name')) : 0
+      let now = new Date()
+      let time = now.format('yyyy-MM-dd hh:mm:ss') 
+      let msg = {
+          cmd: "count_detail_req",
+          version: "1.0.0.1",
+          data: {
+              task_id: new Date().getTime(),
+              req_user: xdata.userName,
+              count_type: countType,
+              area_id: areaID,
+              req_time: time
+          }
+      }
+      xbus.trigger('SHOW-ALARM-PER-DETAIL',msg)
+    }
+
+    this.showCallBackAlarm = () => {
+      xbus.on('ALARM-DETAIL-COUNT', (msg) => {
+          if(msg.req_user === det.req_user && msg.count_type === det.count_type && msg.area_id === det.area_id && msg.task_id === det.task_id){
+              let detail = msg.detail
+              let message = {
+                  type: 'alarm',
+                  detail: detail
+              }
+              xbus.trigger('DASHBOARD-SHOW-DETAIL', message)
+          }
+      })
+    }
+
+    this.toggleCall = (evt) => { // call_card
+        let target = evt.currentTarget
+        let callID= evt.currentTarget.getAttribute('callid')
+
+        let id = evt.currentTarget.getAttribute('id')
+        this.id = id
+        
+        this.isCalling = xdata.callStore.isCalling(callID)
+        // this.setButtonState(target, this.isCalling)
+        this.isCalling = !this.isCalling
+        
+        let cmd = null
+        let data = null
+        sessionStorage.setItem('isCalling',!this.isCalling)
+        if (!this.isCalling) {
+            target.classList.remove('activated')
+          
+            let msg = {
+                callID : callID
+            }
+            xbus.trigger('STOP-CALL-REMOTE', msg)
+        } else {
+            target.classList.add('activated')
+            let cards = []
+            let stations = []
+            if (this.type==='CARD') {
+                let cardTypeID = xdata.metaStore.getFieldByID('card_id', this.id, 'card_type_id')
+                cards = [{
+                    'cardid': this.id,
+                    'cardtype': cardTypeID
+              }]
+            } else {
+                stations = [{
+                    'stationid': this.id
+              }]
+            }
+            
+            let userName = xdata.userName
+            let msg = {
+                callID : callID,
+                stations : stations,
+                cards : cards
+            }
+            xbus.trigger('START-CALL-REMOTE', msg)          
+        }
+    }
+    this.toggleTrack = (evt) => {
+        let target = evt.currentTarget
+        let id = evt.currentTarget.getAttribute('id')
+        let card = xdata.cardStore.states.get(id)
+        let x = card[CARD.x]
+        let y = card[CARD.y]
+      
+        let mode = null
+        this.isTracking = true
+        if(xdata.trackStore.get(id)){//如果有说明正在定位
+               this.isTracking = !xdata.trackStore.get(id)
+              // console.log(this.isLocating)
+              // this.isLocating = !this.isLocating
+        }else{
+            //this.isTracking = true
+           xdata.trackStore.set(id,this.isTracking)
+        }
+
+        let msg = {
+            cardID: id
+        }
+        let info = {
+            cardID: id,
+            x: x,
+            y: y
+        }
+        let watchedNode = this.root.querySelector('.watch-' + id)
+       
+
+        if (!this.isTracking) {
+            target.classList.remove('activated')
+            msg.action = 'STOP'
+            xbus.trigger('MAP-TRACK-STOP', id)
+            xdata.trackStore.set(id,false)
+        } else {
+            target.classList.add('activated')
+            msg.action = 'START'
+            mode = 'watch'
+        }
+        this.toggleWatch(watchedNode, id, info,mode)
+        xbus.trigger('CARD-TRACK-SWITCH', msg)
+        if(!this.pcFlag){
+          this.root.querySelector('.dlg-bg').setAttribute('id', '')
+          this.root.querySelector('.bar-title').classList.remove('hide')
+        }
+        
+    }
+
+    // xbus.on('MAP-SHOW-READER', (msg) => {
+    //   let isVisible = msg.isVisible
+    //   if (isVisible) {
+    //     this.localReader = true
+    //   } else {
+    //     this.localReader = false
+    //     let readers = this.reader
+    //     let active = this.root.querySelector('.readerDetail').querySelectorAll('.activated')
+    //     for (let i = 0, len = active.length; i < len; i++) {
+    //       active[i].classList.remove('activated')
+    //     }
+    //     xbus.trigger('HIDE-LOCATION', readers)
+    //   }
+    //   this.update()
+    // })
+    
+    this.toggleLocation = (evt) => {
+        // debugger
+      let target = evt.currentTarget
+      let id = evt.currentTarget.getAttribute('id')
+      let card = xdata.cardStore.states.get(id)
+      let x = target.getAttribute('locx')
+      let y = target.getAttribute('locy')
+      let mode = null
+      this.isLocating = true
+      if(xdata.locateStore.get(id)){//如果有说明正在定位
+          this.isLocating = !xdata.locateStore.locates.get(id)
+            // console.log(this.isLocating)
+            // this.isLocating = !this.isLocating
+      }else{
+          //this.isLocating = true
+          xdata.locateStore.set(id,this.isLocating)
+      }
+        let msg = {
+            cardID: id,
+            x: x,
+            y: y,
+            isVisible: true
+        }
+        let info = {
+            cardID: id,
+            x: x,
+            y: y
+        }
+        if (!this.isLocating) {
+            target.classList.remove('activated')
+            msg.action = 'STOP'
+            mode = null
+            xdata.locateStore.set(id,false)
+        } else {
+            target.classList.add('activated')
+            msg.action = 'START'
+            mode = 'watch'
+        }
+
+        let watchedNode = this.root.querySelector('.watch-' + id)
+        this.toggleWatch(watchedNode, id, info, mode)
+        xbus.trigger('CARD-LOCATE-SWITCH', msg)
+        xbus.trigger('MAP-SHOW-READER', msg)
+        this.root.parentElement.querySelector('.map-topbar').querySelector('#reader').classList.add('active')
+        if(!this.pcFlag){
+          this.root.querySelector('.dlg-bg').setAttribute('id', '')
+          this.root.querySelector('.bar-title').classList.remove('hide')
+        }
+    }
+
+    this.toggleLocate = (evt) => {
+        // debugger
+        let target = evt.currentTarget
+        let id = evt.currentTarget.getAttribute('id')
+        let card = xdata.cardStore.states.get(id)
+        let x = card[CARD.x]
+        let y = card[CARD.y]
+        let mode = null
+        this.isLocating = true
+       if(xdata.locateStore.get(id)){//如果有说明正在定位
+            this.isLocating = !xdata.locateStore.locates.get(id)
+            // console.log(this.isLocating)
+            // this.isLocating = !this.isLocating
+       }else{
+          //this.isLocating = true
+          xdata.locateStore.set(id,this.isLocating)
+       }
+       
+
+        let msg = {
+            cardID: id
+        }
+        let info = {
+            cardID: id,
+            x: x,
+            y: y
+        }
+        if (!this.isLocating) {
+            target.classList.remove('activated')
+            msg.action = 'STOP'
+            mode = null
+            xdata.locateStore.set(id,false)
+        } else {
+            target.classList.add('activated')
+            msg.action = 'START'
+            mode = 'watch'
+        }
+
+        let watchedNode = this.root.querySelector('.watch-' + id)
+        this.toggleWatch(watchedNode, id, info, mode)
+        xbus.trigger('CARD-LOCATE-SWITCH', msg)
+        if(!this.pcFlag){
+          this.root.querySelector('.dlg-bg').setAttribute('id', '')
+          this.root.querySelector('.bar-title').classList.remove('hide')
+        }
+      
+    }
+    this.toggleWatch = (node, id, msg, mode) => {
+      
+      // node.setAttribute('xlink:href', mode === 'watch' ? '/icons/icons.svg#icon-eye' : '/icons/icons.svg#icon-eye-blocked')
+      node.setAttribute('watch-state', mode)
+      if(mode === 'watch') {
+        xdata.trackStore.setWatchedCard(id)
+        xbus.trigger('MAP-TRACK-START', msg)
+      } else {
+        xbus.trigger('MAP-TRACK-STOP', id)
+      }
+    }
+    // this.startUpload = (evt) => {
+    //   let x = this.root.querySelector('#device_x').value
+    //   let y = this.root.querySelector('#device_y').value
+    //   var date = new Date();
+    //   var dd = date.getFullYear()+"-" + formatDate(date.getMonth()+1) + "-" + formatDate(date.getDate())
+
+    //   var hours = date.getHours() < 10?(0 + date.getHours()) : date.getHours()
+    //   var minutes = date.getMinutes() < 10?(0 + date.getMinutes()) : date.getMinutes()
+    //   var seconds = date.getSeconds() < 10?(0 + date.getSeconds()) : date.getSeconds()
+
+    //   dd = dd + " " + hours + ":" + minutes + ":" + seconds
+     
+
+    //   function formatDate(val){
+    //   var valFormate = val
+    //   if(valFormate<10){
+    //      valFormate = "0"+valFormate
+    //   }
+    //   return valFormate
+    //   }
+
+    //   let sql = 'x=' + x +',y=' + y +',lastUpdate="'+dd+'"'
+    //   let tableKeyName = 'reader_id'
+    //   let key_value = localStorage.getItem('xid')
+    //   sql = `UPDATE dat_reader set ${sql} where ${tableKeyName}=${key_value}`
+
+    //       let req = this.composeUpdateDBReq('UPDATE', key_value, sql)
+    //       xbus.trigger('META-UPDATE-DB', {
+    //           req: req
+    //       })
+    //   xbus.on('META-UPDATE-DB-RES', (res) => {
+    //     if (res.code == 0) {
+    //       this.root.querySelector('.Editsucess').style.display = 'block'
+    //     }
+    //   })
+    // }
+    
+    this.composeUpdateDBReq = (db_op, keyValue, sqlstring) => {
+      return {
+        cmd: 'update', // update, CMD.META.UPDATE
+        data: {
+          op: db_op, // INSERT, UPDATE, DELETE
+          name: 'reader',
+          // id: this.tableKeyName,  // BUG???
+          id: keyValue,
+          sql: sqlstring
+        }
+      }
+    }
+    
+    this.switchItem = (evt) => {
+      this.root.querySelector('.tab-bar').classList.remove('hide')
+      let tabBar = this.root.querySelector('.tab-bar').querySelectorAll('.tabBarDetail')
+      for (let i = 0, len = tabBar.length; i < len; i++) {
+        tabBar[i].classList.add('hide')
+      }
+      let dlg_content = this.tags['right-titlebar'].root.querySelector('.dlg-content')
+      if(dlg_content){
+        dlg_content.classList.add('hide')
+      }
+      if(this.pcFlag){
+        this.activeTag = this.root.querySelector('.activeTag')
+        
+        this.activeTag.classList.remove('activeTag')
+        this.activeTag.classList.add('disActiveTag')
+        let tagNamePreview = this.activeTag.getAttribute('id')
+        this.activeTag = evt.currentTarget
+        this.activeTag.classList.remove('disActiveTag')
+        this.activeTag.classList.add('activeTag')
+        let tagName = this.activeTag.getAttribute('id')
+        if(this.root.querySelector('#' + tagNamePreview + '-detail')){
+          this.root.querySelector('#' + tagNamePreview + '-detail').classList.add('hide')
+          this.root.querySelector('#' + tagName + '-detail').classList.remove('hide')
+        }
+        this.root.querySelector('#' + tagName + '-detail').classList.remove('hide')
+        if (tagName === 'vehicle') {
+          this.showVehicle()
+        } else if (tagName === 'light') {
+          this.showLight()
+        } else if (tagName === 'reader') {
+          this.showReader()
+        }
+      } else {
+        this.root.querySelector('.dlg-bg').setAttribute('id', 'showDetail')
+        this.root.querySelector('.bar-title').classList.add('hide')
+      }
+    }
+
+    this.initPagination = () => {
+        this.total = this.rows ? this.rows.length : 0
+        this.totalPage = Math.ceil(this.total / PAGE_SIZE)
+        this.pageIndex = 0
+    }
+    
+    this.on('mount', () => {
+      // riot.mount('side-rightmenu',{
+      //   marControl: this.marControl
+      // })
+      this.initData()
+      this.registerGlobalEventHandlers()
+    })
+    this.initData = () => {
+      this.vehicleLabel = xdata.cardStore.stateDefs.vehicle.fields.labels
+      this.vehicleNames = xdata.cardStore.stateDefs.vehicle.fields.names
+      this.vehicleData = Array.from(xdata.cardStore.states.values()).filter(item => item[1] === 2)
+      if(this.vehicleData){
+        this.vehicleHasData = true
+      } else {
+        this.vehicleHasData = false
+      }
+      this.redaerLabel = xdata.deviceStore.stateDefs.device.fields.labels
+      this.redaerNames = xdata.deviceStore.stateDefs.device.fields.names
+      this.reader = Array.from(xdata.deviceStore.states.values()).filter(item => item.reader_type_id === 0)
+      if(this.reader){
+        this.readerHasData = true
+      } else {
+        this.readerHasData = false
+      }
+    }
+
+    this.registerGlobalEventHandlers = () => {
+      let self = this
+      xbus.on('SYMBOL-SHOW-TABLE', (msg) => {
+        this.init(msg)
+        this.update()
+        self.activeItem = self.root.querySelector('.active')
+        // set visible
+        this.show()
+
+       // this.resetPosition()
+
+      })
+
+      this.getCardRows = () => {
+        let ret = xdata.cardStore.getCardsByState(2, '*')
+        return ret
+      }
+
+      this.compare = (prop) => {
+        return function (obj1, obj2) {
+          let val1 = obj1[prop]
+          let val2 = obj2[prop]
+          if (val1 < val2) {
+              return -1
+          } else if (val1 > val2) {
+              return 1
+          } else {
+              return 0
+          }            
+        } 
+      }
+
+      xbus.on('CARD-STATE-CHANGED CARD-INFO-UPDATE', () => {
+        let vehicleTag = this.root.querySelector('#vehicle').getAttribute('class')
+        if (vehicleTag !== 'activeTag') {
+          return
+        } else {
+          this.showVehicle()
+        }
+        
+      })
+
+      this.showVehicle = () => {
+        let areaArr = []
+        let area = Array.from(xdata.cardStore.areas.values())
+        let msg = this.getCardRows()
+        if (xdata.metaStore.dataInArray.get('area')) {
+          for(let i = 0, len = area.length;i < len; i++){
+              let isSpecial = true
+              let specialArea = Array.from(xdata.metaStore.dataInArray.get('area')).filter(item => item.area_id === area[i].id)
+              let special = null
+              if (specialArea.length > 0) {
+                special = specialArea[0].area_type_id
+              } else {
+                special = 2000
+              }
+              if ((specialArea.length > 0 && specialArea[0].area_type_id === 1000) || area[i].id === 0) {
+                isSpecial = false
+              }
+              let judgeCard = msg.filter(item => item[10] === area[i].id)
+              let vehicleArea = area[i].id === 0 ? '未识别区域' : xdata.metaStore.getNameByID('area_id', area[i].id)
+              areaArr.push({
+                area: vehicleArea,
+                profit: judgeCard,
+                isSpecial: isSpecial,
+                areaID: area[i].id,
+                special: special
+              })
+          }
+        }
+        this.areaRow = areaArr.sort(this.compare('special'))
+        this.update()
+      }
+
+      this.showArea = (evt) => {
+        let target = evt.currentTarget
+        let areaID = target.getAttribute('class')
+        let msg = {
+          type: 'card',
+          subTypeID: '2',
+          statType: 'AREA',
+          composeType: 'area',
+          areaID: areaID
+        }
+        xbus.trigger('DASHBOARD-SHOW-DETAIL', msg)
+      }
+      
+      xbus.on('BRIEF-SHOW-DEVICE DEVICE-INFO-UPDATED DEVICE-STATE-UPDATED', (rows) => {
+        let readerTag = this.root.querySelector('#reader').getAttribute('class')
+        if (readerTag === 'disActiveTag') {
+          return
+        } else {
+          this.showReader(rows)
+        }
+      })
+    }
+
+    this.showReader = () => {
+      if(xdata.metaStore.dataInArray.get('reader') ){
+        let facilityReader = Array.from(xdata.metaStore.dataInArray.get('reader'))
+        let readers = facilityReader
+        this.reader = readers.filter(item => item.state === 0)
+        this.readerHasData = true
+      }
+      this.update()
+
+      this.changeReader()
+    }
+    this.changeReader = () => {
+      let pushReader = Array.from(xdata.deviceStore.states.values()).filter(item => item.reader_type === 'reader')
+      for(let i = 0,len = pushReader.length; i < len; i ++){
+        let changeReader = pushReader[i]
+        let ele = this.root.querySelector('#reader' + changeReader.device_id + 'reader' + changeReader.device_type)
+        if(ele){
+            this.root.querySelector('#reader' + changeReader.device_id + 'reader' + changeReader.device_type).innerHTML = changeReader.state === 0 ? '正常' : '异常'
+            if(changeReader.state === 0){
+              this.root.querySelector('#reader' + changeReader.device_id + 'reader' + changeReader.device_type).setAttribute('class','normal')
+            }else{
+              this.root.querySelector('#reader' + changeReader.device_id + 'reader' + changeReader.device_type).setAttribute('class','abnormal')
+            }
+        }
+      }
+      this.update()
+    }
+
+    this.unregisterGlobalEventHandlers = () => {
+      xbus.off('SYMBOL-SHOW-TABLE')
+    }
+
+    this.init = (msg) => {
+      this.mapID = msg.mapID
+      this.mapName = xdata.metaStore.getNameByID('map_id', this.mapID)
+
+      this.setType(msg.type)
+      //this.setSubtype(msg.subtype)
+
+    }
+
+    this.setType = (type) => {
+      this.type = type
+      let title = type=='device' ? '设备' : '标识卡'
+      this.title =  title + ': ' + this.mapName
+      this.subtypes = xdata.metaStore.dataInArray.get(`${type}_type`)      
+    }
+
+    // this.setSubtype = (subtype) => {
+    //   this.subtype = subtype
+    //   if(!this.subtype){
+    //     this.subtype = this.subtypes[0].name
+        
+    //     // this.subtypeID = this.subtypes[0][`${this.type}_type_id`]
+    //   }
+
+    //   switch (this.type) {
+    //     case 'device':
+    //       this.def = xdata.metaStore.defs[this.subtype]
+    //       let recs = xdata.metaStore.dataInArray.get(this.subtype)
+    //       this.rows = this.filterDeviceData(recs)
+
+    //       // let length = document.querySelectorAll(".content-panel").length
+    //       // for(var i = 0;i < length; i++ ){
+    //       //     let index = i
+    //       //     document.querySelectorAll(".content-panel")[index].style.display = " block "
+              
+    //       // }
+          
+    //       break
+    //     case 'card':
+    //       this.def = xdata.cardStore.stateDefs[this.subtype]
+    //       let cardRecs = xdata.cardStore.getCardsOnMap(this.mapID)
+    //       let cardTypeID = this.getCardTypeID(this.subtype)
+    //       let rows = this.filterCardData(cardRecs, cardTypeID)
+    //       this.rows = this.format(rows)
+          
+    //       // let length2 = document.querySelectorAll(".tips").length
+    //       // for(var i = 0;i < length2; i++ ){
+    //       //     let index = i
+    //       //     document.querySelectorAll(".tips")[index].style.display = " block "
+    //       // }
+    //       break
+    //     default:
+    //       console.warn(`未知的 symbol 类型：${this.type}`)
+    //       break
+    //   }
+
+    //   this.labels = this.def.fields.labels
+    //   this.hasdata = (this.rows && this.rows.length > 0) || false
+    //   this.name = 'symbol_dialog'
+    //   if(this.hasdata){
+    //     this.initPagination()
+    //     this.subRows = this.copySubRows(this.rows, this.pageIndex) //初始化显示第一页 
+    //   }
+
+        
+      
+    // }
+    this.format = (rows) => {
+      try{
+        let total = rows.length
+        for(let i=0; i< total; i++) {
+          let row = rows[i]
+          row = xdata.metaStore.formatStateArray(this.def, row, null)       
+          return row
+        }
+      } catch(err) {
+        console.warn(err)
+      }
+      
+    }
+    
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+        this.pageIndex = msg.pageIndex
+        this.subRows = this.copySubRows(this.rows, this.pageIndex)
+        this.update()
+    })
+
+    this.copySubRows = (rows, pageIndex) => {
+      let start = pageIndex * PAGE_SIZE
+      let end = (pageIndex + 1) * PAGE_SIZE
+      return rows && rows.slice(start, end)
+    }
+
+    this.getCardTypeID = (cardTypeName) => {
+      let ret = -1
+
+      for(let i=0; i<this.subtypes.length; i++){
+        let row = this.subtypes[i]
+        if(row.name == cardTypeName) {
+          ret = row.card_type_id
+          break
+        }
+      }
+
+      return ret
+    }
+
+    /**
+     * [filter 返回Array rows 中 fieldName 的值为 fieldValue 的记录]
+     * @param  {[Array]} rows       [description]
+     * @param  {[String]} fieldName  [description]
+     * @param  {[type]} fieldValue [description]
+     * @return {[type]}            [description]
+     */
+    this.filter = (rows, fieldName, fieldValue) => {
+      if(!rows || rows.length <=0){
+        return null
+      }
+
+      let tmp = []
+      for(let i=0; i<rows.length; i++) {
+        let row = rows[i]
+        if( row[fieldName] == fieldValue ){
+          tmp.push(row)
+        }
+      }
+      tmp = tmp.length > 0 ? tmp : null
+
+      return tmp
+    }
+
+    this.filterCardData = (rows, cardTypeID) => {  // card is a map
+      if(!rows || rows.length <=0){
+        return null
+      }
+
+      let tmp = []
+      let total = rows.length
+      for(let i=0; i<total; i++) {
+        let row = rows[i]
+        let cardID = row[CARD.card_id]
+        let ct = xdata.metaStore.getCardTypeID(cardID)
+        if( ct == cardTypeID ){
+          // 去掉 card 信息中的 action 字段  -> 保存时，增加了 action 字段：card.action = cmd  // 在每个 card 的信息中，增加 action，表示这条记录的操作类型
+          // delete row.action
+          tmp.push(row)
+        }
+      }
+      tmp = tmp.length > 0 ? tmp : null
+
+      return tmp
+    }
+
+    // 过滤掉与 当前地图 无关的项
+    this.filterDeviceData = (rows) => {
+      if(!rows || rows.length <=0){
+        return null
+      }
+
+      let tmp = []
+      for(let i=0; i<rows.length; i++){
+        let row = rows[i]
+        if(row.map_id == this.mapID) {
+          tmp.push(row)
+        }
+      }
+      tmp = tmp.length > 0 ? tmp : null
+
+      return tmp
+    }
+
+    // this.toggleItems = (evt) => {
+    //   this.showItems = !this.showItems
+    // }
+   
+    this.switchSubtype = (evt) => {
+      let subtype = evt.currentTarget.getAttribute('name')
+      this.setSubtype(subtype)
+ 
+      if(this.activeItem){
+        this.activeItem.classList.remove('active')
+      }
+      this.activeItem = evt.currentTarget
+      this.activeItem.classList.add('active')
+    }
+
+    // this.close = (evt) => {
+    //   if(this.activeItem) {
+    //     this.activeItem.classList.remove('active')
+    //   }
+    //   this.activeItem = null
+    //   this.hide()
+
+    //   document.querySelector("#device").removeAttribute("class")
+    //   riot.mount('symbol-rightslidebar')[0]
+
+    // }
+
+    this.print = (evt) => {
+      xbus.trigger('PRINT-AREA', {
+        tag_id: 'symbol-table',
+        title: this.def.title
+      })
+    }
+
+    this.hide = () => {
+      let cl = this.root.classList
+      if( !cl.contains('hide') ){
+        cl.add('hide')
+      }
+    }
+
+    this.hidecurrent = () => {
+      this.root.querySelector('.rebuild').style.display = 'none'
+    }
+
+    this.show = () => {
+      let cl = this.root.classList
+      if(cl.contains('hide')){
+        cl.remove('hide')
+      }
+    }
+
+    this.resetPosition = () => {
+      let dialog = this.symbol_dialog
+      let box = dialog.getBoundingClientRect()
+      dialog.style.left = `${ (window.innerWidth - box.width) / 2}px`
+      dialog.style.top = `${ (window.innerHeight - box.height) / 2}px`
+    }
+
+    // this.setDraggable = () => {
+    //   let drag_handle = this.symbol_title
+    //   let drag_target = this.symbol_dialog
+    //   xbus.trigger('SET-DRAGGABLE', {
+    //     target: drag_target,
+    //     handle: drag_handle
+    //   })
+    // }
+
+    this.vehicleClose = (evt) => {
+      this.root.querySelector('.dlg-bg').setAttribute('id', '')
+      this.root.querySelector('.bar-title').classList.remove('hide')
+      // document.querySelector('#alarm-breviary').classList.remove('hide')
+    }
+
+    xbus.on('DEVICE-STATE-UPDATED', () => {
+      let lightTag = this.root.querySelector('#light').getAttribute('class')
+      if (lightTag === 'disActiveTag') {
+        return
+      } else {
+        this.showLight()
+      }
+    })
+
+    this.showLight = () => {
+      let triLights = []
+      let lightData = null
+      let trifficLight = null
+      if(xdata.deviceStore.states.size > 0){
+        this.lightHasData = true
+        trifficLight = Array.from(xdata.deviceStore.states.values()).filter(item => item.device_type === 3)
+        if(xdata.deviceStore.traffic.size <= 0){
+          for(let i = 0 , len = trifficLight.length ; i < len ; i ++){
+          lightData = trifficLight[i]
+          this.switchColor(lightData.state)
+          lightData['color'] = lightControlColor
+          triLights.push(lightData)
+        }
+        this.lights = triLights
+        }
+      }
+      if(xdata.deviceStore.traffic.size > 0){
+        let lightChangeData = Array.from(xdata.deviceStore.traffic.values()).filter(item => item.cmd === "lights_ctrl_rsp")
+        for(let i = 0 , len = lightChangeData.length ; i < len ; i ++){
+          let lightChange = lightChangeData[i]
+          this.selectSQL(lightChange.task_id,lightChange.user_id)
+          let controlLightID = lightChange.lights_id // 哪个红绿灯 0: 所有灯
+          let controlLightState = Number(lightChange.light_state) //更改为什么颜色
+          this.switchColor(controlLightState)
+          if(controlLightID === '0'){
+            let lightColorSpan = this.root.querySelector('.symbolTableLight').querySelectorAll('.lightColor')
+            for(let j = 0,l = lightColorSpan.length;j < l;j ++){
+              // lightColorSpan[j].querySelector('span').className = lightControlColor
+              trifficLight[j].color = lightControlColor
+            }
+          } else {
+            // this.switchColor(controlLightState)
+            if(trifficLight){
+              let changeTrifficLight = trifficLight.filter(item => item.device_id === Number(controlLightID))
+              if(changeTrifficLight.length > 0){
+                changeTrifficLight[0].color = lightControlColor
+              }
+            }
+          } 
+        }
+      }
+      this.update()
+    }
+    
+    this.switchColor = (lightState) => {
+     
+      switch (lightState) {
+          case 1:
+            lightControlColor = 'redsolid'
+            break
+          case 2:
+            lightControlColor = 'redhollow'
+            break
+          case 3: 
+            lightControlColor = 'redfork'
+            break
+          case 4: 
+            lightControlColor = 'greenup'
+            break
+          case 5: 
+            lightControlColor = 'greendown'
+            break
+          case 6: 
+            lightControlColor = 'greenleft'
+            break
+          case 7: 
+            lightControlColor = 'greenright'
+            break
+          case 8: 
+            lightControlColor = 'redblink'
+            break
+          case 9: 
+            lightControlColor = 'greenblink'
+            break
+          default:
+            lightControlColor = 'breakdown'
+            break
+        }
+        return lightControlColor
+    }
+
+    this.selectSQL = (task,user) => {
+      let sql = `select opt_id, user_id from his_op_light_log where opt_id = ${task} and user_id = ${user}`
+      let message = {
+          cmd: 'query',
+          data: {
+              name: 'trafficControl',
+              sql: sql
+          }
+      }
+
+      xbus.trigger('REPT-FETCH-DATA', {
+          req: message,
+          def: {
+              name: 'trafficControl'
+          }
+      }) 
+    }
+
+    // xbus.on('REPT-SHOW-RESULT', (ds) => {
+    //     if(ds.def.name === 'trafficControl'){
+    //     }
+    // })
+
+    this.controlTrifficLight = (evt) => {
+      let target = evt.currentTarget
+      let targetName = target.getAttribute('name')
+      this.root.querySelector('.light-call').classList.remove('hide')
+      this.root.querySelector('.callout').classList.add('hide')
+      if(targetName === 'all'){
+        this.allLights = true
+      }else{
+        this.allLights = false
+        this.lightName = target.getAttribute('name').split('+')[0]
+        this.lightState = target.getAttribute('name').split('+')[1]
+      }
+      
+    }
+
+    this.changeAllTriffic = (evt) => {
+      let target = evt.currentTarget
+      let triffic = this.root.querySelectorAll('.allTrafficLight')
+      for(let i = 0,len = triffic.length;i < len;i ++){
+        triffic[i].classList.remove('active')
+      }
+      target.classList.add('active')
+    }
+
+    this.showColor = (evt) => {
+      let target = evt.currentTarget
+      let span = this.root.querySelector('.light-color').querySelectorAll('span')
+      for(let i = 0, len = span.length;i < len;i ++){
+        span[i].classList.remove('active')
+      }
+      target.classList.add('active')
+    }
+
+    this.makeSureChange = (evt) => {
+      let target = evt.currentTarget
+      let typeName = null
+      let trafficName = null
+      
+      if(this.allLights){
+        typeName = this.root.querySelector('.light-state').querySelector('.active').getAttribute('data-value')
+      } else {
+        trafficName = target.getAttribute('name')
+        // let trafficState = this['activeItem'].getAttribute('name')
+        typeName = this.root.querySelector('.light-state').getAttribute('data-value')
+      }
+      let trafficState = this.root.querySelector('.light-color').querySelector('.active').getAttribute('name')
+      let msg = {
+        cmd: "lights_ctrl_req",
+        version : "1.0.0.1",
+        data : {
+          task_id : new Date().getTime(),
+          obj_type : Number(typeName),
+          ctrl_type : 1,
+          light_state : Number(trafficState),
+          user_id : xdata.userName,
+          lights : [{
+            id : Number(trafficName)
+          }]
+        }
+      }
+      this.saveDB(target,msg)
+      xbus.trigger('DEVICE-TYPE-CHANGE', msg)
+      this.root.querySelector('.light-call').classList.add('hide')
+    }
+
+    this.checkTime = (time) => {
+      if(time < 10){
+        time = '0' + time
+      }
+      return time
+    }
+
+    this.saveDB = (target,msg) => {
+      let controlTraffic = msg.data
+      let task_id = controlTraffic.task_id
+      let time = new Date(controlTraffic.task_id)
+      let year = time.getFullYear()
+      let month = this.checkTime(time.getMonth() + 1)
+      let day = this.checkTime(time.getDate())
+      let hour = this.checkTime(time.getHours())
+      let minutes = this.checkTime(time.getMinutes())
+      let seconds = this.checkTime(time.getSeconds())
+      let controlTime = year + '-' + month + '-' + day + ' ' + hour + ':' + minutes + ':' + seconds
+      let obj_type = controlTraffic.obj_type
+      let ctrl_type = 1
+      let initialState = target.getAttribute('data-value')
+      let changeState = controlTraffic.light_state
+      let user_id = controlTraffic.user_id
+      let controlLight = controlTraffic.lights[0].id ? controlTraffic.lights[0].id : 'null' 
+      let value = task_id + ',' + "'" + user_id + "'" + ',' + "'" + controlTime + "'" + ',' + ctrl_type + ','  + obj_type + ',' + controlLight + ',' + changeState
+
+      let sql = `INSERT into his_op_light_log VALUES (${value})`
+      let req = this.composeUpdateDBReq('INSERT', sql)
+      xbus.trigger('META-UPDATE-DB', {
+          req: req
+      })
+    }
+
+    this.composeUpdateDBReq = (db_op, sqlstring) => {
+        return {
+            cmd: 'update', // update, CMD.META.UPDATE
+            data: {
+                op: db_op, // INSERT, UPDATE, DELETE
+                sql: sqlstring
+            }
+        }
+    }
+
+    this.cancelChange = (evt) => {
+      this.root.querySelector('.light-call').classList.add('hide')
+    }
+  </script>
+</symbol-rightslidebar>

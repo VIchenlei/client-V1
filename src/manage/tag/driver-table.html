@@ -1,0 +1,228 @@
+<driver-table>
+  <div class="driverTitle">
+    <span class="intraday">{tableDate}</span>
+    <select name={defaultShift} id="selectShift" onchange={selectShift}>
+      <option class="shiftThree" value="1" selected={threeshift}>三八制</option>
+      <option class="shiftFour" value="2" selected={fourshift}>四六制</option>
+    </select>
+    <span class="printButton hint--bottom-left" aria-label="打印" name="printPDF" onclick={askFile}>
+      <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-printer"></use></svg>
+    </span>
+  </div>
+  <div class="selectDay">
+    <span class="before" onclick={ chooseday }>
+      <svg class="icon" >
+          <use xlink:href="/icons/icons.svg#icon-angle-double-left"></use>
+      </svg>
+      <span class="text">上一天</span>
+    </span>
+    <span class="after" onclick={ chooseday }>
+      <span class="text">下一天</span>
+      <svg class="icon" >
+          <use xlink:href="/icons/icons.svg#icon-angle-double-right"></use>
+      </svg>
+    </span>
+  </div>
+  <div class="driver-list"></div>
+  <div class="deptDriverStaff hide" data-is="dept-staff-list"></div>
+  <script>
+    import './driver-list.html'
+    import './dept-staff-list.html'
+    import {trim, composeUpdateDBReq} from '../../js/utils/utils.js'
+    this.on('mount', () => {
+      this.root.classList.remove('hide')
+      this.shiftType = opts.shiftType
+      this.defaultShift = this.shiftType === 1 ? 'shiftThree' : 'shiftFour'
+      if (this.defaultShift === 'shiftThree') {
+        this.threeshift = 'selected'
+        this.fourshift = ''
+      } else {
+        this.threeshift = ''
+        this.fourshift = 'selected'
+      }
+      this.tableDate = opts.tableDate
+      this.driverDate = opts.driverDate
+      this.time = opts.time
+      this.update()
+    })
+    
+    this.chooseday = (evt) => {
+      let target = evt.currentTarget
+      let classname = target.getAttribute('class')
+      let oneday = 24 * 3600 * 1000
+      if (classname === 'before') {
+        this.tableDate = new Date(this.time - oneday).format('yyyy年MM月dd日')
+        this.driverDate = new Date(this.time - oneday).format('yyyy-MM-dd')
+        this.time = new Date(this.time - oneday).getTime()
+      } else {
+        this.tableDate = new Date(this.time + oneday).format('yyyy年MM月dd日')
+        this.driverDate = new Date(this.time + oneday).format('yyyy-MM-dd')
+        this.time = new Date(this.time + oneday).getTime()
+      }
+      opts.sptag.tableDate = this.tableDate
+      opts.sptag.driverDate = this.driverDate
+      opts.sptag.timestamp = this.time
+      let sql = `select v.vehicle_id, d.name da, dda.name,dda.driver_date,v.name vn,dda.shift_id from dat_driver_arrange dda,dat_vehicle v,dat_dept d where dda.driver_date='${this.driverDate}' and dda.shift_type_id = ${this.shiftType} and dda.vehicle_id = v.vehicle_id and dda.dept_id = d.dept_id`
+      // let sql = `select v.vehicle_id, d.name da, a.name, a.driver_date, v.name vn, a.shift_id from (select vehicle_id, dept_id, name, driver_date, shift_id from dat_driver_arrange dda where dda.driver_date='${this.driverDate}' and dda.shift_type_id = ${this.shiftType}) a left join dat_vehicle v on a.vehicle_id = v.vehicle_id left join dat_dept d on a.dept_id = d.dept_id`
+      opts.sptag.inquireDB('curDayDriver', sql)
+    }
+
+    this.mountDriverList = (msg) => {
+      let self = this
+      if (this.driverList) {
+        this.driverList.unmount(true)
+      }
+      this.rows = msg
+      this.driverList = riot.mount('div.driver-list', 'driver-list', {
+        rows: msg,
+        parentTag: self,
+        shiftType: opts.shiftType
+      })[0]
+    }
+
+    this.selectShift = (evt) => {
+      let target = evt.currentTarget
+      let className = target.options[target.selectedIndex].getAttribute('class')
+      let shiftType = className === 'shiftFour' ? 2 : 1
+      let sql = `select v.vehicle_id, d.name da, dda.name,dda.driver_date,v.name vn,dda.shift_id from dat_driver_arrange dda,dat_vehicle v,dat_dept d where dda.driver_date='${this.driverDate}' and dda.shift_type_id = ${shiftType} and dda.vehicle_id = v.vehicle_id and dda.dept_id = d.dept_id`
+      // let sql = `select v.vehicle_id, d.name da, a.name, a.driver_date, v.name vn, a.shift_id from (select vehicle_id, dept_id, name, driver_date, shift_id from dat_driver_arrange dda where dda.driver_date='${this.driverDate}' and dda.shift_type_id = ${shiftType}) a left join dat_vehicle v on a.vehicle_id = v.vehicle_id left join dat_dept d on a.dept_id = d.dept_id`
+      opts.sptag.shiftType = shiftType
+      opts.sptag.inquireDB('curDayDriver', sql)
+    }
+
+    this.createName = () => {
+      let staffs = xdata.metaStore.data.staff
+      let staffDriverArr = []
+      if (staffs) {
+        let driverstaffs = Array.from(staffs.values()).filter(item => item.occupation_id === 5)
+        for (let i = 0, len = driverstaffs.length; i < len; i++) {
+          let driverstaff = driverstaffs[i]
+          let staffname = xdata.metaStore.data.staff.get(driverstaff.staff_id) ? xdata.metaStore.data.staff.get(driverstaff.staff_id).name : ''
+          let staffDeptName = xdata.metaStore.data.dept.get(driverstaff.dept_id) ? xdata.metaStore.data.dept.get(driverstaff.dept_id).name : ''
+          staffDriverArr.push({
+            staff_id: driverstaff.staff_id,
+            dept_id: driverstaff.dept_id,
+            card_name: staffDeptName + '-' + staffname,
+            name: staffname + '-' + staffDeptName
+          })
+        }
+        this.staffs = staffDriverArr.sort(compare('name', 'staff'))
+      }
+    }
+
+    this.getShift = (target, shifts) => {
+      let shift = target.classList.value.split(' ' )[0]
+      switch (shift) {
+        case 'morning-icon':
+          return shifts === 1 ? 1 : 4
+          break
+        case 'middle-icon':
+          return shifts === 1 ? 2 : 5
+          break
+        case 'night-icon':
+          return shifts === 1 ? 3 : 6
+          break
+        default: 
+          return 7 
+      }
+    }
+
+    this.save = (target, driver) => {
+      let sql = null, name
+      let shifts = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftFour' ? 2 : 1
+      let input = target.parentElement.parentElement.querySelector('#input')
+      let chooseDriver = input.value
+      chooseDriver = trim(chooseDriver)
+      let curDriver = chooseDriver.split('-')[0]
+      curDriver = trim(curDriver)
+      driver = trim(driver)
+      let staffID = input.getAttribute('staff-id')
+      let deptID = input.getAttribute('dept-id')
+      let time = this.driverDate
+      let shiftID = this.getShift(target, shifts) 
+      let vehicleID = target.getAttribute('name')
+      let vehicleNum = target.getAttribute('type')
+      let isInsert = (chooseDriver !== driver && driver === '' && chooseDriver !== '无' && chooseDriver !== '') || (chooseDriver !== driver && driver === '无' && chooseDriver !== '无' && chooseDriver !== '')
+      if (isInsert) {
+        let value = '"' + curDriver + '"' + ',' + staffID + ',' + deptID + ',' + '"' + time + '"' + ',' + vehicleID + ',' + '"' + vehicleNum + '"' + ',' + shifts + ',' + shiftID + ',' + '"' + xdata.userName + '"'
+        sql = `INSERT into dat_driver_arrange (name,staff_id,dept_id,driver_date,vehicle_id,vehicle_number,shift_type_id,shift_id,user_id) VALUES(${value})`
+        name = 'INSERT'
+        console.log(sql)
+      } else if (chooseDriver !== driver && chooseDriver !== '无' && chooseDriver !== '') {
+        let value = 'name =' + '"' + curDriver + '"' + ',' + 'staff_id =' + staffID + ',' + 'dept_id =' + deptID + ',' + 'user_id =' + '"' + xdata.userName + '"'
+        let condition = 'vehicle_number =' + '"' + vehicleNum + '"' + ' and ' + 'driver_date =' + '"' + time + '"' + ' and ' + 'vehicle_id =' + vehicleID + ' and ' + 'shift_type_id =' + shifts + ' and ' + 'shift_id =' + shiftID
+        sql = `UPDATE dat_driver_arrange set ${value} where ${condition}`
+        name = 'UPDATE'
+        console.log(sql)
+      } else if (chooseDriver !== driver && (chooseDriver === '无' || chooseDriver === '')) {
+        let deleteDriver = driver.split('-')[0]
+        deleteDriver = trim(deleteDriver)
+        let value = ' name =' + '"' + deleteDriver + '"' + ' and ' + 'driver_date =' + '"' + time + '"' + ' and ' + 'vehicle_id =' + vehicleID + ' and ' + 'vehicle_number =' + '"' + vehicleNum + '"' + ' and ' + 'shift_type_id =' + shifts + ' and ' + 'shift_id =' + shiftID + ' and ' + 'user_id =' + '"' + xdata.userName + '"'
+        sql = `DELETE from dat_driver_arrange where (${value})`
+        name = 'DELETE'
+        console.log(sql)
+      }
+      let req = composeUpdateDBReq(name, 'driver_arrange', '', sql)
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+      this.registerGlobalEventHandlers(target)
+    }
+
+    this.registerGlobalEventHandlers = (target) => {
+      xbus.on('META-UPDATE-DB-RES', (res) => {
+        if (res.code === 0) {
+          let input = target.parentElement.parentElement.querySelector('input')
+          let deptDriver = input.value
+          target.parentElement.classList.add('hide')
+          target.parentElement.setAttribute('id', '')
+          // ul
+          this.root.querySelector('.deptDriverStaff') && this.root.querySelector('.deptDriverStaff').classList.add('hide')
+          // input
+          target.parentElement.parentElement.querySelector('input').classList.add('hide')
+          // span
+          target.parentElement.parentElement.querySelector('span').classList.remove('hide')
+          target.parentElement.parentElement.querySelector('span').innerHTML = target.parentElement.parentElement.querySelector('input').value
+          target.parentElement.parentElement.querySelector('input').setAttribute('id', '')
+        }
+        let msg = {
+          value: res.code === 0 ? 'success' : 'notsave',
+          tip: res.code === 0 ? '保存成功' : '保存失败'
+        }
+        window.hintip.open(msg)
+      })
+    }
+
+    this.askFile = (evt) => {
+      let opName = this.root.querySelector('.arrangeOrder').getAttribute('data-value')
+      let isThreeArr = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftThree' ? ['车牌号', '日期', '早班', '中班', '晚班'] : ['车牌号', '早班', '中班', '晚班', '夜班']
+      let type = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftThree' ? ['STRING', 'STRING', 'STRING', 'STRING', 'STRING'] : ['NUMBER', 'STRING', 'STRING', 'STRING', 'STRING']
+      let name = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftThree' ? ['number', 'date_format(driver_date,"%Y-%m-%d")', '"早"', '"中"', '"晚"'] : ['card', 'mor', 'mid', 'nig', 'gra']
+      let shift = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftThree' ? 1 : 2
+
+      let title = opName === 'driver' ? '司机排班' : ''
+      let pdfTime = this.driverDate
+      let sqlString = `SELECT number,date_format(driver_date,"%Y-%m-%d"),MAX(CASE tb2.shift WHEN "1" THEN name ELSE " " END) AS "早",MAX(CASE tb2.shift WHEN "2" THEN name ELSE " " END) AS "中",MAX(CASE tb2.shift WHEN "3" THEN name ELSE " " END) AS "晚" FROM(SELECT s.name,v.name number,IFNULL(shift_id,"total") shift,driver_date FROM dat_driver_arrange dda INNER JOIN dat_staff s ON dda.staff_id = s.staff_id INNER JOIN dat_vehicle v ON dda.vehicle_id = v.vehicle_id WHERE driver_date = "${pdfTime}" GROUP BY dda.vehicle_id, shift_id, driver_date WITH ROLLUP HAVING driver_date IS NOT NULL)tb2 GROUP BY tb2.number, tb2.driver_date WITH ROLLUP HAVING driver_date IS NOT NULL`
+      let reptTime = new Date().getTime()
+      let defNames = evt.currentTarget.getAttribute('')
+      let msg = {
+        cmd: 'file',
+        exprList: [],
+        fileType: 'printPDF',
+        labels: isThreeArr,
+        name: '',//driver
+        namesInShort: name,
+        title: title,
+        reptIndex: reptTime,
+        types: type,
+        sql: sqlString,
+        userName: xdata.userName
+      }
+      xbus.trigger('REPT-FETCH-FILE', msg)
+    }
+
+    this.on('unmount', () => {
+      this.root.classList.add('hide')
+    })
+  </script>
+</driver-table>

@@ -1,0 +1,48 @@
+<three-rate-top>
+  <span class="rate-top-title">全矿三率分析</span>
+  <!-- <div data-is="top-alarm" class="top-alarm"></div> -->
+  <div class="overview-echarts">
+    <div class="overviewBD">
+      <div class="overview-BD" style="width:100%;height:150px;"></div>
+      <span>开机率</span>
+    </div>
+    <div class="overviewWD">
+      <div class="overview-WD" style="width:100%;height:150px;"></div>
+      <span>工时利用率</span>
+    </div>
+    <div class="overviewRD">
+      <div class="overview-RD" style="width:100%;height:150px;"></div>
+      <span>正规循环率</span>
+    </div>
+    
+  </div>
+  <script>
+    import echarts from 'echarts'
+    import { gauge } from '../../js/def/graph_def.js'
+
+    this.initCharts = (row, name, title) => {
+      // row = row ? row : [0]
+      name = `.${name}`
+      let initdom = this.root.querySelector(name)
+      if (!initdom) return
+      echarts.dispose(initdom)
+      let chart = echarts.init(initdom)
+      let msg = {
+        title: title,
+        data: [{value: row[0] && row[0].worktime ? Number(row[0].worktime.toFixed(2)) : 0, name: ``}],
+        max: name == '.overview-WD' ? 14 : 100
+      }
+      let option = gauge(msg)
+      chart.setOption(option)
+      window.addEventListener("resize",function(){              
+        chart.resize()
+      })
+    }
+
+    this.initDate = (overviewBD, overviewWD, overviewRD) => {
+      this.initCharts(overviewBD, 'overview-BD', '开机率')
+      this.initCharts(overviewWD, 'overview-WD', '工时利用率')
+      this.initCharts(overviewRD, 'overview-RD', '正规循环率')
+    }
+  </script>
+</three-rate-top>

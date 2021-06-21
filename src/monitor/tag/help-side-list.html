@@ -1,0 +1,127 @@
+<help-side-list>
+    <div class="group-list group-list-title">
+        <span>姓名</span>
+        <span>呼救时间</span>
+        <span>操作</span>
+    </div>
+    <div each={ row in list } class="hm-item">
+        <p>
+            <span class="hm-label">{ row.name }</span>
+            <span class="hm-time">{ new Date(row.cur_time).format('MM-dd hh:mm') }</span>
+            <span class="btn" data-id={ row.obj_id } data-type={ row.cur_time } onclick={ settled }>处理</span>
+        </p>
+        <p class="hm-pos" data-id={ row.obj_id } onclick={ locate }><img class="ticon" src="../img/location.png">{ xdata.metaStore.getPositionDesc(row.lmid, row.lmdirect, row.lmdistance) }</p>
+    </div>
+    <div data-is="blank-message" message="没有相关记录。" class="blank-message" if={ !list || list.length <= 0 }></div>
+    <script>
+        import './call-leave.html'
+        this.on('mount', () => {
+            if (xdata.helpmeStore.hms.size > 0) {
+                this.list = Array.from(xdata.helpmeStore.hms.values())
+            } else {
+                this.list = null
+            }
+            this.update()
+        })
+
+        xbus.on('HELPME-LIST-CHANGED', () => {
+            if (xdata.helpmeStore.hms.size > 0) {
+                this.list = Array.from(xdata.helpmeStore.hms.values())
+            } else {
+                this.list = null
+            }
+
+            this.update()
+        })
+
+        this.judgeTime = (evt) => {
+            let target = evt.currentTarget
+            let time = parseInt(target.getAttribute('data-type'), 10)
+            let now = new Date().getTime()
+            let timediff = 1 * 60 * 1000 // 采集推送呼救后一分钟
+            let diff = now - time
+            if (diff > timediff) {
+                return true
+            } else {
+                return false
+            }
+        }
+
+        this.stopHelp = (id) => {
+            // stop locating
+            let msg1 = {
+                cards: [id],  // [cardid, ...]
+                type: 'HELP'     // ALARM, ...; default is null, means simple locating
+            }
+            window.cardStopLocating(msg1)
+
+            // 向采集发送数据
+            let helpme = xdata.helpmeStore.hms.get(id)
+            let msg = {
+                cmd: 'helpme_done',
+                version: '1.0.0.1',
+                data: {
+                    id: id,
+                    event_id: Number(helpme.event_id),
+                    status: 1,
+                    user_id: xdata.metaStore.gstore.userName
+                }
+            }
+            xbus.trigger('HELPME-DONE-REQ', msg)
+
+            // save process request to db
+            // this.doInsert(helpme)
+        }
+
+        this.settled = (evt) => {
+            let self = this
+            let ispush = this.judgeTime(evt)
+            let id = evt.currentTarget.getAttribute('data-id')
+            if (!ispush) {
+                let msg = {
+                    value: 'nochange',
+                    tip: '请确认此人是否已经安全升井！'
+                }
+                window.hintip.open(msg)
+                return
+            } else {
+                if (this.activePanel) {
+                    this.activePanel.unmount(true)
+                }
+                this.activePanel = riot.mount('call-leave', {
+                    name: 'helpDone',
+                    currentTag: self,
+                    value: id
+                })[0]
+            }
+        }
+
+        this.doInsert = (current) => {
+            var date = new Date().format('yyyy-MM-dd hh:mm:ss')
+
+            let values = current.event_id + ',' + 1 + ',' + 24 + ',' + 9 + ',' + current.obj_id + ',' + current.map_id + ',' + current.area_id + ',' + current.x + ',' + current.y + ',' + current.limit_value + ',' + current.cur_value + ',' + '"' + date + '"' + ',' + '"' + xdata.metaStore.gstore.userName + '"'
+            let sql = `INSERT into his_event_data VALUES(${values})`
+            
+            let msg = {
+                cmd: 'update', // update, CMD.META.UPDATE
+                data: {
+                    op: 'INSERT',
+                    sql: sql
+                }
+            }
+            xbus.trigger('META-UPDATE-DB', { req: msg })
+        }
+
+        this.locate = (evt) => {
+            let target = evt.currentTarget
+            let id = target.getAttribute('data-id')
+
+            let msg = {
+                cards: [id],  // [cardid, ...]
+                type: 'HELP'     // ALARM, ...; default is null, means simple locating
+            }
+
+            window.cardStartLocating(msg)
+        }
+    </script>
+</help-side-list>

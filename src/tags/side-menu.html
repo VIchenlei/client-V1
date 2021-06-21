@@ -1,0 +1,46 @@
+<side-menu>
+    <div class="title" onclick={ toggleItems }>
+        <div class="iconBG">
+            <svg class="icon sidebar-icon">
+                <use xlink:href="/icons/icons.svg#{ icon }"></use>
+            </svg>
+        </div>
+        <span class="sidebar-title-text">{title}</span>
+    </div>
+    <ul if={showItems}>
+        <li each={ items } name={name} class={name} ref={name} if={ isShowItem(name) }>{ getLabel(name,label) }</li>
+    </ul>
+
+    <script>
+        this.title = opts.def.title
+        this.items = opts.def.items
+        this.icon = opts.def.icon
+        this.tabName = null
+
+        this.isShowItem = (name) => {
+          if (name === 'dept' && xdata.isCheck === 1) return false
+          if (name === 'person_special' && xdata.roleID !== 100) return false
+          if (!['person_special', 'staff', 'staff-lamp'].includes(name) && xdata.roleID === 100) return false
+          return true
+        }
+
+        this.getLabel = (name,label) => {
+          if (name === 'dept_ck' && xdata.isCheck === 1) return '部门管理'
+          return label
+        }
+
+        this.init = (opts) => {
+            let parentClassname = opts.def.parent.root.getAttribute('class')
+            if (parentClassname === 'homepage' || parentClassname === 'menu') {
+                this.showItems = true
+            } else {
+                this.showItems = opts.def.expand || false
+            }
+        }
+        this.init(opts)
+
+        this.toggleItems = (evt) => {
+            this.showItems = !this.showItems
+        }
+    </script>
+</side-menu>

@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>CS DEMO</title>
+</head>
+
+<body>
+    <div>
+        <button onclick="login('COLLECTOR', '666666')"> LOGIN </button>
+        <button onclick="disconnect()"> DISCONNECT </button>
+        <br> Message Content:
+        <br>
+        <textarea id="data" rows="20" cols="80" value=""></textarea>
+        <div>
+            <span>Message tag :</span>
+            <input id="event_tag" type="text" value="PUSH">
+        </div>
+        <div>
+            <span>Command Name :</span>
+            <input id="cmd" type="text" value="counting">
+        </div>
+
+        <button onclick="setCount()"> counting </button>
+        <button onclick="countBack()"> countBack </button>
+        <button onclick="setAlarm()"> alarm </button>
+        <button onclick="startCall()"> callList </button>
+        <button onclick="callcardconfirm()">callconfirm</button>
+        <button onclick="callcardCancelRes()"> callcardCancelRes </button>
+        <br>
+        <br>
+        <button onclick="setPos0()"> pos0 </button>
+        <button onclick="setPos1()"> pos1 </button>
+        <button onclick="setPos2()"> pos2 </button>
+        <button onclick="setPos3()"> pos3 </button>
+        <button onclick="setPosAll()"> posAll </button>
+        <button onclick="coalCutting()"> coal_cutting </button>
+        <button onclick="tunnellerStat()">tunneller_stat </button>
+        <button onclick="personOnCar()">personOnCar </button>
+        <br>
+        <br>
+        <button onclick="setDown()"> down_mine </button>
+        <button onclick="setUp()"> up_mine </button>
+        <button onclick="specialArea()">special_area_up_mine</button>
+        <br>
+        <br>
+        <button onclick="setDeviceState1()"> device_state-1 </button>
+        <button onclick="setDeviceState2()"> device_state-2 </button>
+        <button onclick="lightState()"> light_state </button>
+        <br>
+        <br>
+        <button onclick="doHelpme()"> helpme </button>
+        <button onclick="light()"> light </button>
+        <button onclick="lightBack()"> lightBack </button>
+        <button onclick="leaderArrange()"> leader_arrange </button>
+        <br>
+        <br>
+        <button onclick="dragCard()">dragCard</button>
+        <button onclick="vehicleState()">vehicleState</button>
+        <!--<button onclick="count()">count</button>-->
+        <br>
+        <br>
+        <button onclick="sendMessage()"> -------- send message -------- </button>
+        <br>
+        <br>
+        <button id="UpLeft" onclick="move(this)"> moveUpLeft </button>
+        <button id="Up" onclick="move(this)"> Up </button>
+        <button id="UpRight" onclick="move(this)"> moveUpRight </button>
+        <br>
+        <button id="Left" onclick="move(this)"> moveLeft </button>
+        <button id="Right" onclick="move(this)"> moveRight </button>
+        <br>
+        <button id="DownLeft" onclick="move(this)"> moveDownLeft </button>
+        <button id="Down" onclick="move(this)"> Down </button>
+        <button id="DownRight" onclick="move(this)"> moveDownRight </button>
+        <br>
+        <br>
+        <button id="auto" onclick="timer(this)"> timer_auto </button>
+        <button id="file" onclick="timer(this)"> timer_file </button>
+        <button onclick="stoptimer()"> stoptimer </button>
+        <button onclick="TEST()"> TEST </button>
+        <br><br>
+        <button onclick="pushAll('start')"> ----- start pushAll ----- </button>
+        <button onclick="pushAll('stop')"> ----- stop pushAll ----- </button>
+    </div>
+    <br>
+
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="Socket2.js"></script>
+
+
+    <script type="text/javascript">
+        Date.prototype.format = function(format) { // eslint-disable-line
+          let o = {
+            'M+': this.getMonth() + 1, // month
+            'd+': this.getDate(), // day
+            'h+': this.getHours(), // hour
+            'm+': this.getMinutes(), // minute
+            's+': this.getSeconds(), // second
+            'q+': Math.floor((this.getMonth() + 3) / 3), // quarter
+            'S': this.getMilliseconds() // millisecond
+          }
+          if (/(y+)/.test(format)) {
+            format = format.replace(RegExp.$1, (this.getFullYear() + '').substr(4 - RegExp.$1.length))
+          }
+          for (let k in o) {
+            if (new RegExp('(' + k + ')').test(format)) {
+              format = format.replace(RegExp.$1,
+                        RegExp.$1.length === 1 ? o[k] : ('00' + o[k]).substr(('' + o[k]).length))
+            }
+          }
+          return format
+        }
+
+        function pushAll (cmd) {
+          let event_tag = 'TEST'
+          let d = {cmd: cmd}
+          console.log('send message : \n' + JSON.stringify(d))
+
+          socket.emit(event_tag, d)
+        }
+
+        function doHelpme () {
+          document.querySelector('#cmd').value = 'event'
+          document.querySelector('#data').value = helpme
+        }
+
+        function light () {
+          document.querySelector('#cmd').value = 'device_state'
+          document.querySelector('#data').value = device_state
+        }
+
+        function dragCard () {
+          document.querySelector('#cmd').value = 'deal_hand_up_res'
+          document.querySelector('#data').value = deal_hand_up_res
+        }
+
+        function vehicleState() {
+            document.querySelector('#cmd').value = 'vehicle_state'
+            document.querySelector('#data').value = vehicle_state
+        }
+
+        function lightBack () {
+          document.querySelector('#cmd').value = 'light_ctrl_rsp'
+          document.querySelector('#data').value = light_ctrl_rsp
+        }
+
+        // function count(){
+        //     document.querySelector('#cmd').value = 'counting'
+        //     document.querySelector('#data').value = counting
+        // }
+
+        function setDeviceState1 () {
+          document.querySelector('#cmd').value = 'device_state'
+          document.querySelector('#data').value = device_state1
+        }
+
+        function setDeviceState2 () {
+          document.querySelector('#cmd').value = 'device_state'
+          document.querySelector('#data').value = device_state2
+        }
+
+        function lightState() {
+          document.querySelector('#cmd').value = 'light_state'
+          document.querySelector('#data').value = light_state  
+        }
+
+        function setPos0 () {
+          document.querySelector('#cmd').value = 'pos_map'
+          document.querySelector('#data').value = posmap0
+        }
+
+        function setPos1 () {
+          document.querySelector('#cmd').value = 'pos_map'
+          document.querySelector('#data').value = posmap1
+        }
+
+        function setPos2 () {
+          document.querySelector('#cmd').value = 'pos_map'
+          document.querySelector('#data').value = posmap2
+        }
+
+        function setPos3 () {
+          document.querySelector('#cmd').value = 'pos_map'
+          document.querySelector('#data').value = posmap3
+        }
+
+        function setPosAll () {
+          document.querySelector('#cmd').value = 'resp_all_data'
+          document.querySelector('#data').value = posAllData
+        }
+        function coalCutting () {
+          document.querySelector('#cmd').value = 'coal_cutting'
+          document.querySelector('#data').value = coal_cutting
+        }
+
+        function leaderArrange () {
+          document.querySelector('#cmd').value = 'leader_arrange'
+          document.querySelector('#data').value = leader_arrange
+        }
+
+        function tunnellerStat () {
+          document.querySelector('#cmd').value = 'tunneller_stat'
+          document.querySelector('#data').value = tunneller_stat
+        }
+
+        function personOnCar () {
+          document.querySelector('#cmd').value = 'person_on_car'
+          document.querySelector('#data').value = person_on_car
+        }
+
+        function setCount () {
+          document.querySelector('#cmd').value = 'counting'
+          document.querySelector('#data').value = counting
+        }
+
+        function countBack () {
+          document.querySelector('#cmd').value = 'count_detail_resp'
+          document.querySelector('#data').value = count_detail_resp
+        }
+
+        function setDown () {
+          document.querySelector('#cmd').value = 'down_mine'
+          document.querySelector('#data').value = down_mine
+        }
+
+        function setUp () {
+          document.querySelector('#cmd').value = 'up_mine'
+          document.querySelector('#data').value = up_mine
+        }
+
+        function specialArea () {
+          document.querySelector('#cmd').value = 'special_area_up_mine'
+          document.querySelector('#data').value = special_area_up_mine
+        }
+
+        function setAlarm () {
+          document.querySelector('#cmd').value = 'event'
+          document.querySelector('#data').value = alarm
+        }
+
+        function startCall () {
+          document.querySelector('#cmd').value = 'call_card_resp'
+          document.querySelector('#data').value = calllist
+        }
+
+        function callcardconfirm() {
+          document.querySelector('#cmd').value = 'call_confirm'
+          document.querySelector('#data').value = callconfirm
+        }
+
+        function callcardCancelRes () {
+          document.querySelector('#cmd').value = 'call_card_cancel_resp'
+          document.querySelector('#data').value = callCancleResp
+        }
+
+        function sendMessage () {
+          let d = {}
+          let event_tag = document.querySelector('#event_tag').value
+          d.cmd = document.querySelector('#cmd').value
+          d.data = document.querySelector('#data').value
+          console.log('send message : \n' + JSON.stringify(d))
+          socket.emit(event_tag, d)
+        }
+
+        // function sendMessage () {
+        //   let intervalId = null
+        //   let i = -1
+        //   intervalId = setInterval(function () {
+        //     i++
+        //     if(i === 120){
+        //       clearInterval(intervalId)
+        //     }
+        //     simulate(i)
+        //   }, 1000)
+        // }
+        
+        function simulate(i) {
+          let d = {}
+          let data = {}
+          let detail = []
+
+          for(var j = 1; j <= 1000;j++){
+            let cardid = ''
+            if(j < 10){
+              cardid = '001000000000'+j 
+            }else if(j < 100){
+              cardid = '00100000000'+j
+            }else if(j < 1000){
+              cardid = '0010000000'+j
+            }
+            let x = null
+            let y = null
+            if(i > 2000){
+              x = 100 + 5 * j + 2000 - (i - 2000)
+              y = 100 + j + 2000 - (i - 2000) 
+            }else{
+              x = 100 + 5 * j + i
+              y = 100 + j + i
+            }
+            let row = [cardid,x,y,1479353044078,1479353047078,1479353054078,53453,5,2,1,1,1,1,14,1,0,10,4]
+            detail.push(row)
+          }
+          data.s = {}
+          data.s.detail = detail
+          d.cmd = 'pos_map'
+          d.data = data
+          let sendmsg = JSON.stringify(d)
+          // d.data = `
+          // {   
+          // "s":{
+          //   "detail": [
+          //     ["0010000000125",4600,74,1479353044078,1479353047078,1479353054078,53453,5,2,1,1,1,1,14,1,0,10,4]
+          //   ]
+          //   }
+          // }`
+          // let event_tag = document.querySelector('#event_tag').value
+          // d.cmd = document.querySelector('#cmd').value
+          // d.data = document.querySelector('#data').value
+          // console.log('send message : \n' + JSON.stringify(d))
+
+          socket.emit('PUSH', sendmsg)
+        }
+        let X
+        let Y
+        let t
+
+        // setInterval(function () {
+        //   let i = 0
+        //   sendMessage(i)
+        //   i++
+        // }, 1000)
+
+        function direction (Act) {
+          switch (Act) {
+            case 'UpLeft':
+              X = X - 20
+              Y = Y - 20
+              break
+            case 'Up':
+              Y = Y - 20
+              break
+            case 'UpRight':
+              X = X + 20
+              Y = Y - 20
+              break
+            case 'Left':
+              X = X - 20
+              break
+            case 'Right':
+              X = X + 20
+              break
+            case 'DownLeft':
+              X = X - 20
+              Y = Y + 20
+              break
+            case 'Down':
+              Y = Y + 20
+              break
+            case 'DownRight':
+              X = X + 20
+              Y = Y + 20
+              break
+          }
+        }
+
+        function move (e) {
+          X = 500
+          Y = 0
+          let Action = e.getAttribute('id')
+          direction(Action)
+          let postimer1 =
+                '[{"map_id":1,"pos_card":[{"card_id":"0020000000001","card_type_id":"2","number":"GC-GC1001","x":' + X +
+                ',"y":' + Y +
+                ',"rec_time":"2016-03-03 09:09:09","down_time":"2016-03-03 09:09:09","up_time":"2016-03-03 09:09:09","enter_area_time":"2016-03-03 09:09:09","map_id":1,"area_id":2,"dept_id":1,"work_time":"10 小时 10 分钟 10 秒","state":"1"}]}]'
+
+          let d = {}
+          d.cmd = 'pos_map'
+          d.data = postimer1
+          let event_tag = 'PUSH'
+          let data = JSON.stringify(d)
+
+          socket.emit(event_tag, d)
+        }
+        let r = 100
+        let i = 0
+        let j = 0
+        speed = 0
+        let ID
+
+        function timer (e) {
+          X = 665
+          Y = 660
+          ID = e.getAttribute('id')
+          t = setTimeout('movement()', 1000)
+        }
+
+        function stoptimer () {
+          clearTimeout(t)
+        }
+
+        function movement () {
+          let d = {}
+          let l = 10
+          if (ID == 'auto') {
+            if (i == 0) {
+              X = X - l
+              if (X <= 500) {
+                i = 1
+              }
+            } else if (i == 1) {
+              Y = Y - l
+              if (Y <= 77) {
+                i == 2
+              }
+            } else {
+              clearTimeout(t)
+            }
+            j++
+            speed++
+            let postimer1 =
+                    '[{"map_id":15,"pos_card":[{"card_id":"0020000000001","card_type_id":"2","number":"GC-GC1001","x":' + X +
+                    ',"y":' + Y +
+                    ',"rec_time":"2016-03-03 09:09:0' + j + '","down_time":"2016-03-03 09:09:09","up_time":"2016-03-03 09:09:09","enter_area_time":"2016-03-03 09:09:09","map_id":15,"dept_id":1,"work_time":"10 小时 10 分钟 10 秒","state":"1","speed":"' + speed + '"}]}]'
+
+            d.cmd = 'pos_map'
+            d.data = postimer1
+          } else if (ID == 'file') {
+            d = TestData[j]
+            j++
+          }
+          let event_tag = 'PUSH'
+          console.log('send message : \n' + JSON.stringify(d))
+          socket.emit(event_tag, d)
+          if (j == 62) {
+            clearTimeout(t)
+          }
+          t = setTimeout('movement()', 1000)
+        }
+
+        function TEST () {
+          console.log(TestData.length)
+          console.log('send message : \n' + JSON.stringify(TestData[0]))
+          let event_tag = 'PUSH'
+          socket.emit(event_tag, TestData[0])
+        }
+
+//         let counting =
+//             `
+// {
+//     "total":100,
+//     "staff":40,
+//     "vehicle":60,
+//     "maps":[{
+//         "id":1,
+//         "total":100,
+//         "staff":20,
+//         "vehicle":30,
+//         "areas":[{
+//                 "id":1,
+//                 "total":60,
+//                 "staff":40,
+//                 "vehicle":20
+//             }, {
+//                 "id":2,
+//                 "total":60,
+//                 "staff":40,
+//                 "vehicle":20
+//             }, {
+//                 "id":3,
+//                 "total":0,
+//                 "staff":0,
+//                 "vehicle":0
+//             }, {
+//                 "id":4,
+//                 "total":0,
+//                 "staff":0,
+//                 "vehicle":0
+//             }
+
+//         ],
+//         "depts":[{
+//             "id":1,
+//             "total":30,
+//             "staff":10,
+//             "vehicle":20
+//         }, {
+//             "id":2,
+//             "total":30,
+//             "staff":10,
+//             "vehicle":20
+//         }, {
+//             "id":3,
+//             "total":30,
+//             "staff":10,
+//             "vehicle":20
+//         }, {
+//             "id":4,
+//             "total":30,
+//             "staff":10,
+//             "vehicle":20
+//         }
+//     ]
+//     }, {
+//         "id":2,
+//         "total":120,
+//         "staff":60,
+//         "vehicle":60,
+//         "areas":[{
+//                 "id":1,
+//                 "total":60,
+//                 "staff":40,
+//                 "vehicle":20
+//             }, {
+//                 "id":2,
+//                 "total":60,
+//                 "staff":40,
+//                 "vehicle":20
+//             }, {
+//                 "id":3,
+//                 "total":60,
+//                 "staff":40,
+//                 "vehicle":20
+//             }, {
+//                 "id":4,
+//                 "total":60,
+//                 "staff":40,
+//                 "vehicle":20
+//             }
+
+//         ],
+//         "depts":[{
+//             "id":1,
+//             "total":30,
+//             "staff":10,
+//             "vehicle":20
+//         }, {
+//             "id":2,
+//             "total":30,
+//             "staff":10,
+//             "vehicle":20
+//         }, {
+//             "id":3,
+//             "total":30,
+//             "staff":10,
+//             "vehicle":20
+//         }, {
+//             "id":4,
+//             "total":30,
+//             "staff":10,
+//             "vehicle":20
+//         }
+//     ]
+//     }
+// ]
+// }
+// `
+
+let posmap0 = `
+{
+    "v":{
+    "stat":{
+        "glbl":{
+            "sum":100,
+            "area":[[0, 10],[1, 30], [2, 60]],
+            "dept":[[1, 80], [2, 20]]
+        },
+        "dept":{
+            "1":{
+                "sum":80,
+                "area":[[0, 10], [1, 20], [2, 50]],
+                "dept":[[1, 80]]
+            },
+            "2":{
+                "sum":20,
+                "area":[[0, 10], [1, 5], [2, 5]],
+                "dept":[[2, 20]]
+            }
+        }
+    },
+    "detail":[
+        ["0020000001001",100,100,1479353044078,1479353047078,1479353054078,53453,5,1,1,1,1,1,14,1,1,20],
+        ["0020000001002",200,200,1479353044078,1479353047078,1479353054078,53453,5,2,1,0,1,1,10,1,1,20],
+        ["0020000001004",4727,300,1479353044078,1479353047078,1479353054078,53453,5,2,1,0,1,1,10,1,0,30]
+    ]
+    },
+
+    "s":{
+    "stat":{
+        "glbl":{
+            "sum":1000,
+            "area":[[0, 100],[1, 200], [2, 300]],
+            "dept":[[1, 100], [2, 200]],
+            "occupation_level":[[0, 100],[1, 200],[3, 300],[4, 1000]]
+        },
+        "dept":{
+            "1":{
+                "sum":300,
+                "area":[[0, 10], [1, 20], [2, 30]],
+                "dept":[[1, 100]],
+                "occupation_level":[[1, 10], [2, 50]]
+            },
+            "2":{
+                "sum":700,
+                "area":[[0, 10], [1, 20], [2, 30]],
+                "dept":[[2, 200]],
+                "occupation_level":[[1, 10], [2, 50]]
+            }
+        }
+    },
+    "detail": [
+        ["0010000000125",200,300,1479353044078,1479353047078,1479353054078,53453,5,2,1,1,1,1,14,1,0,10,4]
+    ]
+    }
+}
+`
+
+        let posmap1 = `
+        [
+            ["0010000000010",7300,700,1479353044078,1479353047078,1479353054078,53453,5,2,1,1,1,1,14],
+            ["0010000000011",2100,400,1479353044078,1479353047078,1479353054078,53453,5,3,1,0,1,1,10],
+            ["0010000000012",5900,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0010000000013",5100,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0010000000014",5200,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0010000000015",4800,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0010000000016",4700,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0010000000017",4600,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0010000000018",4500,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0010000000019",4400,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0010000000009",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000008",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000007",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000006",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000005",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000004",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000003",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000002",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000001",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000020",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000021",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000022",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000023",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20],
+            ["0010000000024",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20]
+        ]
+`
+
+        let posmap2 = `
+
+        [
+            ["0020000001010",7300,700,1479353044078,1479353047078,1479353054078,53453,5,2,1,1,1,1,14],
+            ["0020000001011",2100,400,1479353044078,1479353047078,1479353054078,53453,5,3,1,0,1,1,10],
+            ["0020000001012",5900,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0020000001013",5100,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0020000001014",5200,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0020000001015",4800,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0020000001016",4700,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0020000001017",4600,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0020000001018",4500,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0020000001019",4400,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,10],
+            ["0020000001012",4300,300,1479353044078,1479353047078,1479353054078,53453,5,4,1,0,1,1,20]
+        ]
+
+`
+        
+let posmap3 = `
+        [
+            ["0020000001003",200,300,1479353044078,1479353047078,1479353054078,53453,1,1,5,2,1,1,200]
+        ]
+`
+
+        let coal_cutting = `
+            [
+["0020000001001",3540,-333,1232,12323,2.1, 1,10,1,0, 3, 1, 2.0,2.0, 8.2 ],
+["0020000001002",3550,-333,1232,12323,2.1, 1,1,1,0, 0, 1, 2.0,2.0, 8.2]
+]
+         `
+        let tunneller_stat = `
+        [
+
+            ["0020000001001",3540,-333,1232,12323,2.1, 1,11,1,0, 3, 1, 2.0,2.0, 8.2,3,3.2,1,399],
+            ["0020000001091",3550,-333,1232,12323,2.1, 1,12,1,0, 0, 1, 2.0,2.0, 8.2,4,133.3,1,399]
+
+        ]
+    `
+        let person_on_car = `
+            [
+                [1198, 3, 1001, 1002, 1003],
+                [1196, 2, 1004, 1005]
+            ]
+        `
+        let posAllData = `
+        [
+            {"cmd":"pos_map","data":[
+                ["0020000000007",4300,600,1479353044078,1479353047078,1479353054078,53453,5,6,1,0,1,1,10],
+                ["0020000000003",5300,600,1479353044078,1479353047078,1479353054078,53453,5,6,1,0,1,1,10],
+                ["0020000000004",3300,600,1479353044078,1479353047078,1479353054078,53453,5,6,1,0,1,1,10]
+            ]},
+            {"cmd":"special_area_up_mine","data":[
+                ["0020000000007",4300,600,1479353044078,1479353047078,1479353054078,53453,5,6,1,0,1,1,10],
+                ["0020000000003",5300,600,1479353044078,1479353047078,1479353054078,53453,5,6,1,0,1,1,10],
+                ["0020000000004",3300,600,1479353044078,1479353047078,1479353054078,53453,5,6,1,0,1,1,10]
+            ]},
+            {"cmd":"event","data":[
+                {
+                    "event_id": 11112,
+                    "status": 0,
+                    "type_id": 2,
+                    "obj_type_id":1,
+                    "obj_id":"0020000001062",
+                    "map_id": 5,
+                    "area_id":6,
+                    "x":300,
+                    "y":300,
+                    "limit_value": 300,
+                    "cur_value": 350,
+                    "start_time": "2017-02-21 15:20:21"
+                },
+                {
+                    "event_id": 11113,
+                    "status": 0,
+                    "type_id": 3,
+                    "obj_type_id":2,
+                    "obj_id":"0010000000007",
+                    "map_id": 5,
+                    "area_id":2,
+                    "x":400,
+                    "y":300,
+                    "limit_value": 5,
+                    "cur_value": 8,
+                    "start_time": "2017-02-21 15:20:22"
+                }
+            ]},
+            {"cmd":"callcardlist","data":[
+                ["fjb","0010000000001",103,23431,0,0],
+                ["fjb","0010000000001",105,23432,0,2],
+                ["fjb","0",105,23433,0,2],
+                ["fjb","0010000000001",101,23434,0,1],
+                ["李四","0010000000001",102,23435,1,3],
+                ["fjb","0010000000002",102,23436,1,3],
+                ["王二","0010000000003",102,23437,0,1],
+                ["fjb","0",102,23432,0,2],
+                ["fjb","0010000000003",202,23438,0,3],
+                ["lily","0010000000002",101,22129,1,2],
+                ["lily","0010000000002",109,22110,1,1],
+                ["lily","0010000000002",108,22111,1,0],
+                ["lily","0010000000001",108,22112,1,3],
+                ["lily","0010000000002",108,26113,1,1],
+                ["张三","0010000000007",35,25114,0,2]
+            ]}
+]
+`
+        let leader_arrange = `
+            [
+                {
+                    "card_id": "0010000000059",
+                    "card_type": 1
+                }
+            ]
+        `
+
+        let posmap22 = `
+        [
+            ["0010000000001",500,300,1479353044078,1479353047078,1479353054078,53453,1,13,1,0,1,1,1],
+            ["0010000000002",200,0,1479353044078,1479353047078,1479353054078,53453,1,13,1,0,1,1,1],
+            ["0020000001001",100,0,1479353044078,1479353047078,1479353054078,53453,1,13,5,0,1,1,1],
+            ["0020000001003",300,0,1479353044078,1479353047078,1479353054078,53453,1,13,5,0,1,1,120]
+        ]
+`
+
+        let posmap33 = `
+        [
+            ["0010000000001",400,100,1479353044078,1479353047078,1479353054078,53453,1,1,23,13,1,1,1],
+            ["0010000000002",100,500,1479353044078,1479353047078,1479353054078,53453,1,1,5,1,1,1,1],
+            ["0020000001003",200,300,1479353044078,1479353047078,1479353054078,53453,1,1,5,2,1,1,200]
+        ]
+`
+        let down_mine = `
+        [
+            ["0010000000001",4714,75,1479353044078,1479353047078,1479353054078,53453,24,13,1,0,1,1,1],
+            ["0010000000002",4728,-19,1479353044078,1479353047078,1479353054078,53453,24,13,5,0,1,1,1],
+            ["0020000001001",4629,75,1479353044078,1479353047078,1479353054078,53453,24,13,5,0,1,1,1]
+        ]
+`
+
+        let up_mine = `
+        [
+            ["0020000000007",4300,600,1479353044078,1479353047078,1479353054078,53453,5,6,1,0,1,1,10],
+            ["0020000000003",5300,600,1479353044078,1479353047078,1479353054078,53453,5,6,1,0,1,1,10],
+            ["0020000000004",3300,600,1479353044078,1479353047078,1479353054078,53453,5,6,1,0,1,1,10]
+        ]
+`
+        let special_area_up_mine = `
+        [
+            ["0020000000007",4300,600,1479353044078,1479353047078,1479353054078,53453,5,6,1,0,1,1,10],
+            ["0020000000003",5300,600,1479353044078,1479353047078,1479353054078,53453,5,6,1,0,1,1,10],
+            ["0020000000004",3300,600,1479353044078,1479353047078,1479353054078,53453,5,6,1,0,1,1,10]
+        ]
+`
+
+        let callconfirm = `
+					{
+						"card_id": "0010000000001",
+						"reader_id": "",
+						"confirm_time": "2019-12-20 23:59:59"
+						}
+        `
+
+        let calllist = `
+        [
+            ["fjb","0010000000001",103,23431,0,0],
+            ["fjb","0010000000001",105,23432,0,2],
+            ["fjb","0",105,23433,0,2],
+            ["fjb","0010000000001",101,23434,0,1],
+            ["李四","0010000000001",102,23435,1,3],
+            ["fjb","0010000000002",102,23436,1,3],
+            ["王二","0010000000003",102,23437,0,1],
+            ["fjb","0",102,23432,0,2],
+            ["fjb","0010000000003",202,23438,0,3],
+            ["lily","0010000000002",101,22129,1,2],
+            ["lily","0010000000002",109,22110,1,1],
+            ["lily","0010000000002",108,22111,1,0],
+            ["lily","0010000000001",108,22112,1,3],
+            ["lily","0010000000002",108,26113,1,1],
+            ["张三","0010000000007",35,25114,0,2]
+
+        ]
+`
+        let callCancleResp = `
+        {
+            "user_name":"fjb",
+            "call_time": 23432,
+            "stations":[{"stationid":102}],
+            "cards":[{"cardid":"0","cardtype":"1"}]
+        }
+    `
+  /*
+       let alarm =
+
+            `
+{
+    "global" : [{
+            "item":"over_count_person",
+            "detail" : {
+                "max":3,
+                "current":10
+            }
+        },{
+            "item":"over_count_vehicle",
+            "detail" : {
+                "max":3,
+                "current":10
+            }
+        },{
+            "item":"over_time_person",
+            "detail" : {
+                "max":2,
+                "current":3
+            }
+        },{
+            "item":"over_speed_vehicle",
+            "detail" : {
+                "max":3,
+                "current":30
+            }
+        }
+    ],
+
+    "areas": [{
+            "area_id": "1",
+            "alarms": [{
+                "item": "over_count_person",
+                "detail": {
+                    "max": 3,
+                    "current": 10
+                }
+            }, {
+                "item": "over_count_vehicle",
+                "detail": {
+                    "max": 3,
+                    "current": 10
+                }
+            }, {
+                "item": "over_time_person",
+                "detail": {
+                    "max": 2,
+                    "current": 3
+                }
+            }, {
+                "item": "over_speed_vehicle",
+                "detail": {
+                    "max": 3,
+                    "current": 30
+                }
+            }, {
+                "item": "area_forbidden",
+                "detail": {
+                    "person": 4,
+                    "vehicle": 0
+                }
+            }]
+        }, {
+            "area_id": "2",
+            "alarms": [{
+                "item": "over_count_person",
+                "detail": {
+                    "max": 3,
+                    "current": 10
+                }
+            }, {
+                "item": "over_count_vehicle",
+                "detail": {
+                    "max": 3,
+                    "current": 10
+                }
+            }, {
+                "item": "over_time_person",
+                "detail": {
+                    "max": 2,
+                    "current": 3
+                }
+            }, {
+                "item": "over_speed_vehicle",
+                "detail": {
+                    "max": 3,
+                    "current": 30
+                }
+            }, {
+                "item": "area_forbidden",
+                "detail": {
+                    "person": 4,
+                    "vehicle": 0
+                }
+            }]
+        }],
+
+    "readers":[{
+        "reader_id":"1",
+        "alarm_type_id":"",
+        "alarm_type_name":"通信中断",
+        "alarm_start_time":"2015-11-30 12:13:20"
+    },{
+        "reader_id":"2",
+        "alarm_type_id":"",
+        "alarm_type_name":"通信中断",
+        "alarm_start_time":"2015-11-30 12:13:20"
+    }],
+
+    "staff":[{
+        "staff_id":"1",
+        "alarms":[{
+            "alarm_type_name":"呼救",
+            "alarm_start_time":"2015-11-30 12:13:20"
+        }, {
+            "alarm_type_name":"工作超时",
+            "alarm_start_time":"2015-11-30 12:13:20"
+        }]
+    },{
+        "staff_id":"2",
+        "alarms":[{
+            "alarm_type_name":"呼救",
+            "alarm_start_time":"2015-11-30 12:13:20"
+        }, {
+            "alarm_type_name":"工作超时",
+            "alarm_start_time":"2015-11-30 12:13:20"
+        }]
+    }],
+
+    "vehicle":[{
+        "vehicle_id":"1",
+        "alarms":[{
+            "alarm_type_name":"超速",
+            "alarm_start_time":"2015-11-30 12:13:20"
+        }]
+    },{
+        "vehicle_id":"2",
+        "alarms":[{
+            "alarm_type_name":"超时",
+            "alarm_start_time":"2015-11-30 12:13:20"
+        }]
+    }]
+}
+` */
+
+// {
+//         "event_id": 11111,
+// 	    "status": 0,
+// 	    "type_id": 1,
+// 	    "obj_type_id":1,
+// 	    "obj_id":"0010000000001",
+//         "map_id": 5,
+//         "area_id":8,
+//         "x":200,
+//         "y":200,
+//         "limit_value": 3,
+//         "cur_value": 6,
+//         "start_time": "2017-02-20 13:20:20"
+//     },
+let alarm =
+    `
+    [{
+        "event_id": 11111,
+	    "status": 0,
+	    "type_id": 34,
+	    "obj_type_id":6,
+	    "obj_id":"17",
+        "map_id": 5,
+        "area_id":43,
+        "x":400,
+        "y":300,
+        "limit_value": 2,
+        "cur_value": 3,
+        "cur_time": 1472048779952    
+    },{
+        "event_id": 11110,
+	    "status": 0,
+	    "type_id": 34,
+	    "obj_type_id":5,
+	    "obj_id":"16",
+        "map_id": 5,
+        "area_id":40,
+        "x":400,
+        "y":300,
+        "limit_value": 2,
+        "cur_value": 3,
+        "cur_time": 1472048779952    
+    },{
+        "event_id": 11112,
+	    "status": 0,
+	    "type_id": 2,
+	    "obj_type_id":1,
+	    "obj_id":"0020000001062",
+        "map_id": 5,
+        "area_id":6,
+        "x":300,
+        "y":300,
+        "limit_value": 300,
+        "cur_value": 350,
+        "start_time": "2017-02-21 15:20:21"
+    },{
+        "event_id": 11113,
+	    "status": 0,
+	    "type_id": 3,
+	    "obj_type_id":2,
+	    "obj_id":"0010000000007",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:22"
+    },
+    {
+        "event_id": 11114,
+	    "status": 0,
+	    "type_id": 4,
+	    "obj_type_id":2,
+	    "obj_id":"0010000000007",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 4,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:23"
+    },{
+        "event_id": 12114,
+	    "status": 100,
+	    "type_id": 4,
+	    "obj_type_id":2,
+	    "obj_id":"0010000000007",
+        "map_id": 5,
+        "area_id":3,
+        "x":400,
+        "y":300,
+        "limit_value": 4,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:24"
+    },{
+        "event_id": 11116,
+	    "status": 0,
+	    "type_id": 5,
+	    "obj_type_id":3,
+	    "obj_id":"15",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 2,
+        "cur_value": 3,
+        "start_time": "2017-02-21 15:20:25"
+    },{
+        "event_id": 11117,
+	    "status": 100,
+	    "type_id": 8,
+	    "obj_type_id":5,
+	    "obj_id":"16",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 2,
+        "cur_value": 3,
+        "start_time": "2017-02-21 15:20:26"
+    },{
+        "event_id": 11118,
+	    "status": 0,
+	    "type_id": 8,
+	    "obj_type_id":5,
+	    "obj_id":"16",
+        "map_id": 5,
+        "area_id":5,
+        "x":400,
+        "y":300,
+        "limit_value": 2,
+        "cur_value": 3,
+        "start_time": "2017-02-21 15:20:27"
+    },{
+        "event_id": 11119,
+	    "status": 0,
+	    "type_id": 9,
+	    "obj_type_id":5,
+	    "obj_id":"16",
+        "map_id": 5,
+        "area_id":5,
+        "x":400,
+        "y":300,
+        "limit_value": 2,
+        "cur_value": 3,
+        "start_time": "2017-02-21 15:20:28"
+    },{
+        "event_id": 11119,
+	    "status": 0,
+	    "type_id": 9,
+	    "obj_type_id":5,
+	    "obj_id":"16",
+        "map_id": 5,
+        "area_id":5,
+        "x":400,
+        "y":300,
+        "limit_value": 2,
+        "cur_value": 3,
+        "start_time": "2017-02-21 15:20:29"
+    },{
+        "event_id": 11121,
+	    "status": 0,
+	    "type_id": 6,
+	    "obj_type_id":4,
+	    "obj_id":"15",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 2,
+        "start_time": "2017-02-21 15:20:28"
+    },{
+        "event_id": 11122,
+	    "status": 0,
+	    "type_id": 7,
+	    "obj_type_id":6,
+	    "obj_id":"17",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 3,
+        "start_time": "2017-02-21 15:20:29"
+    },{
+        "event_id": 11123,
+	    "status": 0,
+	    "type_id": 9,
+	    "obj_type_id":4,
+	    "obj_id":"100",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 1,
+        "start_time": "2017-02-21 15:20:30"
+    },{
+        "event_id": 11124,
+	    "status": 0,
+	    "type_id": 10,
+	    "obj_type_id":4,
+	    "obj_id":"36",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 1,
+        "start_time": "2017-02-21 15:20:31"
+    },{
+        "event_id": 11125,
+	    "status": 0,
+	    "type_id": 11,
+	    "obj_type_id":9,
+	    "obj_id":"0010000000007",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:32"
+    },{
+        "event_id": 11126,
+	    "status": 0,
+	    "type_id": 12,
+	    "obj_type_id":9,
+	    "obj_id":"0010000000001",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:33"
+    },{
+        "event_id": 11127,
+	    "status": 0,
+	    "type_id": 13,
+	    "obj_type_id":9,
+	    "obj_id":"0010000000001",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:34"
+    },{
+        "event_id": 11128,
+	    "status": 0,
+	    "type_id": 14,
+	    "obj_type_id":9,
+	    "obj_id":"0020000001062",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:35"
+    },{
+        "event_id": 11129,
+	    "status": 0,
+	    "type_id": 15,
+	    "obj_type_id":9,
+	    "obj_id":"0010000000001",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:36"
+    },{
+        "event_id": 11130,
+	    "status": 0,
+	    "type_id": 16,
+	    "obj_type_id":9,
+	    "obj_id":"0020000001060",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:37"
+    },{
+        "event_id": 11131,
+	    "status": 0,
+	    "type_id": 17,
+	    "obj_type_id":9,
+	    "obj_id":"0010000000108",
+        "map_id": 5,
+        "area_id":11,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:38"
+    },{
+        "event_id": 11132,
+	    "status": 0,
+	    "type_id": 18,
+	    "obj_type_id":9,
+	    "obj_id":"0020000001060",
+        "map_id": 5,
+        "area_id":11,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:39"
+    },{
+        "event_id": 11133,
+	    "status": 0,
+	    "type_id": 18,
+	    "obj_type_id":9,
+	    "obj_id":"0020000001060",
+        "map_id": 5,
+        "area_id":11,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:40:39"
+    },{
+        "event_id": 11112,
+	    "status": 0,
+	    "type_id": 19,
+	    "obj_type_id":9,
+	    "obj_id":"0010000000108",
+        "map_id": 5,
+        "area_id":11,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:40"
+    },{
+        "event_id": 11134,
+	    "status": 0,
+	    "type_id": 20,
+	    "obj_type_id":9,
+	    "obj_id":"0020000001060",
+        "map_id": 5,
+        "area_id":11,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:41"
+    },{
+        "event_id": 11135,
+	    "status": 0,
+	    "type_id": 21,
+	    "obj_type_id":9,
+	    "obj_id":"0020000001060",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:42"
+    },{
+        "event_id": 11136,
+	    "status": 0,
+	    "type_id": 23,
+	    "obj_type_id":9,
+	    "obj_id":"0020000001060",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:43"
+    },{
+        "event_id": 11137,
+	    "status": 0,
+	    "type_id": 26,
+	    "obj_type_id":9,
+	    "obj_id":"0010000000001",
+        "map_id": 5,
+        "area_id":2,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:44"
+    },{
+        "event_id": 11138,
+	    "status": 0,
+	    "type_id": 27,
+	    "obj_type_id":9,
+	    "obj_id":"0010000000001",
+        "map_id": 5,
+        "area_id":0,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:45"
+    },{
+        "event_id": 11139,
+	    "status": 0,
+	    "type_id": 30,
+	    "obj_type_id":10,
+	    "obj_id":"3305",
+        "map_id": 5,
+        "area_id":0,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:45"
+    },{
+        "event_id": 11140,
+	    "status": 0,
+	    "type_id": 28,
+	    "obj_type_id":10,
+	    "obj_id":"3305",
+        "map_id": 5,
+        "area_id":0,
+        "x":400,
+        "y":300,
+        "limit_value": 5,
+        "cur_value": 8,
+        "start_time": "2017-02-21 15:20:45"
+    }]
+
+`
+
+        // let device_state = `[{"map_id":"1","devices":[{"id":"59","state":"4","device_type_id":"0"},{"id":"61","state":"2","device_type_id":"0"}]},{"map_id":"2","devices":[{"id":"60","state":"1","device_type_id":"0"},{"id":"62","state":"2","device_type_id":"0"}]}]`
+
+//         let device_state1 =
+//             `[{
+//     "map_id": "1",
+//     "devices": [{
+//         "device_id": "59",
+//         "state": "4",
+//         "device_type_id": "0"
+//     }, {
+//         "device_id": "61",
+//         "state": "2",
+//         "device_type_id": "0"
+//     },{
+//         "device_id": "63",
+//         "state": "0",
+//         "device_type_id": "0"
+//     }, {
+//         "device_id": "64",
+//         "state": "0",
+//         "device_type_id": "0"
+//     }]
+// }, {
+//     "map_id": "2",
+//     "devices": [{
+//         "device_id": "60",
+//         "state": "1",
+//         "device_type_id": "0"
+//     }, {
+//         "device_id": "62",
+//         "state": "1",
+//         "device_type_id": "0"
+//     },{
+//         "device_id": "65",
+//         "state": "1",
+//         "device_type_id": "0"
+//     }, {
+//         "device_id": "66",
+//         "state": "3",
+//         "device_type_id": "0"
+//     },{
+//         "device_id": "67",
+//         "state": "1",
+//         "device_type_id": "0"
+//     }, {
+//         "device_id": "68",
+//         "state": "1",
+//         "device_type_id": "0"
+//     },{
+//         "device_id": "69",
+//         "state": "1",
+//         "device_type_id": "0"
+//     }, {
+//         "device_id": "70",
+//         "state": "3",
+//         "device_type_id": "0"
+//     }]
+// }]`
+        // 定位分站 state = 0
+        let device_state1 = `
+            [{
+                "devices" : [{
+                    "device_id": 15,
+                    "device_type_id": 0,
+                    "state": 0,
+                    "state_dec": "正常",
+                    "time": "2016-12-17 19:28:44"
+                }]
+            }]
+`
+        // 控制分站 state = 1
+        let device_state2 = `
+            [
+                [101,0,1,22121,5,0],
+                [102,0,1,22321,5,0],
+                [103,0,1,22222,5,0],
+                [104,0,1,212121,5,0],
+                [105,0,1,212124,5,0],
+                [108,0,1,212125,5,0],
+                [204,0,1,212126,5,0]
+            ]
+`
+        let light_state = `
+        [
+            [1,1,2,"",0],
+            [1,2,3,"",0],
+            [1,3,4,"fjb",1],
+            [2,4,5,"lly",1]
+        ]  
+        `
+
+//         let device_state2 =
+//             `[{
+//     "map_id": "1",
+//     "devices": [{
+//         "device_id": "59",
+//         "state": "1",
+//         "device_type_id": "0"
+//     }, {
+//         "device_id": "61",
+//         "state": "1",
+//         "device_type_id": "0"
+//     }]
+// }, {
+//     "map_id": "2",
+//     "devices": [{
+//         "device_id": "60",
+//         "state": "1",
+//         "device_type_id": "0"
+//     }, {
+//         "device_id": "62",
+//         "state": "2",
+//         "device_type_id": "0"
+//     }]
+// }]`
+
+// let vehicle_state = `
+// [["0050000001141",1]]
+// `
+let vehicle_state = `
+[
+    ["0050000001141",1]
+]
+        `
+
+        let helpme = `
+[{
+    "event_id": 1,
+    "status": 0,
+    "type_id": 24,
+    "obj_type_id": 9,
+    "obj_id": "0010000001003",
+    "map_id": 5,
+    "area_id": 0,
+    "x": 200,
+    "y": 300,
+    "limit_value": 0,
+    "cur_value": 0,
+    "start_time": "2017-2-20 13:20:20",
+    "lmid": 1,
+    "lmdirect": 1,
+    "lmdistance": 10
+},{
+    "event_id": 1,
+    "status": 0,
+    "type_id": 24,
+    "obj_type_id": 9,
+    "obj_id": "0010000001001",
+    "map_id": 5,
+    "area_id": 0,
+    "x": 200,
+    "y": 300,
+    "limit_value": 0,
+    "cur_value": 0,
+    "start_time": "2017-2-20 13:30:20",
+    "lmid": 3,
+    "lmdirect": 0,
+    "lmdistance": 100
+},{
+    "event_id": 3,
+    "status": 0,
+    "type_id": 24,
+    "obj_type_id": 9,
+    "obj_id": "0010000001002",
+    "map_id": 5,
+    "area_id": 0,
+    "x": 200,
+    "y": 300,
+    "limit_value": 0,
+    "cur_value": 0,
+    "start_time": "2017-2-20 13:20:20",
+    "lmid": 2,
+    "lmdirect": 1,
+    "lmdistance": 30
+}]
+`
+        let device_state = `
+[
+    [1,3,1,22121,5,0],
+    [2,3,2,22321,5,0],
+    [15,3,3,22222,5,0],
+    [16,3,4,212121,5,0],
+    [17,3,5,212124,5,0],
+    [30,3,6,212125,5,0],
+    [31,3,7,212126,5,0]
+]
+        `
+let deal_hand_up_res = `
+    {"card_id":"0020000001046","state":0}
+    `
+
+        let light_ctrl_rsp = `
+
+[{
+    "task_id" : "1490174980596",
+    "user_id" : "lly",
+    "lights" : [{
+        "id" : "30",
+        "ctrl_type" : "1",
+        "light_state" : "6"
+    }]
+},{
+    "task_id" : "1490174980598",
+    "user_id" : "lly",
+    "lights" : [{
+        "id" : "2",
+        "ctrl_type" : "1",
+        "light_state" : "2"
+    }]
+},{
+    "task_id" : "1490174980598",
+    "user_id" : "lly",
+    "lights" : [{
+        "id" : "31",
+        "ctrl_type" : "1",
+        "light_state" : "4"
+    }]
+},{
+    "task_id" : "1490174980598",
+    "user_id" : "lly",
+    "lights" : [{
+        "id" : "1",
+        "ctrl_type" : "1",
+        "light_state" : "8"
+    }]
+}]
+        `
+//         let counting = `
+// {
+//     "over_time_person":100,
+//     "over_time_vehicle":100,
+//     "special_error_total":100,
+//     "area_over_time_person":[[1,10],[2,10]],
+//     "area_over_time_vehicle":[[1,20],[3,40]]
+// }
+//         `
+        let counting = `
+{
+    "area_person": [[1,20],[2,30],[3,15],[4,60],[5,70],[6,80]]
+}
+        `
+
+        let count_detail_resp = `
+{
+    "req_user":"lly",
+    "count_type":1,
+    "task_id": "1234"
+    "area_id":0,
+    "detail":[
+        ["张增红","130102189458741254","1490174980598","1490174980598","5","5","2","1","1"],
+        ["张增红","130102189458741254","1490174980598","1490174980598","5","5","2","1","1"]
+    ]
+}
+        `
+    </script>
+</body>
+
+</html>

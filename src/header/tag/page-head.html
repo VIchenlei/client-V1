@@ -1,0 +1,54 @@
+<page-head>
+  <span data-is="logo" class="logo"></span>
+  <nav data-is="main-nav" menuitems={mainMenu} id="main-nav" class="main-nav"></nav>
+  <span data-is="fuzzy-search" id="fuzzysearch" class="search-bar {isHide}"></span>
+  <span data-is="shortcut-operation" id="shortcut-operation" class="shortcut-operation {isHide}" data-role={roleID}></span>
+  <span data-is="user-bar" id="user-bar" class="user-bar"></span>
+
+
+  <script>
+    import mainMenu from '../main_menu.js'
+
+    import './logo.html'
+    import './main-nav.html'
+    import './shortcut-operation.html'
+
+    import '../../monitor/tag/fuzzy-search.html'
+    import '../../user/tag/user-bar.html'
+
+    const MAINMENU = {
+      1: mainMenu,
+      2: mainMenu.slice(0, 4),
+      3: mainMenu.slice(0, 2),
+      100: mainMenu.slice(2, 4)
+    }
+
+    this.opts = this.parent.opts
+
+    this.init = () => {
+      let roleId = this.opts.roleId
+      let roles = xdata.metaStore.data.role
+      let role = roles && roles.get(roleId)
+      let roleRank = role && role.role_rank_id ? role.role_rank_id : 1
+      // 100为特殊用户角色 100：人员信息管理和下井记录报表
+      if (roleId === 100) { 
+        this.mainMenu = MAINMENU[roleId]
+        this.isHide = 'hide'
+      } else {
+        this.mainMenu = MAINMENU[roleRank] ? MAINMENU[roleRank] : mainMenu
+        this.isHide = ''
+      }
+    }
+
+    this.init()
+
+    // called from outside
+    this.show = () => {
+      this.root.classList.remove('hide')
+    }
+
+    this.hide = () => {
+      this.root.classList.add('hide')
+    }
+  </script>
+</page-head>

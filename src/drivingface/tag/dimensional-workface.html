@@ -1,0 +1,25 @@
+<dimensional-workface class="dimensional">
+    <div class="dlg-bg">
+        <dialog-head title="W3305工作面"></dialog-head>
+        <div class="blg-body">
+            <div data-is="popuplabel-driverfacepic" class="dimensional-pic"></div>
+            <div data-is="popuplabel-drivingface" class="dimensional-msg"></div>
+        </div>
+    </div>
+    <script>
+        import './popuplabel-driverfacepic.html'
+        import './popuplabel-drivingface.html'
+        this.on('mount', () => {
+          let driverfaceID = opts.id
+          let driverfaces = xdata.metaStore.data.drivingface
+          let name = driverfaces && driverfaces.get(driverfaceID).name
+          this.name = name + '工作面'
+        //   this.update()
+        //   this.root.querySelector('.dlg-head').setAttribute('title', this.name + '掘进面')
+        })
+
+        this.close = () => {
+          this.unmount(true)
+        }
+    </script>
+</dimensional-workface>

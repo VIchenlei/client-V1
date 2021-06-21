@@ -1,0 +1,414 @@
+<battery-table>
+    <op-panel msg = { msg } parentag = { oparentag } inputDateVal = { inputDateVal }></op-panel>
+    <span class="seek-staff">
+      <span class="identify-staff2 search-bar"></span>
+      <!-- <button onclick={ accurateSearch }>查询</button> -->
+    </span>
+    <div data-is="public-table" class="public-table content-panel { hasdata ? '' : 'hide'}" data={ data }></div>
+    <div class="pagination" if={ hasdata } data-is="pagination" totalpage={ totalPage } pageindex={ pageIndex } tablename={ name }></div>
+    <div data-is="blank-message" message="当前数据库中没有相关记录！请查证后再试。" class="blank-message" if={ !hasdata }></div>
+    <script>
+        import {getRows, getMessage, compare,copySubRows,specialName,formatTime,initPagination,getSearchData,noTurnTxt, getAllTime, checkClick } from '../../js/utils/utils.js'
+        import fuzzySearch from '../../js/def/fuzzy_search'
+        import queryData from '../../js/def/query_data.js'
+        import './op-panel.html'
+        this.root.classList.remove('hide')
+        this.hasdata = true
+        let arr = ['battery_charge', 'battery_vehicle', 'leader_scheduling', 'transport_back', 'his_maintenance', 'dat_vehicle_state', 'dat_vehicle_drive', 'battery']
+        let typeDef = null
+        let dataSet = null
+        const sortByNumber = ['staff_id', 'coalface_id', 'drivingface_id']
+        const sqlQuery = ['leader_arrange', 'dat_vehicle_state', 'his_maintenance', 'dat_vehicle_drive', 'his_patrol_data'] 
+        //翻页 2019-5-17 lmj
+        this.pageTurnOver = (pageIndex) => {          
+          let pages = pageIndex ? initPagination(this.rows,pageIndex) : initPagination(this.rows)
+          this.total = pages.total
+          this.totalPage = pages.totalPage
+          this.pageIndex = pages.pageIndex   
+        }
+
+        this.insert = (evt) => {
+          this.tags['public-table'].insert()
+        }
+
+        this.sortRows = (evt) => { //排序
+          let target = evt && evt.target
+          let nodename = target.nodeName.toLowerCase()
+          let label = checkClick(target, nodename)
+          if(!label) return //为‘操作’时label无值，不能点击
+          this.tags['public-table'].isAscending = label === this.sortBasic ? !this.tags['public-table'].isAscending : true
+          this.sortBasic = label   
+          let labelIndex = this.def.fields.labels.indexOf(label)
+          let condition = this.def.fields.names[labelIndex]
+          let sortType = this.def.fields.types[labelIndex] !== 'NUMBER' && this.def.fields.types[labelIndex] !== 'SELECT' && !sortByNumber.includes(condition)  ? 'chinese' : ''
+          this.rows.sort(compare(condition, sortType , this.tags['public-table'].isAscending ? null : 'reverse'))
+          this.hasdata = !!(this.rows && this.rows.length > 0)
+          if (this.hasdata) {
+            if (xdata && (xdata.objRange === 1 || xdata.isCheck === 1)){
+              this.subRows = this.rows.filter(item =>{ 
+                if(item.staff_id || item.vehicle_id){
+                  let cardID = ''
+                  if (item.staff_id) {
+                    cardID = xdata.metaStore.data.staff_extend.get(item.staff_id)
+                  } else if (item.vehicle_id) {
+                    cardID = xdata.metaStore.data.vehicle_extend.get(item.vehicle_id)
+                  } 
+                  return xdata.metaStore.needDisplay(cardID)
+                }else{
+                  return true
+                }
+              }) 
+            } else {
+              this.subRows = this.rows
+            }
+          } 
+          this.tags['public-table'].updateList({
+            value: this.subRows,
+            maxid: this.maxid
+          }) 
+          this.tags['public-table'].controlDisplay(target, nodename)
+        } 
+
+        this.accurateSearch = () => {
+          let value = this.root.querySelector('.search-box') && this.root.querySelector('.search-box').querySelector('#searchinput').value,filterdata,searchData
+          let name = this.name
+          if (name === 'his_patrol_data' && value === '') {
+            let sql = `select * from his_patrol_data`
+            let sqlName = 'his_patrol_data'
+            let countSql = `select count(1) as total from his_patrol_data`
+            opts.parentag.inquireDB(sqlName, sql, countSql)
+          }
+          filterdata = xdata.metaStore.dataInArray.get(name)
+          if (value) {
+            if (fuzzySearch.hasOwnProperty(name)) {
+              let len = fuzzySearch[name].keys.length
+              for(let i=0; i<len; i++){
+                searchData = filterdata.filter(item => {
+                  value = fuzzySearch[name].keys[i] === 'name' ? value : Number(value)
+                  return item[fuzzySearch[name].keys[i]] === value
+                })
+                if (searchData.length > 0) {
+                  break;
+                }
+              }
+            } else {
+              searchData = filterdata.filter(item => item.name === value)
+              if (searchData.length <= 0) {
+                searchData = filterdata.filter(item => item[name+'_id'] === Number(value))
+              }
+            }
+          } else {
+            searchData = xdata.metaStore.dataInArray.get(name)
+          }
+          let msg = {
+            def: xdata.metaStore.defs[name],
+            rows: searchData,
+            maxid: xdata.metaStore.maxIDs[name]
+          } 
+          xbus.trigger('HIDE-ALL-POPUP')
+          this.init(msg)
+        }
+
+        this.getResult = (result) => {
+          let chosedStaff = result     
+          let desc=dataSet.desc
+          // 检索之后 页面分页为第一页
+          this.pageIndex = 0
+          if(this.root.querySelector('#searchinput').value){
+            if(desc!=='name' || dataSet.keys.includes('staff_id')){     
+              this.root.querySelector('#searchinput').value = result[desc]
+              this.inputValue = result[desc]
+              this.subRows =copySubRows([result], this.pageIndex)    
+              this.rows = this.subRows
+              this.pageTurnOver() 
+            }else{
+              this.root.querySelector('#searchinput').value = result[0][desc]
+              this.inputValue=result[0][desc]
+              this.subRows =copySubRows(result, this.pageIndex)   
+              this.pageTurnOver()   
+            }
+          }else{
+            this.subRows =copySubRows(result, this.pageIndex)
+            this.root.querySelector('#searchinput').value = '' 
+            this.inputValue = ''
+            this.rows = result  
+            this.pageTurnOver()  
+          }          
+          this.tags['public-table'].updateList({
+            value: this.subRows,
+            maxid: this.maxid
+          })     
+          this.update()
+        }
+
+        this.getLeaderArrange = (result) => {
+          let field = queryData[this.name].field
+          let sql = queryData[this.name].sql 
+          let sqlname = queryData[this.name].sqlname
+          let countSql = queryData[this.name].countSql
+          if(this.root.querySelector('#searchinput').value){     
+            sql = sql +`=${result[field]}`
+            sqlname = sqlname
+            countSql = countSql +`=${result[field]}`
+            this.inputValue = result.name
+            this.inquireDB(sqlname, sql, countSql) 
+          }else if(this.name === 'leader_arrange'){
+            this.searchLeader()
+            this.root.querySelector('#searchinput').value = ''
+            this.inputValue = ''
+            this.inputDateVal = ''
+          }else{
+            sql = sql 
+            sqlname = sqlname
+            countSql = countSql
+            this.root.querySelector('#searchinput').value = ''
+            this.inputValue = ''
+            this.inquireDB(sqlname, sql, countSql) 
+          }                
+        }
+       
+        this.init = (msg) => {
+          this.oparentag = this
+          this.msg = msg
+          this.ediot = true
+          this.def = msg.def
+          if (!this.def) {
+            this.hasdata = false
+            return
+          }
+          this.title = msg.def.label
+          this.name = msg.def.name
+          this.tableKeyName = sqlQuery.includes(this.name) ? this.def.fields.names[this.def.keyIndex] :specialName(this.name)
+          this.labels = msg.def.fields.labels
+          this.label = msg.def.label
+          this.types = msg.def.fields.types
+          this.rows = msg.rows
+          this.inRows = msg.rows
+          this.maxid = msg.maxid
+          this.total = msg.total
+          this.pageIndex = msg.pageIndex
+          this.sql = msg.sql
+          this.countSql = msg.countSql
+          this.parentag = msg.parentag
+          this.earlyMonth = msg.parentag && msg.parentag.earlyMonth
+          this.endMonth = msg.parentag && msg.parentag.endMonth
+          this.inputValue = this.opts.parentag && this.opts.parentag.leaderDate
+          let results = getSearchData(this.label, this.name, this.rows, (sqlQuery.includes(this.name) ? this.getLeaderArrange : this.getResult))
+          typeDef = results.typeDef
+          dataSet = results.dataSet
+          // this.getSearchData(this.name,this.rows)
+          // if(msg.def.hasOwnProperty('inputValue')) this.inputVal = msg.def.inputValue
+          if (this.name === 'battery' || this.name === 'battery_vehicle') {
+            this.ediot = false
+          }
+          this.hasdata = !!(this.rows && this.rows.length > 0)
+          if (this.hasdata) {
+            if (xdata && xdata.objRange === 1){
+              this.subRows = this.rows.filter(item =>{
+ 
+                if(item.staff_id || item.vehicle_id){
+                  let cardID = ''
+                  if (item.staff_id) {
+                    cardID = xdata.metaStore.data.staff_extend.get(item.staff_id)
+                  } else if (item.vehicle_id) {
+                    cardID = xdata.metaStore.data.vehicle_extend.get(item.vehicle_id)
+                  } 
+                  return xdata.metaStore.needDisplay(cardID)
+                }else{
+                  return true
+                }
+              }) 
+            } else {
+              this.subRows = this.rows
+            }
+            this.pageTurnOver(this.pageIndex)
+            this.subRows = copySubRows(this.rows, this.pageIndex) // 初始化显示第一页   
+          }
+          
+          this.data = {
+            def : this.def,
+            subRows : this.subRows,
+            maxid : this.maxid, 
+            tableKeyName : this.tableKeyName,
+            from : 'battery'
+          }
+        }
+
+        this.init(opts)
+
+        this.searchLeaderArrange = (evt) => {
+          let target = evt.currentTarget
+          this.inputDateVal = target.previousElementSibling.value
+          let sql = null
+          if (this.inputDateVal) {
+            this.root.querySelector('.datainput').value = this.inputDateVal 
+            sql = `select duty_date, dst.shift_type_id, dla.shift_id, ds.name as staff_id from his_leader_arrange dla, dat_shift_type dst, dat_shift s, dat_staff ds WHERE dla.staff_id = ds.staff_id and dla.shift_id = s.shift_id and s.shift_type_id = dst.shift_type_id and dla.duty_date = '${this.inputDateVal}'`
+            let sqlname = 'leader_scheduling'
+            let countSql = `select count(1) as total from his_leader_arrange dla, dat_shift_type dst, dat_shift s, dat_staff ds WHERE dla.staff_id = ds.staff_id and dla.shift_id = s.shift_id and s.shift_type_id = dst.shift_type_id and dla.duty_date = '${this.inputDateVal}'`
+            this.inquireDB(sqlname, sql, countSql)
+          } else {
+            this.searchLeader()
+          }
+          // this.opts.parentag.leaderDate = this.inputDateVal
+        }
+
+        this.on('PAGEINDEX-CHANGE', (msg) => {
+          msg.total = this.total
+          if (msg.name === this.name) {
+            this.pageIndex = msg.pageIndex
+            this.subRows = copySubRows(this.rows, this.pageIndex)
+            this.tags['public-table'].updateList({
+            value: this.subRows,
+            maxid: this.maxid
+          }) 
+          this.update()
+          window.xhint.close()
+          }
+        })
+
+        this.dopagechangeDB = (msg) => {
+          this.pageIndex = msg ? msg.pageIndex : 0
+          let message = {
+            cmd: 'query',
+            data: {
+              reptName: this.name,
+              pageSize: PAGE_SIZE,
+              pageIndex: msg.pageIndex,
+              total: msg.total,
+              sql: this.sql,
+              countSql: this.countSql
+            }
+          }
+          xbus.trigger('REPT-FETCH-DATA', {
+            req: message,
+            def: {
+              name: this.name
+            }
+          })
+        }
+
+        xbus.on('META-DATA-UPDATE', (msg) => {
+          if (!msg.def) return
+          if (msg.def.name === this.name && arr.includes(this.name)) {
+            this.inquireDB(this.name, this.sql, this.countSql)
+          } else if (msg.def.name === this.name && this.name === 'leader_arrange') {
+            this.searchLeader()
+          } else 
+          if (msg.def.name === this.name && (this.name === 'transport_plan' || this.name === 'patrol_task' || /^patrol/ig.test(this.name) || this.name === 'checkpartsitem' || this.name === 'checkparts' || this.name === 'state_vehicle' || /^parts/.test(this.name) || this.name === 'parts_type')) {
+            if (msg.def.name === this.name) {
+            this.hasdata = msg && msg.def && msg.rows && msg.rows.length > 0
+            this.rows = msg.rows
+            if(this.rows.length === 1 || this.rows.length === 0) this.inRows = this.rows
+            this.maxid = msg.maxid
+            let results = null
+            // if (this.hasdata) {
+              if ((this.subRows && this.subRows.length > 1) || this.inRows.length===1) {
+                this.pageTurnOver(this.pageIndex)
+                this.singleRow =  this.rows
+                this.subRows=copySubRows(this.singleRow, this.pageIndex)
+              }else if( this.inRows.length===0 ){
+                // 删除没有数据
+                let singleRow = this.inRows
+                this.subRows = singleRow
+              }else{
+                this.singleRow = this.subRows.length === 1 ? xdata.metaStore.data[this.name].get(this.keyValue) : this.rows
+                this.subRows = (this.subRows.length === 1 ? [this.singleRow] : (this.inRows.length>1?copySubRows(this.singleRow, this.pageIndex):this.rows))
+              }
+              this.tags['public-table'] && this.tags['public-table'].updateList({
+                value: this.subRows,
+                maxid: this.maxid
+              })           
+              if (this.subRows && this.subRows.length > 1 || this.inRows.length===1) {
+                results = getSearchData(this.label, this.name, this.rows, (sqlQuery.includes(this.name) ? this.getLeaderArrange : this.getResult))
+              } else {
+                results = getSearchData(this.label, this.name, this.subRows, (sqlQuery.includes(this.name) ? this.getLeaderArrange : this.getResult))
+              }
+              typeDef = results.typeDef
+              dataSet = results.dataSet
+              if(this.inputValue){
+                this.root.querySelector('#searchinput').value=this.inputValue
+              }else{
+                this.root.querySelector('#searchinput').value=''
+              }
+              if (this.fuzz) {
+                this.fuzz.updateData({ typeDef: typeDef, dataSet: dataSet, searchType: false, searchIcon: false })
+              }
+            // }
+            this.update()
+          }
+          }
+        })
+
+        // 修改-从getAllTime中获取月初1号 次月1号 2019-05-21 chenl
+        this.searchLeader = () => {
+          let date = getAllTime()
+          let earlyMonth = date.earlyMonth
+          let endMonth = date.endMonth
+          let sql = `SELECT duty_date, dst.shift_type_id, dla.shift_id, staff_id FROM his_leader_arrange dla, dat_shift_type dst, dat_shift s WHERE dla.shift_id = s.shift_id AND s.shift_type_id = dst.shift_type_id AND duty_date >= '${earlyMonth}' and duty_date < '${endMonth}' order by duty_date desc`
+          let sqlname = 'leader_scheduling'
+          let countsql = `select count(1) as total from his_leader_arrange dla, dat_shift_type dst, dat_shift s, dat_staff ds where dla.shift_id = s.shift_id and s.shift_type_id = dst.shift_type_id and duty_date >= '${earlyMonth}' and duty_date < '${endMonth}' order by duty_date desc`
+          this.inquireDB(sqlname, sql, countsql)
+        }
+
+        this.inquireDB = (name, sql, countSql) => {
+          if(this.inputValue) this.def.inputValue = this.inputValue
+          if(this.inputDateVal) this.def.inputDateVal = this.inputDateVal
+          let message = {
+            cmd: 'query',
+            data: {
+              name: name,
+              sql: sql,
+              pageSize: 100000,
+              // pageIndex: this.pageIndex,
+              // total: this.total,
+              pageIndex: 0,
+              total: -1,
+              countSql: countSql
+            }
+          }
+          xbus.trigger('REPT-FETCH-DATA', {
+            req: message,
+            def: {
+              name: name
+            }
+          })
+        }
+
+        // this.askFile = () => {
+        //   let earlyMonth = this.parentag.earlyMonth
+        //   let endMonth = this.parentag.endMonth
+        //   let sqlAskFile = `select date_format(duty_date, '%Y-%m-%d') as duty_date,dst.name as shift_type_id, s.name as shift_id, ds.name as staff_id from his_leader_arrange dla, dat_shift_type dst, dat_shift s, dat_staff ds WHERE dla.staff_id = ds.staff_id and dla.shift_id = s.shift_id and s.shift_type_id = dst.shift_type_id and duty_date >= '${earlyMonth}' and duty_date < '${endMonth}' order by duty_date desc`            
+        //   if(this.inputDateVal){//根据查询来，页面上显示什么，打印什么
+        //     sqlAskFile = `select date_format(duty_date, '%Y-%m-%d') as duty_date,dst.name as shift_type_id, s.name as shift_id, ds.name as staff_id from his_leader_arrange dla, dat_shift_type dst, dat_shift s, dat_staff ds WHERE dla.staff_id = ds.staff_id and dla.shift_id = s.shift_id and s.shift_type_id = dst.shift_type_id and duty_date = '${this.inputDateVal}' order by duty_date desc`  
+        //   }
+        //   let msg = {
+        //     cmd: 'file',
+        //     exprList: [],
+        //     fileType: 'printPDF',
+        //     labels: this.def.fields.labels,
+        //     name: '',//driver
+        //     namesInShort: this.def.fields.names,
+        //     title: '领导排班',
+        //     reptIndex: new Date().getTime(),
+        //     types: ["DATE", "STRING", "STRING", "STRING"],//this.def.fields.types,
+        //     sql: sqlAskFile,
+        //     userName: xdata.userName
+        //   }
+        //   xbus.trigger('REPT-FETCH-FILE', msg)
+        // }
+        this.on('mount', () => {
+          this.fuzz = riot.mount('span.identify-staff2', 'fuzzy-search2', { typeDef: typeDef, dataSet: dataSet , searchIcon: true})[0]
+          if(this.msg.def.hasOwnProperty('inputValue')){
+            this.fuzz.root.querySelector('#searchinput').value = this.msg.def.inputValue
+            delete this.msg.def.inputValue
+          }else if(this.msg.def.hasOwnProperty('inputDateVal')){
+            this.root.querySelector('.datainput').value = this.msg.def.inputDateVal
+            delete this.msg.def.inputDateVal
+          }
+        })
+
+        this.on('unmount', () => {
+          this.root.classList.add('hide')
+        })
+    </script>
+</battery-table>

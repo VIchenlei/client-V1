@@ -1,0 +1,235 @@
+<sensor-table>
+    <div class="op-panel">
+      <span>
+        <span class="hint--bottom-left" aria-label="添加信息" onclick={ insert }>
+          <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-add"></use></svg>
+        </span>
+        <span onclick={ askFile } name="csv" class="hint--bottom-left" aria-label="批量导出">
+          <img class='pointImg' src="/img/export.png" alt="">
+        </span>
+        <!-- <span class="hint--bottom-left" aria-label="批量导入" if={ name =='sensor' } onclick={ importFile }>
+          <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-import"></use></svg>
+        </span> -->
+      </span>
+    </div>
+    <span class="seek-staff">
+      <span class="identify-staff2 search-bar"></span>
+      <!-- <button onclick={ accurateSearch }>查询</button> -->
+    </span>
+    <div data-is="public-table" class="public-table content-panel" data={ data }></div>
+    <div class="pagination" data-is="pagination" totalpage={ totalPage } pageindex={ pageIndex } tablename={ name }></div>
+  <script>
+    import {config} from '../../js/def/config_def.js'
+    import { compare, specialName, copySubRows, initPagination, getSearchData, checkClick } from '../../js/utils/utils.js'
+    import fuzzySearch from '../../js/def/fuzzy_search'
+   
+    this.root.classList.remove('hide')
+    let self = this
+    let typeDef = null
+    let dataSet = null
+    const sortByNumber = ['staff_id','coalface_id','drivingface_id']
+
+    this.insert = () => {
+      this.tags['public-table'].insert()
+    }
+
+    this.sortRows = (evt) => { //排序
+			let target = evt && evt.target
+      let nodename = target.nodeName.toLowerCase()
+      let label = checkClick(target, nodename)
+      if(!label) return //为‘操作’时label无值，不能点击
+			this.tags['public-table'].isAscending = label === this.sortBasic ? !this.tags['public-table'].isAscending : true
+      this.sortBasic = label   
+			let labelIndex = this.def.fields.labels.indexOf(label)
+			let condition = this.def.fields.names[labelIndex]
+		  let sortType = this.def.fields.types[labelIndex] !== 'NUMBER' && this.def.fields.types[labelIndex] !== 'SELECT' && !sortByNumber.includes(condition) ? 'chinese' : ''
+      this.rows.sort(compare(condition, sortType , this.tags['public-table'].isAscending ? null : 'reverse'))
+      this.subRows = this.copySubRows(this.rows, this.pageIndex)
+      this.tags['public-table'].updateList({
+        value: this.subRows,
+        maxid: this.maxid
+      }) 
+      this.tags['public-table'].controlDisplay(target, nodename)
+    }  
+
+    this.getname = (rows, storename, typename, title, store, setStore) => {
+      let names = ''
+      if (rows && rows.length > 0) {
+        rows.forEach(item => {
+          let key = item[`${storename}_id`]
+          let name = store.get(key) && store.get(key)[typename]
+          names += `${name}${title}；`
+          setStore.set(key, {
+            key: `${name}${title}`,
+            keyID: key
+          })
+        })
+      }
+      return names
+    }
+
+    xbus.on('META-DATA-UPDATE', (msg) => {      
+      if (msg.def.name === 'sensor_reader_map' || msg.def.name === 'sensor_driver_map' || msg.def.name === 'sensor') {
+        this.rows = msg.def.name === 'sensor' ? msg.rows : xdata.metaStore.dataInArray.get('sensor')
+        this.pageTurnOver(this.pageIndex)
+        this.maxid = xdata.metaStore.maxIDs['sensor']        
+        if(this.subRows && this.subRows.length===1){
+          let singleRow = this.subRows.length === 1 ? xdata.metaStore.data.sensor.get(this.keyValue) : this.rows
+          this.subRows = (this.subRows.length === 1 ? [singleRow] : (this.inRows.length>1?copySubRows(singleRow, this.pageIndex):this.rows))
+        }else{             
+          this.pageTurnOver(this.pageIndex)   
+          this.subRows = this.copySubRows(this.rows, this.pageIndex)
+        }
+        this.tags['public-table'] && this.tags['public-table'].updateList({
+          value: this.subRows,
+          maxid: this.maxid
+        }) 
+        this.update()
+      }
+    })
+
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+      if (msg.name === this.name) {
+        this.pageIndex = msg.pageIndex
+        this.subRows = this.copySubRows(this.rows, this.pageIndex)
+        this.tags['public-table'].updateList({
+          value: this.subRows,
+          maxid: this.maxid
+        }) 
+        this.update()
+        window.xhint.close()
+      }
+    })
+
+    this.copySubRows = (rows, pageIndex) => {
+      let start = pageIndex * PAGE_SIZE
+      let end = (pageIndex + 1) * PAGE_SIZE
+      let subrows = rows.slice(start, end)
+      let sensorReaders = xdata.metaStore.data.sensor_reader_map && Array.from(xdata.metaStore.data.sensor_reader_map.values())
+      let driverNames = xdata.metaStore.data.sensor_driver_map && Array.from(xdata.metaStore.data.sensor_driver_map.values())
+      let reader = xdata.metaStore.data.reader
+      let staffs = xdata.metaStore.data.staff
+      subrows.forEach(item => {
+        let sensorID = item.sensor_id
+        this.readersStore.set(sensorID, new Map())
+        this.driversStore.set(sensorID, new Map())
+        let readers = sensorReaders && sensorReaders.filter(item => item.sensor_id === sensorID)
+        let drivers = driverNames && driverNames.filter(item => item.sensor_id === sensorID)
+        let readerName = this.getname(readers, 'reader', 'brief_name', '分站', reader, this.readersStore.get(sensorID))
+        let driverName = this.getname(drivers, 'staff', 'name', '', staffs, this.driversStore.get(sensorID))
+        item['readers'] = readerName
+        item['drivers'] = driverName
+      })
+      return subrows
+    }
+
+    this.getResult = (result) => { 
+      let chosedStaff = result
+      let desc=dataSet.desc
+      // 检索之后 页面分页为第一页
+      this.pageIndex = 0
+      if(this.root.querySelector('#searchinput').value){
+        if(desc!=='name'){     
+          this.root.querySelector('#searchinput').value = result[desc]
+          this.subRows =copySubRows([result], this.pageIndex)    
+          this.rows = this.subRows
+          this.pageTurnOver()
+        }else{
+          this.root.querySelector('#searchinput').value = result[0][desc]
+          this.subRows =copySubRows(result, this.pageIndex)   
+          this.rows = this.subRows
+          this.pageTurnOver()
+        }
+      }else{
+        this.subRows =copySubRows(result, this.pageIndex)
+        this.root.querySelector('#searchinput').value = '' 
+        this.inputValue = ''
+        this.rows = result
+        this.pageTurnOver()
+      }
+      this.tags['public-table'].updateList({
+        value: this.subRows,
+        maxid: this.maxid
+      }) 
+      this.update()
+    }
+
+    //翻页 2019-5-17 lmj
+    this.pageTurnOver = (pageIndex) => {          
+      let pages = pageIndex ? initPagination(this.rows,pageIndex) : initPagination(this.rows)
+      this.total = pages.total
+      this.totalPage = pages.totalPage
+      this.pageIndex = pages.pageIndex   
+    }
+
+    this.init = (msg) => {
+      this.def = config['sensor'].def
+      if (!this.def) {
+        this.hasdata = false
+        return
+      }
+      this.oldDef = msg.def
+      this.title = this.def.label
+      this.name = this.def.name
+      this.names = this.def.fields.names
+      this.tableKeyName = specialName(this.name)
+      this.labels = this.def.fields.labels  
+      this.label = this.def.label
+      this.readersStore = new Map()
+      this.driversStore = new Map()
+
+      this.rows = msg.rows
+      this.inRows=msg.rows
+      this.maxid = msg.maxid
+      let results = getSearchData(this.label, this.name, this.rows, this.getResult)
+      typeDef = results.typeDef
+      dataSet = results.dataSet
+      this.hasdata = !!(this.rows && this.rows.length > 0)
+      if (this.hasdata) {        
+        this.pageTurnOver()
+        this.subRows = this.copySubRows(this.rows, this.pageIndex) // 初始化显示第一页
+      }
+      this.data = {
+        def : this.def,
+        subRows : this.subRows,
+        maxid : this.maxid, 
+        tableKeyName : this.tableKeyName,
+        from : 'sensor'
+      }
+    }
+
+    this.init(opts)
+
+    this.on('mount', () => {
+      this.fuzz = riot.mount('span.identify-staff2', 'fuzzy-search2', { typeDef: typeDef, dataSet: dataSet, searchIcon: true })[0]
+    })
+
+    this.on('unmount', () => {
+      this.readersStore = null
+      this.driversStore = null
+    })
+    
+    this.askFile = (evt) => {
+			window.xhint.close()
+			window.xhint.showLoading()
+      let opName = evt.currentTarget.getAttribute('name')
+      let sqlString = `select ds.sensor_id,sensor_type_id,data_source,work_face_id,driver_alarm_threshold,alarm_threshold,group_concat(distinct concat(dr.brief_name,'分站') separator ';' ) as dname, group_concat(distinct dsf.name separator ';') as name,ds.x,ds.y,ds.z,sensor_desc from dat_sensor ds left join dat_sensor_driver_map dsdm ON dsdm.sensor_id = ds.sensor_id left join dat_sensor_reader_map dsrm ON dsrm.sensor_id = ds.sensor_id left join dat_staff dsf ON dsf.staff_id = dsdm.staff_id left join dat_reader dr ON dr.reader_id = dsrm.reader_id group by ds.sensor_id, sensor_type_id`
+      let name = this.name
+      let reptTime = new Date().getTime()
+      let msg = {
+        cmd: 'file',
+        exprList: [],
+		    name: name,
+		    labels: this.def.fields.labels,
+		    title: this.def.label,
+		    namesInShort: this.def.fields.names,
+		    types: this.def.fields.types,
+		    fileType: opName,
+        reptIndex: reptTime,
+        sql: sqlString,
+        userName: xdata.userName
+      }
+		  xbus.trigger('REPT-FETCH-FILE', msg)
+    }
+  </script>
+</sensor-table>

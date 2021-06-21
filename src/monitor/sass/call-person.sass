@@ -1,0 +1,78 @@
+@import '../../sass/defs'
+#call-list
+    background: $btn-active-color
+    max-height: 15rem
+    overflow: auto
+    min-width: 8rem
+    position: absolute
+    text-align: center
+    z-index: 99
+    li
+        @include line-height(2rem,2rem)
+        cursor: pointer
+        overflow: hidden
+        &:hover
+            background: $table-body-hover
+
+.call-person-dialog
+    position: absolute
+    z-index: 10
+    background: $main-mapbgcolor
+    min-width: 23rem
+    font-size: $fontsize-s
+    .content-area
+        padding: 1rem
+    .content-panel
+        display: flex
+        padding: 0
+
+        .content-block
+            display: flex
+            flex-flow: column
+            justify-content: space-between
+            // height: 12rem
+            #call-list
+                overflow: inherit
+        .content-title
+            flex: 0 0 6rem
+
+        .content-value
+            flex: auto
+
+            p
+                @include align-middle
+                span
+                    @include align-middle
+                    flex: auto
+                    width: 4rem
+                    justify-content: space-evenly
+                    flex-wrap: wrap
+                    min-height: 2rem
+                    &.shownull
+                        color: $make-default
+                        width: 4.5rem
+                    &.point
+                        cursor: pointer
+                    img
+                        @include wh(.5rem,.5rem)
+                        margin-right: 0.8rem
+                .content-title
+                    flex: 0 0 6rem
+                select
+                    padding: 0 29%
+                    margin: 0
+                    text-align: center
+                    background: none
+                    option
+                        text-align: center
+                #callSpecial,#callSpecialStaff
+                    max-height: 9rem
+                    overflow-y: auto
+                    .areaName
+                        width: 4rem
+                        overflow: hidden
+                        white-space: nowrap
+                        justify-content: start
+                        text-overflow: ellipsis
+    button
+      margin: 0 1rem 1rem

@@ -1,0 +1,83 @@
+@import '../../sass/defs'
+
+#select-choose
+  .label-title
+    padding-top: 10px
+    min-width: 4rem
+    white-space: nowrap
+    .label-title-content
+      display: inline-block
+      text-align-last: justify
+      width: 80%
+  .show-select
+    position: relative
+    .clickInput
+      border-bottom: 1px solid #c0c2c3 !important
+    .choose-result::-webkit-scrollbar 
+      width: 2px
+      height: 2px
+    .choose-scorll
+      max-height: 5rem
+      min-height: 2rem
+      overflow-y: auto
+      max-width: 10rem
+      .choose-result
+        display: flex
+        flex-wrap: wrap
+        span
+          margin-top: 4px
+          span
+            background: #0099ff
+            color: #ffffff
+            margin: 2px
+            flex: 0 0 auto
+            span
+              cursor: pointer
+    .choose-warp, .choose-warp-zuban, .choose-warp-shi
+      position: absolute
+      width: 10rem
+      background: #fff
+      box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.4)
+      z-index: 2
+      .section-warp
+        z-index: 2
+        overflow-y: auto
+        overflow-x: hidden
+        background: #fff
+        .list-title
+          display: flex
+          align-items: center
+          flex-direction: column
+          min-height: 2.5rem
+          font-size: .8rem
+          padding: 0 5px
+          cursor: pointer
+          label
+            margin: 4px 0
+            width: 5rem
+            white-space: nowrap
+            input
+              vertical-align: middle
+            input[type='checkbox']
+              width: 15px
+              height: 15px
+    .choose-warp
+      height: 15rem
+    input[type="datetime-local"]
+      width: 9rem
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator
+      display: none
+    input[type="datetime-local"]::-webkit-inner-spin-button
+      display: none
+    input[type="datetime-local"]::-webkit-clear-button
+      display:none
+  .time-select
+    width: auto
+    background-color: #eeeeee
+    border: 1px solid #aaaaaa
+    border-radius: 8px
+  .time-warp
+    border: 1px solid #aaaaaa
+    height: 2rem
+    margin-left: 10px
+    border-radius: 5px

@@ -1,0 +1,222 @@
+<time-choose id='select-choose' class={ ident }>
+    <span if= { !showDateCondition && !showMonthCondition } class="label-title">
+        <span class="label-title-content">{label}</span>：
+    </span>
+    <select if= { showDateCondition || showMonthCondition } class="time-select"  onchange={ selectChoose } disabled={ disabled() }>
+        <option each={l in label} >{l.label}</option>
+    </select>
+    <div class="time-warp" if= { showDateCondition }>
+        <input type={timeType} step="01" class="query-option" value={ startDate }/>
+        ——
+        <input type={timeType} step="01" class="query-option" value={ endDate }/>
+    </div>
+    <input type='month' class="query-option" value={ monthDate } if={ showMonthCondition } />
+    <input type="date" class="query-option" value={ dayDate } if={ showDayCondition } />
+    <input type="datetime-local" step="01" class="query-option" value={ timeDate } if={ showDateTimeCondition } />
+    <script>
+        import '../sass/time-choose.sass'
+        import fuzzySearch from '../../js/def/fuzzy_search.js'
+        import { getDaysBetween } from '../../js/utils/utils.js'
+        /**
+         * @description: 控制元素显隐
+         * @param {type} type
+         * @return: 
+         */
+        this.dealLabelShow = (type) => {
+            switch (type) {
+                case 'DATE':
+                    this.showDateCondition = true
+                    break
+                case 'MONTH':
+                    this.showMonthCondition = true
+                    break
+                case 'DAY': 
+                    this.showDayCondition = true
+                    break
+                case 'DATETIME': 
+                    this.showDateTimeCondition = true
+                    break
+            }
+            this.update()
+        }
+
+        /**
+         * @description: select 的input事件
+         * @param {type} 
+         * @return: 
+         */
+        this.selectChoose = (evt) =>{
+            let target = evt.currentTarget
+            let chooseOption = this.label[target.selectedIndex]
+            if(chooseOption.label === '月份'){
+                this.type = 'MONTH'
+                this.showDateCondition = false
+                this.showMonthCondition = true
+            }else{
+                this.type = 'DATE'
+                this.showDateCondition = true
+                this.showMonthCondition = false
+            }
+            this.update()
+        }
+        /**
+         * @description: 设置月份默认时间
+         * @param {type} 
+         * @return: 
+         */
+        this.getMon = () => {
+			let stime = ''
+			let now = new Date()
+			let year = now.getFullYear()
+			let month = now.getMonth() + 1
+			let year2 = year
+			if (month === 0) {
+				year2 = parseInt(year2) - 1
+				month = 12
+			}
+			if (month < 10) {
+				month = '0' + month
+			}
+
+            stime = '"' + year2 + '-' + month + '"'
+			return new Date(stime).format('yyyy-MM')
+        }
+        
+        /**
+         * @description: 设置日期默认时间
+         * @param {type} str
+         * @return: 
+         */
+        this.getDate = (str, timeType) =>{
+            let time = null
+            if(timeType === 'datetime-local'){
+                if (str == 'start') {
+                    if (this.oldStartDate) {
+                        time = new Date(this.oldStartDate).format('yyyy-MM-ddThh:mm:ss')
+                    }else{
+                        time = this.name === 'person_reader_detail' ? new Date(new Date().getTime() - 14 * 24 * 60 * 60 * 1000).format('yyyy-MM-ddThh:mm:ss') : new Date(new Date(new Date(new Date().toLocaleDateString()).getTime())).format('yyyy-MM-ddThh:mm:ss')
+                    }
+                    
+                } else {
+                    if (this.oldEndDate) {
+                        time = new Date(this.oldEndDate).format('yyyy-MM-ddThh:mm:ss')
+                    } else {
+                        time = new Date().format('yyyy-MM-ddThh:mm:ss')
+                    }         
+                }
+            } else{
+                if (str == 'start') {
+                    time = new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).format('yyyy-MM-dd')
+                } else {
+                    time = new Date().format('yyyy-MM-dd')
+                }
+            }
+            return time
+        }
+
+        /**
+         * @description: 最终获取数据函数
+         * @param {type} 
+         * @return: 
+         */
+        this.getResult = () =>{
+            let time = this.root.querySelectorAll('.query-option')
+            this.stime = time && time[0] && time[0].value
+            this.etime = time && time[1] && time[1].value
+            let myselect = this.root.querySelector('.time-select')
+            let selectedIndex = myselect && myselect.selectedIndex
+            let selectData = this.label[selectedIndex]
+            let tips = ''
+            if (this.type === 'DATE'){
+                tips = this.isShowHint()
+                this.stime = this.stime && (this.timeType === 'datetime-local' ? new Date(this.stime).format('yyyy-MM-dd hh:mm:ss') : new Date(this.stime).format('yyyy-MM-dd'))
+                this.etime = this.etime && (this.timeType === 'datetime-local' ? new Date(this.etime).format('yyyy-MM-dd hh:mm:ss') : new Date(this.etime).format('yyyy-MM-dd'))         
+                this.scondition = selectData.start.name
+                this.econdition = selectData.end.name  
+            } else if (this.type === 'MONTH') {
+                this.stime = this.stime && new Date(this.stime).format('yyyy-MM')
+                this.scondition = selectData.name
+            } else if (this.type === 'DATETIME'){
+                let fieldsName = this.def.name.includes('as') ? this.def.name.split(' as')[0] : this.def.name
+                this.stime = this.stime && new Date(this.stime).format('yyyy-MM-dd hh:mm:ss')
+                this.scondition = fieldsName
+            } else {
+                let fieldsName = this.def.name.includes('as') ? this.def.name.split(' as')[0] : this.def.name
+                this.stime = this.stime && new Date(this.stime).format('yyyy-MM-dd')
+                this.scondition = fieldsName
+            }
+            return {
+                stime : this.stime,
+                etime : this.etime,
+                scondition : this.scondition,
+                econdition : this.econdition,
+                tips: tips,
+                type: this.type
+            }
+        }
+
+        /**
+         * @description: 报错提醒函数
+         * @param {type} 
+         * @return: 
+         */
+        this.isShowHint = () =>{
+            let tipsText = ''
+            if(!this.stime || !this.etime) {
+                tipsText = '请选择查询日期'
+            }else{
+                if (new Date(this.stime).getTime() > new Date().getTime()) {
+                    tipsText = '开始时间不能大于当前时间'
+                } else if (new Date(this.stime).getTime() > new Date(this.etime).getTime()) {
+                    tipsText = '开始时间不能大于结束时间'
+                }
+                if (this.timeType === 'date') {
+                    let month1 = new Date(this.stime).getMonth()
+                    let month2 = new Date(this.etime).getMonth()
+                    let day1 = new Date(this.stime).getDate()
+                    let day2 = new Date(this.etime).getDate()
+                    let days = getDaysBetween(this.stime,this.etime)
+                    if ((month1 < month2 && day1 < day2)) {
+                        tipsText = '请输入正确的时间范围'
+                    }
+                }
+            }
+            return tipsText
+        }
+
+        this.on('mount', () => {
+            this.oldValue = opts.dataValue
+            this.getDefaultTime(opts.def.type)
+            this.name = opts.name
+            this.store = new Map()
+            this.def = opts.def
+            this.type = this.def.type
+            if (this.type === 'DATE' || this.type === 'MONTH'){
+                this.label = opts.def.selectOptin
+            } else {
+                this.label = opts.def.label
+            }
+            this.dealLabelShow(opts.def.type)
+        })
+        /**
+         * @description: 设置select是否禁用，如果只有一组数据，设置为禁用
+         * @param {type} 
+         * @return: 
+         */
+        this.disabled = () =>{
+            return (this.label && this.label.length > 1) ? '' : 'disabled'
+        }
+
+        this.getDefaultTime = (type) =>{
+            this.timeType = 'datetime-local'
+            this.oldStartDate = this.oldValue ? this.oldValue[0] : null
+            this.oldEndDate = this.oldValue ? this.oldValue[1] : null
+            if ( type === 'MONTH') this.timeType = 'date'
+            this.startDate = this.getDate('start', this.timeType)
+            this.endDate = this.getDate('end', this.timeType)
+            this.monthDate = this.getMon()
+            this.dayDate = new Date().format("yyyy-MM-dd")
+            this.timeDate = new Date().format("yyyy-MM-ddThh:mm:ss")
+        }
+    </script>
+</time-choose>

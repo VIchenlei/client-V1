@@ -1,0 +1,145 @@
+<pagination>
+  <div class="pagination-bar" if={ totalPage> 1 } >
+    <div class="page-tag-group">
+      <b class="page-tag-jump page-tag-jump-1 circle-b" data-value="FirstPage" title="首页" onclick={ pageJump }>
+        <i class="circle"></i>
+        <span class="icon icon-first_page"></span>
+      </b>
+      <b class="page-tag-jump page-tag-jump-2 circle-b" data-value="PreviewPage" title="上一页" onclick={ pageJump }>
+        <i class="circle"></i>
+        <span class="icon icon-navigate_before"></span>
+      </b>
+    </div>
+    <div class="page-tag-group">
+      <span if={ needPreviewEllipsis }> ... </span>
+      <b class="page-tag-jump circle-b { i === pageTag ? 'selected-tag pageEnd' : '' }" each={ i in pageTags } data-value={i} onclick={ pageJump }>
+        <i class="circle"></i>
+        <span>{i}</span>
+      </b>
+      <span if={ needNextEllipsis }> ... </span>
+    </div>
+    <div class="page-tag-group">
+      <b class="page-tag-jump page-tag-jump-3 circle-b" data-value="NextPage" title="下一页" onclick={ pageJump }>
+        <i class="circle"></i>
+        <span class="icon icon-navigate_next"></span>
+      </b>
+      <b class="page-tag-jump page-tag-jump-4 circle-b" data-value="LastPage" title="末页" onclick={ pageJump }>
+        <i class="circle"></i>
+        <span class="icon icon-last_page"></span>
+      </b>
+      <!-- <span class="page-tag-jump" data-value="LastPage" title="末页" onclick={ pageJump }>
+        <svg class="icon black-icon opicon"><use xlink:href="/icons/icons.svg#icon-last_page"></use></svg>
+      </span> -->
+      <!--
+      <span class="page-tag-jump">共{totalPage}页</span>
+      -->
+    </div>
+  </div>
+
+  <script>
+    const maxTagCount = 5 // 最多显示 5 个页码
+
+    let maxLeftTags = Math.floor(maxTagCount / 2)  // 当页码总数超过 maxTagCount 时，当前页码左边最多有多少个页码
+
+    this.totalPage = Number(opts.totalpage)
+
+    this.needJumpTag = (opts.jumptag !== 'no')  // 是否需要 第一页 / 最后一页, 上一页 / 下一页
+    this.needPreviewEllipsis = false
+    this.needNextEllipsis = false
+    // debugger
+
+    this.isQuerying = false
+
+    this.init = () => {
+      if (!opts.totalpage || opts.totalpage <= 0) {
+        return
+      }
+
+      this.tableName = opts.tablename   // the table's name which pagination bind to.
+      this.totalPage = opts.totalpage   // total page count
+      this.pageIndex = opts.pageindex  // current page index, count from 0
+      this.pageTag = this.pageIndex + 1  // the display tag
+
+      let maxTag = Math.min(this.totalPage, maxTagCount)
+
+      if (this.totalPage > maxTagCount) {
+        let startIndex = -1
+        let endIndex = -1
+
+        startIndex = this.pageIndex - maxLeftTags
+        if (startIndex <= 0) {
+          startIndex = 0
+        }
+        endIndex = startIndex + maxTagCount
+
+        if (endIndex > this.totalPage - 1) {
+          endIndex = this.totalPage - 1
+          startIndex = endIndex - maxTagCount + 1
+        }
+
+        this.pageTags = Array.from({ length: maxTag }, (v, k) => startIndex + k + 1)  // the last tag is this.pages, so: maxTag - 1
+        this.needPreviewEllipsis = (startIndex > 0)
+        this.needNextEllipsis = (endIndex < this.totalPage - 1)
+      } else {
+        this.needPreviewEllipsis = false
+        this.needNextEllipsis = false
+        this.pageTags = Array.from({ length: maxTag }, (v, k) => k + 1)  // the last tag is this.pages, so: maxTag - 1
+      }
+    }
+
+    this.on('before-mount', () => {
+      this.init()
+    })
+
+    this.on('update', () => {
+      this.init()
+    })
+
+    this.pageJump = (event) => {
+      let target = event.currentTarget
+      let value = target.getAttribute('data-value')
+
+      let pageIndex = -1
+      switch (value) {
+        case 'PreviewPage':
+          pageIndex = this.pageIndex - 1
+          if (pageIndex < 0) {
+            pageIndex = 0
+          }
+          break
+        case 'NextPage':
+          pageIndex = this.pageIndex + 1
+          if (pageIndex > this.totalPage - 1) {
+            pageIndex = this.totalPage - 1
+          }
+          break
+        case 'FirstPage':
+          pageIndex = 0
+          break
+        case 'LastPage':
+          pageIndex = this.totalPage - 1
+          break
+        case null:
+          break
+        default:
+          pageIndex = parseInt(value, 10) - 1  // it is index, so start from 0
+      }
+
+      if (pageIndex === this.pageIndex) {
+        window.xhint.close()
+        return
+      }
+
+      if (this.parent.opts.dataIs === 'rept-table') {
+        this.isQuerying = true
+      }
+      window.xhint.showLoading()
+      this.parent.trigger('PAGEINDEX-CHANGE', {
+        name: this.tableName,
+        pageIndex: pageIndex
+      })
+
+      this.pageTag = this.pageIndex + 1  // the display tag
+    }
+  </script>
+</pagination>

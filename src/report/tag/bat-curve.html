@@ -1,0 +1,117 @@
+<bat-curve>
+	<div class="dlg-bg animated">
+		<div class="dlg-window bat-curve animated zoomIn">
+			<dialog-head title="人卡电量曲线"></dialog-head>
+			<div class="dlg-body">
+				<div class="batchart" style="width:960px;height:400px;"></div>
+			</div>
+		</div>
+	</div>
+	<script>
+		import echarts from 'echarts'
+		import '../sass/bat-curve.sass'
+		import { batcharts } from "../../js/def/graph_def.js"
+
+		this.on('mount', () => {
+			this.cardID = opts.cardID
+			this.querySql(opts.cardID)
+			window.setDialogDraggable(this.root)
+		})
+
+		this.querySql = (cardID) => { 
+			window.xhint.showLoading()
+			let dayNumber = 30
+			let endTime = new Date().format('yyyy-MM-dd hh:mm:ss')
+			let startTime = new Date(new Date().getTime() - dayNumber*24*60*60*1000).format('yyyy-MM-dd')
+			let sql = {
+				batSql: `select aa.card_id, aa.time, aa.percent, case when bb.card_id is not null then 100 else 0 end as is_down from (select * from his_card_batlog where time >= '${startTime} 00:00:00' and time <= '${endTime}' and card_id = ${cardID}) aa left join (select card_id,start_time,end_time from rpt_att_staff where 1=1 and start_time >= '${startTime} 00:00:00' and start_time <= '${endTime}' and card_id = ${cardID}) bb on aa.time between bb.start_time and ifnull(bb.end_time, now());`,
+				downSql: `select card_id,start_time,ifnull(end_time, now()) as end_time from rpt_att_staff where 1=1 and start_time >= '${startTime} 00:00:00' and start_time <= '${endTime}' and card_id = ${cardID} order by start_time;`
+			}
+			// let sql = `select aa.card_id, aa.time, aa.percent, case when bb.card_id is not null then 100 else 0 end as is_down from (select * from his_card_batlog where time >= '${startTime} 00:00:00' and time <= '${endTime}' and card_id = ${cardID}) aa left join (select card_id,start_time,end_time from rpt_att_staff where 1=1 and start_time >= '${startTime} 00:00:00' and start_time <= '${endTime}' and card_id = ${cardID}) bb on aa.time between bb.start_time and ifnull(bb.end_time, now());`
+			this.name = 'barCharts'
+			console.log(sql)
+			let message = {
+				cmd: 'query',
+				data: {
+					name: this.name,
+					sql: sql
+				}
+			}
+			xbus.trigger('REPT-FETCH-DATA', {
+				req: message,
+				def: {
+					name: this.name
+				}
+			})
+    }
+
+		xbus.on('REPT-SHOW-RESULT', (ds) => { 
+			if (ds.def.name === this.name) {
+				this.dealBatData(ds.rows)
+				window.xhint.close()
+			}
+		})
+
+		this.dealBatData = (rows) => {
+			if (!rows.batSql) return
+			let batData = {
+				time:[],
+				percentData: [],
+				markAreaData: []
+			}
+			rows.downSql.forEach((item,index) => {
+				batData.markAreaData.push([new Date(item.start_time).format('yyyy-MM-dd hh:mm:ss'), 0])
+				batData.markAreaData.push([new Date(item.start_time).format('yyyy-MM-dd hh:mm:ss'), 100])
+				batData.markAreaData.push([new Date(item.end_time).format('yyyy-MM-dd hh:mm:ss'), 100])
+				batData.markAreaData.push([new Date(item.end_time).format('yyyy-MM-dd hh:mm:ss'), 0])
+			})
+
+			rows.batSql.forEach((item,index) => {
+				batData.time.push(new Date(item.time).format('yyyy-MM-dd hh:mm:ss'))
+				batData.percentData.push([new Date(item.time).format('yyyy-MM-dd hh:mm:ss'), item.percent])
+			})
+
+			batData.time.push(new Date().format('yyyy-MM-dd hh:mm:ss'))
+			this.initCharts(batData)
+		}
+			
+
+		this.initCharts = (batData) => {
+      let initdom = this.root.querySelector('.batchart')
+      initdom && echarts.dispose(initdom)
+			let staffCharts = echarts.init(initdom)
+			let series = [
+				{
+					data: batData.percentData,
+					type: 'line'
+			}]
+			batData.markAreaData.length > 0 && series.push({
+				type: 'line',
+				data:batData.markAreaData,
+				legendHoverLink: false,
+				symbol: 'none',
+				areaStyle: {normal: {}},
+				visualMap: false,
+				itemStyle:{
+          normal: {
+            color: '#e6b4a9'
+					},
+					emphasis: {
+						color: '#e6b4a9'
+					}
+        }
+			})
+      let chartsMsg = {
+				title: `姓名：${xdata.metaStore.getCardNameByID(this.cardID)}   卡号：${this.cardID}  `,
+        record: batData.time,
+				series: series
+			}
+			let option = batcharts(chartsMsg)
+      staffCharts.setOption(option)
+		}
+		
+		this.close = () => {
+			this.unmount(true)
+		}
+	</script>
+</bat-curve>

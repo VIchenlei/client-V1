@@ -1,0 +1,482 @@
+<rept-table>
+  <div class="op-panel" if={ hasdata && !graph.includes(reptName) }>
+    <span class="staffnum">
+      <span>{ staffTitle }：</span>
+      <span>{ staffsNum }</span>
+      <span>{ pieces }</span>
+    </span>
+    <div data-is="rept-print" printdefs={reptPrint} cb={askFile}></div>
+    </span>
+  </div>
+  <table id={ tableID }>
+    <thead>
+      <tr id="title" onclick={sortRows}>
+        <th if={labels && monthTitle}>序号</th>
+        <th each={label in labels} if= { chooseLabelShow(label) } class={ classFun(label,searchLabels.includes(label))}>
+          <span class="handShape">{label}</span>
+          <img class="hide" src="/img/{isAscending ? 'angle-up.png' : 'angle-down.png'}" alt="">
+        </th>
+        <th if={ def && def.needBreakdown } class="no-print">{ def.breakdown.opLabel }</th>
+        <th if={ vehicleType }>概率图</th>
+        <th if={ showOperate}>轨迹跳转</th>
+      </tr>
+    </thead>
+    <tbody class="tableClass" if={ hasdata }>
+      <tr each={row, i in rows} class={ vehicleType ? 'vehicleType' : 'content' } >
+        <td if={monthTitle}>{getNumber(i)}</td>
+        <td each={value, name in row} if={ chooseTdShow(name) } class={ getClass(name, row) } onclick={ showBatCurve }>
+          <input type="text" value={ row.Analysis } if={ name=='Analysis' } ref='db_analysis'
+            style="text-align: center; border: none">
+          { formatField(name, value) }
+        </td>
+        <td if={ def && def.needBreakdown } class="no-print">
+          <span onclick={ breakdown } class="oplink">{ def.breakdown.opLabel }</span>
+        </td>
+        <td if={ showOperate}>
+          <img id={row.card_id} numberId={ row.staff_id ? row.staff_id : row.vehicle_id } class="icon"
+            src="../img/track.png" data-start={row.start_time} data-end={row.end_time} title="播放轨迹" onclick={ playtrack
+            }>
+        </td>
+        <td if={ vehicleType } class="probablity">
+          <div class="pro">
+            <span class="use">{ row.use }</span>
+            <span class="leisure">{ row.leisure }</span>
+            <span class="malfunction">{ row.malfunction }</span>
+            <span class="maintain">{ row.maintain }</span>
+            <span class="upkeep">{ row.upkeep }</span>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <div if={ hasdata && reptName!=='person_reader_detail' } class="pagination" data-is="pagination" totalpage={ totalPage} pageindex={ pageIndex } tablename={
+    reptName }></div>
+  <div data-is="blank-message" message="没有符合条件的记录！请确认您的查询条件后再试。" class="blank-message" if={ !hasdata && reptName
+    !=='whole_status' }></div>
+  <script>
+    let detailID = null
+    import {
+      clone,
+      computeDays,
+      createChart,
+      getShiftByTime,
+      checkClick,
+      computeMonthDays
+    } from '../../js/utils/utils.js'
+    import {
+      printDef,
+      printFields
+    } from '../js/report_defs.js'
+    import './select-choose.html'
+    import './bat-curve.html'
+    this.graph = ['whole_status']
+    this.reptName = opts.reptname
+    this.pageIndex = opts.pageIndex ? opts.pageIndex : 0
+    this.reptIndex = opts.reptindex
+    this.stafftotal = false
+    this.staffTitle = this.stafftotal ? '当前查询结果总人次' : '当前查询结果数'
+    this.pieces = this.stafftotal ? '人' : '条'
+    this.vehicleType = false
+    this.monthDetail = false
+    this.showOperate = false
+    this.ID = []
+    this.reptPrint = printDef.reptTable
+    let self = this
+    //显示序号数组
+    const MONTHTITLE = ['person_month', 'v_vehicle_month', 'driver_dept_month', 'person_location_area']
+    //不转换staff_id，vehicle_id, Analysis的数组
+    const PERSONARR = ['person', 'person_special', 'person_day', 'person_time', 'vehicle_time', 'operation_rate', 'operation_rate_month',
+      'time_rate', 'time_rate_month', 'regular_cycle', 'regular_cycle_month', 'person_card_battery_alarm',
+      'person_fixed_alarm', 'person_hour', 'person_area', 'person_reader', 'his_staff_change', 'person_absence', 'person_lamp_number'
+    ]
+    //显示轨迹跳转数组
+    const OPTABLES = ['person', 'vehicle_updown_mine']
+    // 明细表数组
+    const DETAILREPT = ['REPT_vehicle_type_day', 'REPT_vehicle_type_month', 'REPT_vehicle_type_month_detail']
+    // 显示一个月份具体天数的数组
+    const TABLEIDARR = ['REPT_person_month', 'REPT_leader_month', 'REPT_driver_dept_month', 'REPT_v_vehicle_month']
+    //排序替换数组
+    const SORTNAME = ['vehicle_no_updown_mine', 'vehicle_updown_mine']
+    //电量统计图显示数组
+    let REPTNAMEARR = ['person_card_battery_alarm', 'person', 'person_well_overtime']
+    this.on('mount', () => {
+      this.registerGlobalEventHandlers()
+    })
+
+    this.getClass = (name, row) => {
+      // name==='nr_name'?'fontlf':''
+      let roleID = xdata.roleID
+      if (REPTNAMEARR.includes(this.reptName) && roleID === 1 && name === 'card_id' && row.isbat === 0) return 'islink'
+      if (/time/.test(name) || name == 'hedc') return 'istime'
+      if (name === 'nr_name') return 'fontlf'
+      return ''
+    }
+
+    /**
+     * @description: 获取特殊的class类名
+     * @param {type} name,isSearch
+     * @return: 
+     */
+    this.classFun = (name, isSearch) => {
+      if (typeof (name) === 'string') {
+        if (name.indexOf("卡号") > -1) return 'card'
+        if (name.indexOf("时间") > -1 && isSearch) return 'time'
+        if (name.indexOf("时间") > -1) return 'istime'
+        if (name.indexOf("日期") > -1) return 'istime'
+      } else {
+        return ''
+      }
+    }
+
+    /**
+     * @description: 获取查询组件的查询结果
+     * @param {type} 查询组件
+     * @return: 
+     */
+    this.getQueryResult = (querynews) => {
+      let queryResult = null
+      let currentTagName = this.reptName
+      if (!querynews) return queryResult
+      if (Array.isArray(querynews)) {
+        queryResult = querynews.filter(item => item.def.name === currentTagName)
+        queryResult = queryResult && queryResult[0]
+      } else if (querynews.def.name === currentTagName) {
+        queryResult = querynews
+      }
+      return queryResult
+    }
+    /**
+     * @description: 确定具体组件的具体查询结果
+     * @param {type} empty
+     * @return: 
+     */
+    this.getSureQueryResult = () => {
+      let querynews = this.parent ? this.parent.tags['query-newexprs'] : opts.parentag.tags['query-newexprs']
+      querynews = querynews ? querynews : opts.parentag.queryNew
+      let queryResult = this.getQueryResult(querynews)
+      return queryResult
+    }
+
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+      msg.total = this.total // 增加 total
+      let queryResult = this.getSureQueryResult()
+      if (queryResult) queryResult.trigger('PAGEINDEX-CHANGE-REPT', msg)
+    })
+
+    // 对于多次实例化的 tag， 一定要在 unmount 时注销 xbus.on('xxx') 全局事件
+    this.on('before-unmount', () => {
+      this.reptName = null
+    })
+
+    this.on('unmount', () => {
+      if (!this.parent) return
+      let tagList = this.parent.tags['rept-table']
+      if (tagList instanceof Array) {
+        tagList.splice(tagList.indexOf(this), 1)
+      } else {
+        tagList = null
+      }
+    })
+
+    /**
+     * @description: 获取序号值
+     * @param {type} i
+     * @return: 
+     */
+    this.getNumber = (i) => {
+      if (this.pageIndex) {
+        return (i + 1) + (this.pageIndex * PAGE_SIZE)
+      } else {
+        return i + 1
+      }
+    }
+    /**
+     * @description: 点击表头，对数组进行升序或降序排列
+     * @param {type} 
+     * @return: 
+     */
+    this.sortRows = (evt) => {
+      if (MONTHTITLE.includes(this.def.name)) return
+      let target = evt && evt.target
+      let nodename = target.nodeName.toLowerCase()
+      let label = checkClick(target, nodename)
+      this.isAscending = label === this.sortBasic ? !this.isAscending : true
+      this.sortBasic = label
+      let labelIndex = this.def.fields.labels.indexOf(label)
+      let condition = this.def.fields.names[labelIndex]
+      if (SORTNAME.includes(this.def.name) && condition.includes('vehicle_id')) {
+        condition = condition.replace('vehicle_id', 'name')
+      }
+      this.sortControl = true
+      let queryResult = this.getSureQueryResult()
+      if (queryResult) queryResult.sortResult(condition, this.isAscending)
+      this.controlDisplay(target, nodename)
+    }
+
+    //改变箭头的方向、显隐 2019-05-22 lmj
+    this.controlDisplay = (target, nodename) => {
+      this.preTarget && this.preTarget.querySelector('img') && this.preTarget.querySelector('img').classList.add(
+        'hide')
+      if (!target) return
+      target = nodename === 'th' ? target : target.parentElement
+      target.querySelector('img') && target.querySelector('img').classList.remove('hide')
+      this.preTarget = target
+    }
+
+    /**
+     * @description: 处理查询函数
+     * @param {type} ds
+     * @return: 
+     */
+    this.dealResult = (ds) => {
+      this.sortControl ? '' : this.controlDisplay()
+      if (ds.def.name == this.reptName && ds.def.name != 'whole_status') {
+        this.def = ds.def
+        this.tableID = 'REPT_' + this.def.name
+        if (OPTABLES.includes(this.def.name)) {
+          this.showOperate = true
+        }
+        // 获取tbody的数据
+        if (DETAILREPT.includes(this.tableID)) {
+          if (ds.rows) {
+            this.vehicleType = true
+            this.rows = createChart(ds.rows, this.tableID)
+          }
+        } else if (this.def.name === "person_reader_detail" && ds.rows.alarmSql) {
+          this.rows = ds.rows.alarmSql.concat(ds.rows.wellSql)
+          ds.total = 0
+        } else {
+          this.rows = ds.rows
+        }
+        // this.rows  = Array.isArray(this.rows) ? getShiftByTime(this.rows) : this.rows
+        this.labels = this.def.fields.labels // thead的数据
+        this.names = this.def.fields.names
+        this.types = this.def.fields.types
+        this.searchLabels = this.def.exprFields.map(item => item.label)
+        // 判断是否有数据并且是否需要分页
+        this.hasdata = (this.rows && this.rows.length > 0) || false
+        this.namesInShort = this.names.map((item) => {
+          let name = item.split('.').pop()
+          return name.split(' ').pop()
+        })
+        // 统计totle，判断是否需要分页
+        this.total = ds.total
+        this.totalPage = Math.ceil(this.total / PAGE_SIZE)
+        this.pageIndex = ds.pageIndex
+        this.monthTitle = MONTHTITLE.includes(this.reptName)
+        if (ds.def.name === 'person_day') this.stafftotal = true
+        if ((ds.def.name === 'person_reader_detail' || !ds.total) && ds.rows) {
+          this.total = Array.isArray(ds.rows) ? ds.rows.length : (ds.rows.alarmSql.length + ds.rows.wellSql.length)
+        }
+        this.staffsNum = `${this.total}`
+        if (this.hasdata && TABLEIDARR.includes(this.tableID)) {
+          this.creatDay(ds.rows, ds.monthTime)
+        }
+        if (this.hasdata && DETAILREPT.includes(this.tableID)) {
+          let probablity = this.root.querySelectorAll('.probablity')
+          for (let i = 0, len = probablity.length; i < len; i++) {
+            let pro = probablity[i]
+            pro.querySelector('.use').style.width = pro.querySelector('.use').innerHTML
+            pro.querySelector('.malfunction').style.width = pro.querySelector('.malfunction').innerHTML
+            pro.querySelector('.maintain').style.width = pro.querySelector('.maintain').innerHTML
+            pro.querySelector('.upkeep').style.width = pro.querySelector('.upkeep').innerHTML
+            pro.querySelector('.leisure').style.width = pro.querySelector('.leisure').innerHTML
+          }
+        }
+        this.update()
+        window.xhint.close()
+      }
+    }
+
+    this.registerGlobalEventHandlers = (dtl) => {
+      xbus.on('REPT-SHOW-RESULT', (ds, dtl) => {
+        if (this.reptName === ds.def.name && ds.rows && ds.rows.length > 0) {
+          this.ID = ds.rows.map((value, index, array) => {
+            return value.ID
+          })
+        }
+        this.dealResult(ds)
+      })
+      xbus.on('REPT-SHOW-RESULT-TABLE', (ds) => {
+        this.dealResult(ds)
+      })
+    }
+
+    /**
+     * @description: 根据name格式化value函数
+     * @param {type} name，value
+     * @return: value
+     */
+    this.formatField = (name, value) => {
+      if (PERSONARR.includes(this.def.name)) {
+        if (name === 'staff_id') return value
+        if (name === 'vehcile_id') return value
+        if (name === 'Analysis') return value = ''
+      }
+      if (name === 'real_worktime') return value.toFixed(2)
+      if (name === 'dtime') return value ? value.toFixed(2) : 0
+      if (name === 'month') return new Date(value).format('yyyy-MM')
+      let type = this.types[this.namesInShort.indexOf(name)]
+      return xdata.metaStore.formatField(name, value, type)
+    }
+
+    /**
+     * @description: 点击轨迹跳转函数，触发TRACK-FAST-OPERATE事件
+     * @param {type} 
+     * @return: 
+     */
+    this.playtrack = (evt) => {
+      let target = evt.currentTarget
+      let id = evt.target.getAttribute('id')
+      let numberId = evt.target.getAttribute('numberId')
+      let start_time = new Date(target.getAttribute('data-start')).getTime()
+      let end_time = target.getAttribute('data-end') ? new Date(target.getAttribute('data-end')) : null
+      let obj = xdata.metaStore.data.vehicle.get(Number(numberId)) || xdata.metaStore.data.staff.get(Number(numberId))
+      let name = obj && obj.name
+      xbus.trigger('TRACK-FAST-OPERATE', {
+        id: id,
+        numberId: numberId,
+        name: name,
+        start_time: start_time,
+        end_time: end_time
+      })
+    }
+
+    /**
+     * @description: 点击明细函数，触发sp-report中的REPT-SWITCH-MENU事件
+     * @param {type} 
+     * @return: msg
+     */
+    this.breakdown = (evt) => {
+      window.xhint.showLoading()
+      let row = evt.item.row
+      let breakdownDef = clone(this.def.breakdown)
+      let list = []
+      for (let i = 0, count = breakdownDef.exprList.length; i < count; i++) {
+        let expr = breakdownDef.exprList[i]
+        let paramName = breakdownDef.params[i]
+        let paramValue = row[paramName]
+        if (paramValue) {
+          let formatedValue = xdata.metaStore.formatField(paramName, paramValue, this.types[this.namesInShort.indexOf(
+            paramName)])
+          expr.label = expr.label.replace(`{${paramName}}`, formatedValue) // label 用转换后的 value
+          expr.value = expr.value.replace(`{${paramName}}`, (paramName === 'start_time' || paramName === 'end_time') ?
+            (new Date(paramValue).format('yyyy-MM-dd hh:mm:ss')) : paramValue) // value 要用原始的 value
+          expr.paramValue = paramValue
+          list.push(expr)
+        }
+      }
+      let msg = {
+        menuname: breakdownDef.targetQuery,
+        exprList: list,
+        detailID: row.routing_duty_id
+      }
+      xbus.trigger('REPT-SWITCH-MENU', msg)
+      breakdownDef = null
+    }
+    /**
+     * @description: 点击打印等函数
+     * @param {type} opName
+     * @return: 
+     */
+    this.askFile = (opName) => {
+      window.xhint.close()
+      window.xhint.showLoading()
+      let def = this.getPrintDef(this.def.name)
+      let msg = {
+        cmd: 'file',
+        name: this.def.name,
+        labels: def.labels,
+        title: this.def.label,
+        namesInShort: def.names,
+        types: def.types,
+        data: this.def.name === "person_reader_detail" ? JSON.stringify(this.rows) : null,
+        fileType: opName,
+        reptIndex: this.reptIndex,
+        searchTotal: this.total,
+        isQuery: this.def.name === "person_reader_detail" ? true : false
+      }
+      xbus.trigger('ASK-FILE', msg)
+    }
+    /**
+     * @description: 月报中创建天的函数
+     * @param {type} result
+     * @return: 
+     */
+    this.creatDay = (result, monthTime) => {
+      let computeResult = null
+      if (monthTime) {
+        let stime = new Date(monthTime.stime).format('yyyy-MM-dd')
+        let etime = new Date(monthTime.etime).format('yyyy-MM-dd')
+        computeResult = computeMonthDays(stime, etime)
+      } else {
+        let monthRefer = result[0]['month']
+        let yearMonth = monthRefer.split('-')
+        computeResult = computeDays(yearMonth[0], yearMonth[1])
+      }
+      let daysArr = computeResult.daysArr
+      this.labels = clone(this.labels).splice(0, this.labels.length - 1).concat(daysArr)
+      this.rows = this.rows.map(item => {
+        let dataArr = new Map()
+        item['concat_day'] && item['concat_day'].split(',').forEach(it => {
+          let itArr = it.split(';')
+          let itKey = itArr[0].toString()
+          let itKeyValue = itArr[1]
+          if (dataArr.get(itKey)) {
+            itKeyValue = dataArr.get(itKey)[itKey] + ',' + itKeyValue
+          }
+          
+          dataArr.set(itKey, {
+            [itKey]: itKeyValue
+          })
+        })
+        for (let i = 0; i < daysArr.length; i++) {
+          let key = daysArr[i].toString()
+          item['z' + key] = dataArr.get(key) ? dataArr.get(key)[key] : null
+        }
+        delete item['concat_day']
+        return item
+      })
+    }
+
+    this.chooseLabelShow = (label) => {
+      let isShow = true
+      if (this.reptName === 'person_month' && label === '月份') isShow = false
+      return isShow
+    }
+
+    this.chooseTdShow = (name) => {
+      if (this.reptName === 'person_month' && name === 'month') return false
+      if (this.monthTitle) return true
+      if (!this.monthTitle && name !='ID' && name !='isbat') return true
+    }
+    
+    this.showBatCurve = (evt) => {
+      if (xdata.roleID !== 1 && xdata.roleID !== 2 ) return
+      let target = evt.target
+      let item = evt.item
+      let className = target.getAttribute('class')
+      if (REPTNAMEARR.includes(this.reptName) && item.name === 'card_id' && className && className.includes('islink')) {
+        if (this.activePanel) {
+          this.activePanel.unmount(true)
+        }
+        this.activePanel = riot.mount('bat-curve', {cardID: item.value})[0]
+      }
+    }
+    this.getPrintDef = (tableName) => {
+      if (printFields.hasOwnProperty(tableName)){
+        return {
+          names: printFields[tableName].names,
+          labels: printFields[tableName].labels,
+          types: printFields[tableName].types
+        }
+      } else {
+        return {
+          names: this.namesInShort,
+          labels: this.def.fields.labels,
+          types: this.types
+        }
+      }
+    }
+  </script>
+</rept-table>

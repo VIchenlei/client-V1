@@ -1,0 +1,41 @@
+<driving-face>
+  <div>
+    <nav class="nav-title">
+      <span>名称</span>
+      <span>状态</span>
+      <span>当班掘进距离</span>
+    </nav>
+    <p each={ i in tunnellerData } class='content-coal-cutting'>
+      <!--<span>{xdata.metaStore.getNameByID('area_id', i[7])}</span>-->
+      <span>{xdata.metaStore.dataInArray.get('drivingface')[0].name}</span>
+      <span if={ i[11]===3 }>掘进</span>
+      <span if={ i[11] !==3 }>停机</span>
+      <span>{ i[15] }(m)</span>
+    </p>
+    <div data-is="blank-message" message="没有相关记录。" class="blank-message" if={ !tunnellerData || tunnellerData.length <= 0 }></div>
+  </div>
+  <script>
+    xbus.on('TUNNELLER-STAT-LIST', (data) => {
+      // let tunnellerData = JSON.stringify(data)
+      // sessionStorage.setItem('tunnellerData', tunnellerData)由于目前改为实时推数据，暂时注释掉
+      // xbus.trigger('TUNNELLER-START-CHANGE')
+      // console.log(JSON.parse(data))
+      // console.log(data)
+      // self.tunnellerData = JSON.parse(data)
+      this.tunnellerData = data
+      this.update()
+    })
+
+    this.init = () => {
+      this.tunnellerData = Array.from(xdata.coaltunneller.tunneller.values())
+      let msg = {//向采集请求一次默认的状态
+        cmd: 'tunneller_stat',
+        data: ''
+      }
+      xbus.trigger('DRIVINGFACE-REQ-DATA', msg)
+      this.update()
+    }
+
+    this.init()
+  </script>
+</driving-face>

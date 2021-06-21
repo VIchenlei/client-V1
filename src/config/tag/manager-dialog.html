@@ -1,0 +1,110 @@
+<manager-dialog>
+	<div class="dlg-bg animated">
+		<div name="manager_dialog" ref="manager_dialog" class="dlg-window manager-dialog animated">
+			<div name="manager_title" ref="manager_title" class="dlg-head">
+				<span class="dlg-title">
+					<grip type="grip-horizontal"></grip>{ tableTitle }
+				</span>
+				<span class="close-btn" onclick={close}>x</span>
+			</div>
+			<div class="manager-dialog-inner">
+				<div class="manager-list">
+					<manager-list-detail data-def={managerListDetail}></manager-list-detail>
+					<manager-list></manager-list>
+				</div>
+				<div class="bottom-box">
+					<div>
+							<div class="flex-box">
+									<div class="bottom-left">
+											<div class="left-box">
+												<button>配置</button>
+												<button>升级分站端</button>
+											</div>
+											<p class="user-tips">升级带IP的分站程序，请先启动升级服务，双击选择分站后，点击升级分站按钮，其他升级不需要启动升级服务。</p>
+									</div>
+									<div class="bottom-right flex-box">
+										<div class="btn-family">
+											<button class="btn-style" class="hisdata" onclick={handleBtn}>历史数据</button>
+											<button class="btn-style" class="clearhis" onclick={handleBtn}>清空历史数据</button>
+											<button class="btn-style" class="outputfil" onclick={handleBtn}>输出文件</button>
+											<button class="btn-style" class="startservice" onclick={handleBtn}>启动升级服务</button>
+											<button class="btn-style" class="upgradestation" onclick={handleBtn}>升级分站</button>
+											<p><span>升级进度</span><span><input type="text"></span></p>
+											<p><span>扫描进度</span><span><input type="text"></span></p>
+										</div>
+										<div>
+												<textarea name="" id="" cols="30" rows="10"></textarea>
+										</div>
+									</div>
+								</div>
+								<div class="flex-box">
+										<div>
+											<span>目标地</span>
+											<input type="text">
+											<span>分站号</span>
+											<input type="text">
+											<button data-name="connection" onclick={handleBtn}>连接</button>
+											<button data-name="closeconnection" onclick={handleBtn}>关闭网络</button>
+											<button data-name="scanning" onclick={handleBtn}>扫描</button>
+											<button data-name="clear-log" onclick={handleBtn}>清空日志</button>
+											<button data-name="RequestParams" onclick={handleBtn}>请求配置</button>
+										</div>
+								</div>
+					</div>
+					
+				</div>
+				
+			</div>
+		</div>
+	</div>
+
+	<script>
+		import '../sass/manager-dialog.sass'
+		import {show} from '../utils.js'
+		import MANAGERDEF from '../js/reader_manager_def.js'
+		import './manager-list-detail.html'
+		import './manager-list.html'
+		let msg = opts.message
+		this.tableTitle = msg.title
+
+		this.handleBtn = (evt) => {
+			let target = evt.currentTarget
+			let dataName = target.getAttribute('data-name')
+			xbus.trigger('SEND-MANAGER-MSG', {
+				cmd: dataName,
+				data: {
+					ip: this.chooseIP
+				}
+			})
+		}
+
+		this.on('mount', () => {
+      // this.formShow()
+      show(this.root.querySelector('.dlg-window'), this.root.querySelector('.dlg-bg'))
+      window.setDraggable({
+        target: this.refs.manager_dialog,
+        handle: this.refs.manager_title
+			})
+			
+			
+
+			// xbus.trigger('YA-MANAGER', {
+			// 	cmd: 'ya_manager',
+			// 	data: {
+			// 		host: '127.0.0.1',
+			// 		port: 3000
+			// 	}
+			// })
+      // this.registerGlobalEventHandlers()
+		})
+		this.close = () => {
+          this.unmount(true)
+        }
+		
+		this.init = (opts) => {
+			this.chooseIP = opts.message.rows[0].field_value
+			this.managerListDetail = MANAGERDEF
+		}
+		this.init(opts)
+	</script>
+</manager-dialog>

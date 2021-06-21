@@ -1,0 +1,36 @@
+@import '../../sass/defs'
+
+
+.page-main
+    position: absolute
+    width: 100%
+    height: 100%
+    display: flex
+    flex-flow: column nowrap
+    // flex: auto
+    background: url("/img/ratebg.png") no-repeat cover 
+    @media screen and (max-width: $width-medium) and (orientation: landscape)
+        overflow: hidden
+    .back-homepage
+        cursor: pointer
+        display: flex
+        align-items: center
+        &:hover
+            color: $btn-bg
+    .page-body
+        position: relative
+        display: flex
+        flex: auto
+        perspective: 2000px
+        transform-style: preserve-3d
+
+        .sub-page
+            position: absolute
+            width: 100%
+            height: 100%
+            display: flex
+            flex-flow: row nowrap
+            align-items: stretch
+            color: $main-color
+        #cesiumContainer
+            width: 100%

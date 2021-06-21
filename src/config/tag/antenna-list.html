@@ -1,0 +1,493 @@
+<antenna-list>
+  <li class="antenna { field_name }" each={ opts.msg.rows }>
+    <text-filed if={field_type !=='SELECT' && !hideFields.includes(field_name)} text={field_label}
+      enableNull={field_enableNull} class="xinput {getTimeClass(field_type)}" data-oldvalue={field_value}
+      value={getTextValue(field_value, field_name, field_type)} type={getInputType(field_type, field_name)} ref={
+      field_name } min='1' name={ field_name } onblur={leaveInput} readonly={ isReadonly(field_name) }>
+    </text-filed>
+    <text-select if={field_type=='SELECT' && !hideFields.includes(field_name)} text={field_label}
+      enableNull={field_enableNull} ref={field_name} name={ field_name} data-oldvalue={field_value} value={field_value}
+      data-name={tableName } onchange={change} class={field_name} disabled={isDisabled(field_name)}>
+    </text-select>
+  </li>
+  <script>
+    import {
+      composeUpdateDBReq,
+      trim,
+      formatTime
+    } from '../../js/utils/utils.js'
+    import {
+      metaUpdateRes,
+      formatFieldValue,
+      testUnenableNullData,
+      testForm
+    } from '../utils.js'
+    let self = this
+    let msg = opts.msg
+    let idx = opts.idx
+    this.rows = msg.rows
+    this.tableName = msg.table
+    this.tableKeyName = msg.key
+    this.topicName = msg.name
+    this.hideFields = opts.field
+    this.cmd = msg.cmd
+    let isMustFill = ['dat_occupation', 'dat_drivingface_warning_point', 'dat_drivingface_vehicle', 'dat_sensor',
+      'dat_reader_path_tof_n'
+    ]
+    this.setCoords = (value, rows) => {
+      let row = xdata.metaStore.data.antenna.get(value)
+      for (let i = 0; i < rows.length; i++) {
+        let fieldName = rows[i].field_name
+        if (fieldName === 'x') rows[i].field_value = row.x
+        if (fieldName === 'y') rows[i].field_value = row.y
+      }
+      this.rows = rows
+    }
+    this.init = () => {
+      for (let i = 0; i < this.rows.length; i++) {
+        let fieldName = this.rows[i].field_name
+        if (fieldName === this.tableKeyName) this.keyValue = this.rows[i].field_value
+        if (fieldName === 'reader_id') this.readerId = this.rows[i].field_value
+      }
+    }
+    this.init()
+    this.getTimeClass = (type) => {
+      if (type === 'DATETIME' || type === 'DATE') return 'datetime-input'
+      return ''
+    }
+    this.getTextValue = (field_value, field_name, field_type) => {
+      if (this.tableName === 'dat_drivingface_vehicle' && field_name === 'shake_threshold') {
+        if (!field_value) return 20
+        return field_value
+      } else {
+        if (field_value) {
+          if (field_name === 'y' && this.cmd !== 'INSERT') {
+            field_value = -Number(field_value)
+          }
+        }
+        return field_value
+      }
+    }
+    this.getInputType = (fieldType) => {
+      if (fieldType !== 'SELECT') {
+        let ret = 'text'
+        switch (fieldType) {
+          case 'DATETIME':
+            ret = 'datetime-local'
+            break
+          case 'DATE':
+            ret = 'date'
+            break
+          case 'TIME':
+            ret = 'time'
+            break
+          case 'COLOR':
+            ret = 'color'
+            break
+          default:
+            ret = 'text'
+        }
+        return ret
+      }
+    }
+
+    this.isReadonly = (field_name) => {
+      if (this.cmd === 'INSERT') return
+      if (this.cmd === 'DELETE') return 'readonly'
+      let readonly = ''
+      if (field_name === this.tableKeyName) readonly = 'readonly'
+      return readonly
+    }
+    this.isDisabled = (field_name) => {
+      if (this.cmd === 'INSERT') return ''
+      if (this.cmd === 'DELETE') return 'disabled'
+      if (field_name === this.tableKeyName) return 'disabled'
+    }
+
+    this.getRtSql = (fieldValue) => {
+      let vehicles = xdata.metaStore.data.vehicle_extend
+      let cardId = vehicles.get(Number(fieldValue)).card_id
+      let start_time = new Date().format('yyyy-MM-dd: hh:mm:ss')
+      let sql =
+        `REPLACE INTO rt_att_vehicle (card_id, vehicle_id, start_time) VALUES(${cardId}, ${fieldValue}, '${start_time}')`
+      return sql
+    }
+
+    this.doInsert = () => {
+      let fields = ''
+      let values = ''
+      let keyValue = null
+      let state = 0
+      let rtSql = null
+      let rtKey = null
+      if (testForm('保存失败，请核对正确保存！', this.root)) return
+      let notifyShaffId = ''
+      for (let i = 0; i < this.rows.length; i++) {
+        let fieldName = this.rows[i].field_name
+        let fieldValue = null
+        let ele = null
+        let value = ''
+        if (this.hideFields.includes(fieldName)) {
+          value = this.rows[i].field_value
+          if (fieldName === 'reader_id') {
+            value = this.parent.tags['reader-list2'].refs.reader_id.root.querySelector('input').value
+          }
+        } else {
+          ele = this.refs[fieldName].root.querySelector('input')
+          value = ele && ele.value
+        }
+
+        if (fieldName === 'reader_id' && this.tableName === 'dat_antenna') {
+          ele = this.parent.tags['reader-list2'].refs[fieldName].root.querySelector('input')
+          value = ele && ele.value
+        }
+
+        if (value) value = trim(value.toString())
+
+        if (this.rows[i].field_type === 'SELECT') {
+          if (this.hideFields.includes(fieldName)) {
+            fieldValue = value
+          } else {
+            fieldValue = this.root.querySelector('.' + fieldName + ' select').getAttribute('value')
+            fieldValue = this.root.querySelector('.' + fieldName + ' select').value
+            if (fieldName === 'stat') fieldValue = `"${fieldValue}"`
+            if (!fieldValue || !fieldValue.match(/\d/ig) && this.tableName !== 'dat_coalface_vehicle' && fieldName !==
+              'state') {
+              fieldValue = 0
+            }
+          }
+        } else {
+          fieldValue = value
+          fieldValue = formatFieldValue(this.rows[i].field_type, fieldValue)
+        }
+        if (fieldName === 'vehicle_id') {
+          rtSql = this.getRtSql(fieldValue)
+          rtKey = fieldValue
+        }
+        if (fieldName === 'y') {
+          fieldValue = -Number(fieldValue)
+        }
+        //当fieldValue为""时，也提示‘请把必填字段填写完整’ 2019-05-50 lmj
+        if (!this.hideFields.includes(fieldName)) {
+          if (this.refs[fieldName].tips && fieldValue !== 0 && !fieldValue) { //如果是必填字段但是没有值时
+            return testUnenableNullData()
+          } else if (this.refs[fieldName].tips && fieldValue !== 0 && fieldValue === '""') {
+            return testUnenableNullData()
+          }
+        }
+        if (this.tableName !== 'dat_battery' || i !== 0) {
+          if (i === 0) {} else {
+            fields += ','
+            values += ','
+          }
+          fields += fieldName
+          values += fieldValue
+        }
+      }
+      if (/^dat_/.test(this.tableName)) {
+        let table = this.tableName.slice(4)
+        let rows = xdata.metaStore.data[table]
+        if (rows && rows.get(this.keyValue)) {
+          let msg = {
+            value: 'nochange',
+            tip: `该信息已被注册！`
+          }
+          window.hintip.open(msg)
+          return
+        }
+      }
+      keyValue = this.keyValue
+      let sql = `INSERT into ${this.tableName} (${fields}) VALUES(${values})`
+      if (this.tableName === 'dat_antenna') {
+        keyValue = this.parent.tags['reader-list2'].refs.reader_id.root.querySelector('input').value
+      }
+      let req = composeUpdateDBReq('INSERT', this.topicName, keyValue, sql)
+      req['state'] = state
+      if (!!notifyShaffId) {
+        req.data['notify'] = `${notifyShaffId}`
+      }
+      // console.log(req)
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+
+      if (rtSql) {
+        let rtReq = composeUpdateDBReq('INSERT', 'rt_att_vehicle', rtKey, rtSql)
+        xbus.trigger('META-UPDATE-DB', {
+          req: rtReq
+        })
+      }
+    }
+    this.doUpdate = () => {
+      if (testForm('更新失败，请核对正确保存！', this.root)) return
+      let sql = ''
+      let notifyShaffId = ''
+      let notifyId = ''
+      let state = 0
+      let rtSql = null
+      let rtKey = null
+      if (this.topicName === 'antenna') this.setCoords(this.keyValue, this.rows)
+      for (let i = 0; i < this.rows.length; i++) {
+        let fieldName = this.rows[i].field_name
+        let inputValue = null
+        let ele = null
+        let value = ''
+        if (this.hideFields.includes(fieldName)) {
+          value = this.rows[i].field_value
+        } else {
+          ele = this.refs[fieldName].root.querySelector('input')
+          value = ele && ele.value
+        }
+        if (value) value = trim(value.toString())
+        if (this.rows[i].field_type === 'SELECT' && !this.hideFields.includes(fieldName)) {
+          inputValue = this.refs[fieldName].root.querySelector('select').value
+        } else {
+          inputValue = value
+        }
+        if (!this.hideFields.includes(fieldName)) {
+          if (this.refs[fieldName].tips && !inputValue && inputValue !== 0) { //如果是必填字段但是没有值时
+            return testUnenableNullData()
+          }
+        }
+        if (fieldName === 'y') {
+          inputValue = -Number(inputValue)
+        }
+        if (fieldName === 'vehicle_id') {
+          rtSql = this.getRtSql(inputValue)
+          rtKey = inputValue
+        }
+        if (this.rows[i].field_value != inputValue && !this.hideFields.includes(fieldName)) {
+          if (fieldName === 'state' && (this.tableName === 'dat_coalface_vehicle' || this.tableName ===
+              'dat_drivingface_vehicle')) {
+            if (Number(inputValue) === 0) state = 1
+          }
+          if (this.tableName !== 'dat_coalface_vehicle' && fieldName !== 'stat') {
+            let formatFieldType = fieldName === 'staff_id' && this.rows[i].field_type === 'STRING' ? 'NUMBER' : this
+              .rows[i].field_type
+            inputValue = formatFieldValue(formatFieldType, inputValue)
+          } else {
+            inputValue = `'${inputValue}' `
+          }
+          if (sql !== '' && sql.substr(-1) !== ',') {
+            sql += ','
+          }
+          sql += `${fieldName}=${inputValue}`
+        }
+      }
+      this.sql = sql
+      if (sql !== '') {
+        // let ele = this.refs[this.tableKeyName].root.querySelector('input')
+        let keyValue = this.keyValue
+        sql = `UPDATE ${this.tableName} set ${sql} where ${this.tableKeyName}=${keyValue}`
+        if (this.tableName === 'dat_antenna') keyValue = this.readerId
+        let req = composeUpdateDBReq('UPDATE', this.topicName, keyValue, sql)
+        if (!!notifyShaffId) {
+          req.data['notify'] = `${notifyId};${notifyShaffId}`
+        }
+        req['state'] = state
+        xbus.trigger('META-UPDATE-DB', {
+          req: req
+        })
+        if (rtSql) {
+          let rtReq = composeUpdateDBReq('INSERT', 'rt_att_vehicle', rtKey, rtSql)
+          xbus.trigger('META-UPDATE-DB', {
+            req: rtReq
+          })
+        }
+      } else if (this.modified) {
+        this.close()
+      }
+    }
+    this.doDelete = () => {
+      let keyValue = this.keyValue
+      this.deleteMsg()
+      return
+    }
+    this.deletePopup = (evt) => { //弹窗提醒删除
+      let self = this
+      if (this.activePanel) {
+        this.activePanel.unmount(true)
+      }
+      this.activePanel = riot.mount('call-leave', {
+        name: 'dodelete',
+        currentTag: self
+      })[0]
+    }
+    this.deleteMsg = (target) => {
+      let keyValue = this.keyValue
+      let sql = null
+      let state = 0
+      sql = `DELETE from ${this.tableName} where ${this.tableKeyName}=${keyValue}`
+      // console.log(sql)
+      if (this.tableName === 'dat_coalface_vehicle' || this.tableName === 'dat_drivingface_vehicle') {
+        state = 1
+      }
+      if (this.tableName === 'dat_antenna') keyValue = this.readerId
+      let req = composeUpdateDBReq('DELETE', this.topicName, keyValue, sql)
+      req['state'] = state
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+    }
+
+    /**
+     * @description: 实时界面新增分站时 录入信息后画取分站覆盖范围时 画取时更新录入的信息
+     */
+    xbus.on('SAVE-ENTRYMSG', () => {
+      this.saveEntryMsg()
+    })
+    this.saveEntryMsg = () => {
+      let antennaCoords = []
+      for (let i = 0; i < this.rows.length; i++) {
+        let fieldName = this.rows[i].field_name
+        if (fieldName === this.tableKeyName) this.keyValue = this.rows[i].field_value
+        let fieldValue = null
+        let ele = null
+        let value = ''
+        if (this.hideFields.includes(fieldName)) {
+          value = this.rows[i].field_value
+        } else {
+          ele = this.refs[fieldName] && this.refs[fieldName].root.querySelector('input')
+          value = ele && ele.value
+        }
+
+        if (value) value = trim(value.toString())
+
+        if (this.rows[i].field_type === 'SELECT') {
+          if (this.hideFields.includes(fieldName)) {
+            fieldValue = value
+          } else {
+            fieldValue = this.root.querySelector('.' + fieldName + ' select') && this.root.querySelector('.' +
+              fieldName + ' select').getAttribute('value')
+            fieldValue = this.root.querySelector('.' + fieldName + ' select') && this.root.querySelector('.' +
+              fieldName + ' select').value
+            if (fieldName === 'stat') fieldValue = `"${fieldValue}"`
+            if (!fieldValue || !fieldValue.match(/\d/ig) && this.tableName !== 'dat_coalface_vehicle' && fieldName !==
+              'state') {
+              fieldValue = 0
+            }
+          }
+        } else {
+          fieldValue = value
+          fieldValue = formatFieldValue(this.rows[i].field_type, fieldValue)
+        }
+
+        if (fieldName === 'y' && this.cmd !== 'INSERT') {
+          fieldValue = -Number(fieldValue)
+        }
+        if (this.rows[i].field_value !== fieldValue && this.topicName === 'antenna') {
+          if (fieldName === 'y') {
+            fieldValue = Number(fieldValue)
+          }
+          this.rows[i].field_value = this.rows[i].field_type === 'STRING' ? fieldValue.replace(/\"/g, "") : fieldValue
+        }
+      }
+      if (this.topicName === 'antenna') {
+        //实时界面录入信息时 跳转画取分站覆盖范围保存已录入的信息
+        this.parent.opts.amessage[idx].rows = this.rows
+      }
+    }
+
+    this.isRequired = () => {
+      for (let i = 0; i < this.rows.length; i++) {
+        let fieldName = this.rows[i].field_name
+        let fieldValue = null
+        let ele = null
+        let value = ''
+        if (this.hideFields.includes(fieldName)) {
+          switch (fieldName) {
+            case 'name':
+              value = this.rows[0].field_value
+              break;
+            default:
+              value = this.rows[i].field_value
+              break;
+          }
+        } else {
+          ele = this.refs[fieldName].root.querySelector('input')
+          value = ele && ele.value
+        }
+        if (value) value = trim(value.toString())
+        if (this.rows[i].field_type === 'SELECT') {
+          if (!this.hideFields.includes(fieldName)) {
+            fieldValue = this.root.querySelector('.' + fieldName + ' select').getAttribute('value')
+            fieldValue = this.root.querySelector('.' + fieldName + ' select').value
+            if (!fieldValue || !fieldValue.match(/\d/ig) && this.tableName !== 'dat_coalface_vehicle' && fieldName !==
+              'stat') {
+              fieldValue = 0
+            } else if (this.tableName === 'dat_coalface_vehicle' && fieldName === 'state') {
+              fieldValue = `'${fieldValue}'`
+            }
+          } else {
+            fieldValue = value
+          }
+        } else {
+          fieldValue = value
+          fieldValue = this.rows[i].field_type !== 'NUMBER' ? formatFieldValue(this.rows[i].field_type, fieldValue) :
+            fieldValue
+        }
+        if (fieldName === 'y') {
+          fieldValue = -Number(fieldValue)
+        }
+        if ((this.tableName === 'dat_coalface_vehicle' || this.tableName === 'dat_drivingface_vehicle') && (
+            fieldName === 'vehicle_id')) {
+          let rows = Array.from(xdata.metaStore.data[this.topicName].values()).filter(item => item.vehicle_id ===
+            Number(fieldValue))
+          let tips = '该车辆已被绑定，请选择其他车辆！'
+          if (this.cmd === 'INSERT' && rows.length > 0) { //添加车辆判断其他工作面是否绑定该车辆
+            this.parent.isVehicle_al = false
+            return testUnenableNullData(tips)
+          } else {
+            this.parent.isVehicle_al = true
+          }
+          if (this.rows[i].field_value !== Number(fieldValue) && this.cmd === 'UPDATE' && rows.length >
+            0) { //编辑状态下更换车辆时
+            this.parent.isVehicle_al = false
+            return testUnenableNullData(tips)
+          } else {
+            this.parent.isVehicle_al = true
+          }
+
+        }
+        if (fieldName === 'idx') { //天线索引只能是1 2 否则弹出提示框 不保存
+          let tips = '天线索引默认1、2'
+          if (Number(fieldValue) !== 1 && idx === 0) {
+            this.parent.isRequired_idx = false
+            return testUnenableNullData(tips)
+          }
+          if (Number(fieldValue) !== 2 && idx === 1) {
+            this.parent.isRequired_al = false
+            return testUnenableNullData(tips)
+          }
+          if (Number(fieldValue) === 1 && idx === 0) {
+            this.parent.isRequired_idx = true
+          }
+          if (Number(fieldValue) === 2 && idx === 1) {
+            this.parent.isRequired_al = true
+          }
+        }
+        //当fieldValue为""时，也提示‘请把必填字段填写完整’ 2019-05-50 lmj
+        if (!this.hideFields.includes(fieldName) && fieldName !== 'idx') {
+          if (this.refs[fieldName].tips && fieldValue !== 0 && !fieldValue) { //如果是必填字段但是没有值时
+            this.parent.isRequired_al = false
+            return testUnenableNullData()
+          } else if (this.refs[fieldName].tips && fieldValue !== 0 && fieldValue === '""') {
+            this.parent.isRequired_al = false
+            return testUnenableNullData()
+          } else if (isMustFill.includes(this.tableName) && this.refs[fieldName].tips && fieldValue ===
+            0) { //fieldValue === "''"与!fieldValue冲突
+            this.parent.isRequired_al = false
+            return testUnenableNullData()
+          } else {
+            this.parent.isRequired_al = true
+          }
+        }
+      }
+    }
+    this.doRun = () => {
+      if (this.cmd === 'UPDATE') this.doUpdate()
+      if (this.cmd === 'INSERT') this.doInsert()
+    }
+
+  </script>
+</antenna-list>

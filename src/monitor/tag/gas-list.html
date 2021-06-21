@@ -1,0 +1,95 @@
+<gas-list>
+    <div class="dlg-window gas-dialog {hasData ? '' : 'hide'}">
+        <dialog-head title="瓦斯超限告警" closer="no"></dialog-head>
+        <div each={ row in list } class="gas-item">
+            <span class="gas-label">{ xdata.metaStore.getNameByID('area_id', row.area_id) }</span>
+            <!-- <span>{xdata.metaStore.getNameByID('sensor_id', row.obj_id)}</span> -->
+            <span class="gas-time">{ new Date(row.cur_time).format('MM-dd hh:mm') }</span>
+            <span class="gas-cont">{ getAreaPersonNum(row) }</span>
+            <button class="btn" data-id={ row.obj_id } data-type={ row.type_id } onclick={ settled }>标记</button>
+        </div>
+    </div>
+    <script>
+        import {CARD} from '../../js/def/state.js'
+        this.gasList = opts.list
+        this.hasData = false
+
+        this.on('mount', () => {
+            window.setDialogDraggable(this.root)
+        })
+
+        this.show = () => {
+            if (this.gasList.size > 0) {
+                this.list = Array.from(this.gasList.values())
+                this.hasData = true
+            } else {
+                this.list = null
+                this.hasData = false
+            }
+        }
+        xbus.on('GAS-LIST-CHANGED', () => {
+            this.gasList = xdata.gasStore.gasms
+            this.show()
+            this.update()
+        })
+
+        this.getAreaPersonNum = (row) => {
+            let typeID = Number(row.type_id)
+            let objID = Number(row.obj_id)
+            if (typeID === 34) {
+                let sensoreaders = xdata.metaStore.data.sensor_reader_map && Array.from(xdata.metaStore.data.sensor_reader_map.values())
+                sensoreaders = sensoreaders && sensoreaders.filter(item => item.sensor_id === objID)
+                if (sensoreaders && sensoreaders.length > 0) {
+                    let readers = ''
+                    sensoreaders.forEach(reader => {
+                        let readerID = reader.reader_id
+                        readers += `、${readerID}`
+                    })
+                    readers = readers.replace('、', '')
+                    return `正在呼叫${readers}分站`
+                }
+                return '当前无绑定分站'
+            } else if (typeID === 35) {
+                let sensordriver = xdata.metaStore.data.sensor_driver_map && Array.from(xdata.metaStore.data.sensor_driver_map.values())
+                sensordriver = sensordriver && sensordriver.filter(item => item.sensor_id === objID)
+                if (sensordriver && sensordriver.length > 0) {
+                    let drivers = ''
+                    let staffs = xdata.metaStore.data.staff
+                    sensordriver.forEach(item => {
+                        let staff = staffs && staffs.get(item.staff_id)
+                        staff = staff && staff.name
+                        if (staff) drivers += `、${staff}`
+                    })
+                    drivers = drivers.replace('、', '')
+                    return drivers && `正在呼叫${drivers}`
+                }
+                return '当前无绑定司机'
+            }
+        }
+           
+        this.stopGas = (id) => {
+            let gas = xdata.gasStore.gasms.get(id)
+            let msg = {
+                cmd: 'gas_done',
+                version: '1.0.0.1',
+                data: {
+                id: id,
+                event_id: Number(gas.event_id),
+                status: 1,
+                user_id: xdata.metaStore.gstore.userName
+                }
+            }
+            xbus.trigger('GAS-DONE-REQ', msg)
+        }
+
+        this.settled = (evt) => {
+            let target = evt.currentTarget
+            let eventID = target.getAttribute('data-id')   
+            let typeID = target.getAttribute('data-type')     
+            this.stopGas(`${typeID}-${eventID}`)
+            this.gasList.delete(`${typeID}-${eventID}`)
+            this.show()
+            this.update()
+        }
+    </script>
+</gas-list>

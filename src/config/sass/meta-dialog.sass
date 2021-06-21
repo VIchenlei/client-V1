@@ -1,0 +1,121 @@
+@import '../../sass/defs'
+
+.meta-dialog
+    width: 55rem
+
+    tr
+        border-bottom: 0
+        opacity: 1
+
+    .content-panel
+        display: flex
+        flex-flow: column nowrap
+        overflow: auto
+        max-height: 25rem
+        text-select
+            width: 100%
+            div,select
+                width: 100%
+            select
+                padding: 0 0 0 7rem
+                &:hover
+                    border: 1px solid #999
+            select.face-padding
+                padding: 0 0 0 4rem
+
+        .tips
+            color: #ff6057
+
+        input
+            width: 100%
+            text-align: center
+
+    .waiting-panel
+          @include wh(654px,70px)
+          background: #2b2b2b
+          cursor: move
+          span:nth-child(2)
+            @include wh(100%,40px)
+            @include absolute(0,30px)
+            @include font-color-pos(12px,$title-color,center)
+            background: $color-white
+            padding: 0
+            line-height: 40px
+    .close-message
+          @include wh(19px,19px)
+          @include absolute-right(20px,5px)
+          @include font-color-pos(12px,#2b2b2b,center)
+          display: block
+          border-radius: 100%
+          background: $color-white
+          line-height: 19px
+          &:hover
+            background: #fb398e
+    .showDetails
+        position: absolute
+        list-style: none
+        font-size: .8rem
+        background: #efefef
+        max-height: 210px
+        overflow-y: auto
+        li
+            @include line-height(30px,30px)
+            text-align: center
+            cursor: pointer
+            &:hover
+                color: #009fff
+.widen
+    position: relative
+    width: 40rem
+    height: 20rem
+    .alias-left
+        width: 14rem
+        height: 9rem
+        overflow: hidden
+        position: absolute
+        left: 2rem
+        top: 5rem
+        background-color: #fff
+        ul
+            padding: 0 1rem
+            li
+                line-height: 24px
+            li.alias-txt
+                color: #999
+                font-size: 0.8rem
+                padding-top: .7rem
+            li.alias-val
+                border-bottom: 1px solid #f1f1f1
+                line-height: 2rem
+    .alias-right
+        width: 14rem
+        height: 9rem
+        overflow: hidden
+        position: absolute
+        right: 2rem
+        top: 5rem
+        .selectHide
+            display: none
+    .alias-tip
+        width: 5rem
+        height: 1.5rem
+        background: #4af
+        position: absolute
+        right: 18rem
+        top: 9rem
+        color: #fff
+        text-align: center
+        line-height: 1.5rem
+    .alias-tip:after
+        content: ''
+        width: 0
+        height: 0
+        border-top: 1rem solid transparent
+        border-bottom:  1rem solid transparent
+        border-left: 1rem solid #4af
+        position: absolute
+        right: -1rem
+        top: -0.2rem
+
+.role-dialog
+  width: 50rem

@@ -1,0 +1,22 @@
+@import '../../sass/defs'
+
+.gas-dialog
+    @include absolute-right(.5rem,3rem)
+    @include font-color($fontsize-s,$body-ft)
+    left: auto
+    width: 30rem
+    z-index: 9999
+    display: flex
+    flex-flow: column nowrap
+    .dlg-head
+        background: $color-error
+    .gas-item
+        display: flex
+        @include align-middle
+        justify-content: space-between
+        flex: 0 0 2.4rem
+        padding: 0 1rem
+        .gas-label
+            width: 6rem
+        .gas-time
+            width: 8rem

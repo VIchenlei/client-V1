@@ -1,0 +1,22 @@
+<light-call>
+    <div class="detail">{ detail() }</div>
+    <ul class="list">
+        <li each={ light in lights }>
+            <span class="lightName">{ light.name }</span>
+            <span class="lightColor"></span>
+            <span class="lightEdit">
+                <svg class="icon">
+                    <use xlink:href="/icons/icons.svg#icon-edit-2"></use>
+                </svg>
+            </span>
+        </li>
+    </ul>
+    <script>
+        this.lights = opts.lights
+
+        this.detail = () => {
+            this.lights = Array.from(xdata.metaStore.dataInArray.get('traffic'))
+        }
+
+    </script>
+</light-call>

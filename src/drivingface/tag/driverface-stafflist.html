@@ -1,0 +1,48 @@
+<driverface-stafflist>
+    <table>
+        <thead>
+            <tr>
+                <th>姓名</th>
+                <th>入井时间</th>
+                <th>x</th>
+                <th>y</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr each={ i in staffData }>
+              <td>{ getName(i[0]) }</td>
+              <td>{ formateDate(i[5]) }</td>
+              <td>{ i[3] }</td>
+              <td>{ i[4] }</td>
+            </tr>
+        </tbody>
+    </table>
+    <script>
+      xbus.on('CARD-STATE-CHANGED', () => {
+        this.init()
+        this.update()
+      })
+
+      this.formateDate = (time) => {
+        return new Date(time).format('yyyy-MM-dd hh:mm:ss')
+      }
+
+      this.getName = (cardId) => {
+        let data = xdata.metaStore.getCardBindObjectInfo(cardId)
+        return data && data.name
+      }
+      
+      this.on('mount', () => {
+        console.log(opts)
+        this.areaID = opts.areaID.id
+        this.init()
+        this.update()
+      })
+
+      this.init = () => {
+        let dataArea = xdata.metaStore.data.drivingface_vehicle.get(this.areaID), areaId = dataArea && dataArea.area_id
+        let staffData = xdata.cardStore.workfacescards.get(areaId)
+        this.staffData = staffData && Array.from(staffData.values())
+      }
+    </script>
+</driverface-stafflist>

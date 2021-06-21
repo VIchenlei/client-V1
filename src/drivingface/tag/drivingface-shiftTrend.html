@@ -1,0 +1,140 @@
+<drivingface-shiftTrend>
+  <div class="shiftTrend-content">
+    <table>
+      <thead>
+        <th>日期</th>
+        <th>零点班(m)</th>
+        <th>八点班(m)</th>
+        <th>四点班(m)</th>
+        <th>已经掘进距离(m)</th>
+      </thead>
+      <tr if={ ds.keys() } each={ time in Array.from(ds.keys())}>
+        <td>{ time }</td>
+        <td each={ i in arr }>{ getShiftLen(time,i) }m</td>
+        <td>{ title }已经掘进{ getMaxDis(time).toFixed(2) }m</td>
+      </tr>
+    </table>
+  </div>
+  <div class="pagination" data-is="pagination" totalpage={ pageCount } pageindex={ pageIndex } tablename='tunnellerShift'></div>
+
+  <script>
+    this.arr = [1, 2, 3]
+    // const PAGE_SIZE = 10
+    this.title = this.parent.title
+
+    this.on('mount', () => {
+      this.doQueryTunnerShift()
+    })
+
+    xbus.on('REPT-SHOW-RESULT', (msg) => { // 接受数据库数据
+      switch (msg.def.name) {
+        case 'tunnellerShift':
+          this.setPageIndex(msg)
+          this.doShiftData = msg.rows
+          window.xhint.close()
+          this.distributeData(this.doShiftData)
+          this.update()
+          break
+        default:
+          console.warn('无相关数据！')
+          break
+      }
+    })
+
+    this.sendToDb = (cmd, name, sql, countSql) => {
+      let msg = {
+        cmd: cmd,
+        data: {
+          name: 'tunnellerShift',
+          pageSize: PAGE_SIZE,
+          pageIndex: 0,  // the first time: must be
+          total: -1,  // the first time: must be
+          sql: sql,
+          countSql: countSql
+        }
+      }
+
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: msg,
+        def: {
+          name: name
+        }
+      })
+    }
+
+    this.doQueryTunnerShift = () => { // 查询过去天每班次掘进距离
+      this.sqlShift = ` select hdsh.shift_id as shift,date_format(hdsh.cur_time, '%Y-%m-%d') as time,hdsh.total_length, hdsh.finish_length, total_length + finish_length as sumlen from his_drivingface_shift_finish_length as hdsh where hdsh.drivingface_id = ${this.parent.parent.opts.id} order by date_format(hdsh.cur_time, '%Y-%m-%d') desc `
+      this.countSql = ` select count(shift_id) as total from his_drivingface_shift_finish_length where drivingface_id = ${this.parent.parent.opts.id} `
+      // console.log('sql--', this.sqlShift, this.countSql)
+      this.sendToDb('query', 'tunnellerShift', this.sqlShift, this.countSql)
+    }
+
+    this.distributeData = (data) => {
+      let ds = new Map()
+      for (let i = 0, len = data.length; i < len; i++) {
+        let time = data[i].time
+        let rec = ds.get(time)
+        if (!rec) {
+          rec = []
+          ds.set(time, rec)
+        }
+        rec.push(data[i])
+      }
+      this.ds = ds
+    }
+
+    this.getMaxDis = (time) => {
+      let data = this.ds.get(time)
+      let arr = []
+
+      for (let i = 0; i < data.length; i++) {
+        arr.push(data[i].sumlen)
+      }
+      return Math.max.apply(null, arr)
+    }
+
+    this.getShiftLen = (time, i) => {
+      let data = this.ds.get(time)
+      data = data.filter((item) => {
+        if (item.shift === i) {
+          return item.finish_length
+        } else {
+          return 0
+        }
+      })
+
+      if (data[0]) {
+        return data[0].finish_length
+      } else {
+        return 0
+      }
+    }
+
+    // 处理分页数据
+    this.setPageIndex = (ds) => {
+      this.Count = ds.total  // 用于分页
+      this.pageCount = Math.ceil(this.Count / PAGE_SIZE)
+      this.pageIndex = ds.pageIndex
+    }
+
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+      if (msg && msg.name === 'tunnellerShift') {
+        let message = {
+          cmd: 'query',
+          data: {
+            name: 'tunnellerShift',
+            pageSize: PAGE_SIZE,
+            pageIndex: msg.pageIndex,
+            total: this.Count,
+            sql: this.sqlShift
+          }
+        }
+
+        xbus.trigger('REPT-FETCH-DATA', {
+          req: message,
+          def: { name: 'tunnellerShift' }
+        })
+      }
+    })
+  </script>
+</drivingface-shiftTrend>

@@ -1,0 +1,86 @@
+<patrol-list>
+    <div each={ group in groups } class="patrol-list-title">
+        <p class="patrol-title" group={ group[0] } detail='show' onclick={ switchItem }>{ group[1].name }</p>
+        <div class="patrol-list patrol-list{ group[0] } { getprePath(i.patrol_path_id) }" each={ i in getDetailPath(group[0])} path={i.patrol_path_id} onclick={ drawPathToMap
+            }>{i.name}</div>
+        <div class="patrol-tips patrol-list" if={ !getDetailPath(group[0]) }>没有相关巡检路线!</div>
+    </div>
+    <div data-is="blank-message" message="没有相关记录。" class="blank-message" if={ !hasdata }></div>
+    <script>
+        this.on('mount', () => {
+          this.initData()
+        })
+
+        this.initData = () => {
+          this.groups = xdata.metaStore.data.patrol_path_type ? Array.from(xdata.metaStore.data.patrol_path_type) : console.warn('没有相关巡检配置数据！')
+          if(this.groups){
+            this.hasdata = true
+          }else{
+            this.hasdata = false
+          }
+        }
+
+        this.getDetailPath = (pathTypeId) => {
+          let pathData = Array.from(xdata.metaStore.data.patrol_path), data = []
+          pathData.filter(item => {
+            if (item[1].patrol_type_id === pathTypeId) {
+              data.push(item[1])
+            }
+          })
+          data = data[0] ? data : false
+          return data
+        }
+
+        this.switchItem = (evt) => {
+          let targetType = evt.target.getAttribute('group'), isDetail = evt.target.getAttribute('detail')
+          let ele = this.root.querySelectorAll('.patrol-list' + targetType)
+          if (ele) {
+            for (let i = 0, len = ele.length; i < len; i++) {
+              isDetail === 'show' ? ele[i].classList.add('hide') : ele[i].classList.remove('hide')
+            }
+            isDetail = isDetail === 'show' ? 'close' : 'show'
+            evt.target.setAttribute('detail', isDetail)
+          }
+        }
+
+        this.getprePath = (id) => {
+          return xdata.patrolStore.get(String(id)) ? 'active' : ''
+        }
+
+        this.drawPathToMap = (evt) => {
+          let ele = this.root.querySelectorAll('.patrol-list'), id = evt.target.getAttribute('path')
+          xdata.patrolStore.clear()
+          xdata.patrolStore.set(id, id)
+          if (evt.target.classList.contains('active')) {
+            evt.target.classList.remove('active')
+            return xbus.trigger('REMOVE-PATROL-PATH')
+          }
+          for (let i = 0, len = ele.length; i < len; i++) {
+            ele[i].classList.remove('active')
+          }
+          evt.target.classList.add('active')
+          let patrolPathId = evt.target.getAttribute('path')
+          let sql = ` SELECT dppd.patrol_path_id,dpp.name,dpp.x,dpp.y,dppd.idx,dpp.patrol_point_id FROM dat_patrol_path_detail dppd,dat_patrol_point dpp WHERE dppd.patrol_path_id = ${patrolPathId} AND dpp.patrol_point_id = dppd.patrol_point_id ORDER BY idx; `
+          console.log('sql', sql)
+          let message = {
+            cmd: 'query',
+            data: {
+              name: 'patrolPathData',
+              sql: sql
+            }
+          }
+          xbus.trigger('REPT-FETCH-DATA', {
+            req: message,
+            def: {
+              name: 'patrolPathData'
+            }
+          })
+        }
+
+        xbus.on('REPT-SHOW-RESULT', (msg) => { // 接受数据库数据
+          if (msg.def.name === 'patrolPathData') {
+            xbus.trigger('DRAW-PATH', (msg))
+          }
+        })
+    </script>
+</patrol-list>

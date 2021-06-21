@@ -1,0 +1,331 @@
+<role-dialog>
+  <div class="dlg-bg animated" show={isShow}>
+    <div name="meta_dialog" ref="meta_dialog" class="dlg-window meta-dialog role-dialog animated">
+      <div name="meta_title" ref="meta_title" class="dlg-head">
+        <span class="dlg-title">
+          <grip type="grip-horizontal"></grip>{ tableTitle }
+        </span>
+      </div>
+      <div class="dlg-body">
+        <div data-is="dialog-table" class="dialog-table content-panel" data={ data }></div>
+      </div>
+      <div class="dlg-foot">
+        <button op-name="save-update" class="btn-sure" onclick={ save }>{cmd == 'DELETE' ? '删除' : '保存'}</button>
+        <button op-name="cancel-update" class="btn-cancel" onclick={ close }>取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import {show, formatFieldValue, testUnenableNullData, metaUpdateRes, isReadonly, isDisabled} from '../utils.js'
+    import {composeUpdateDBReq, encrypt} from '../../js/utils/utils.js'
+    import './checkbox-role.html'
+    import './align-input.html'
+    import './dialog-table.html'
+    let msg = opts.message
+    this.isShow = true
+    this.data = msg
+    this.data.from = 'role'
+    this.tableTitle = msg.title
+    this.tableKeyName = msg.key
+    this.tableName = msg.table
+    this.topicName = msg.name
+    this.rows = msg.rows
+    this.cmd = msg.cmd
+    this.fromPage = ''
+    this.checkboxes = ['menus', 'depts', 'access_id', 'business_type']
+    this.tagMonitor = opts.hasOwnProperty('papa') ? opts.papa.opts.papa : null
+    if(msg.hasOwnProperty('fromPage')){
+       this.fromPage = msg.fromPage
+    }
+
+    this.isDisabled = () => {
+      return isDisabled(this.tableName,'',this.tableKeyName,this.cmd)
+    }
+
+    this.isReadonly = (field_name) => {
+      return isReadonly(this.tableName,field_name,this.tableKeyName,this.cmd)
+    }
+
+    this.registerGlobalEventHandlers = () => {
+      xbus.on('META-UPDATE-DB-RES', (res) => {
+        let updateRes = metaUpdateRes(res, this.topicName, this.cmd)
+        if (updateRes) {
+          this.close()
+        } 
+      })
+    }
+
+    this.formShow = () => {
+      if (this.cmd === 'INSERT') return
+      if (this.rows.length<3) return
+      let roleRank = this.rows[2].field_value
+      if (roleRank !== 2) return
+      this.refs['menus'] && this.refs['menus'].root.classList.remove('hide')
+    }
+
+    this.on('mount', () => {
+      this.formShow()
+      show(this.root.querySelector('.dlg-window'), this.root.querySelector('.dlg-bg'))
+      window.setDraggable({
+        target: this.refs.meta_dialog,
+        handle: this.refs.meta_title
+      })
+
+      this.registerGlobalEventHandlers()
+      if (this.tableName === 'tt_inspection_route_planning' && this.cmd === 'INSERT') this.tags['dialog-table'].refs[this.tableKeyName].root.querySelector('input').value = ''
+    })
+
+    this.getMenus = (ele, type, fieldName) => {
+      let fieldValue = ''
+      if (!ele.root.classList.contains('hide')) {
+        if (fieldName === 'business_type') {
+          fieldValue = ele.getBusiness()
+        } else {
+          let menus = ele.menus && Array.from(ele.menus.keys())
+          fieldValue = menus && menus.join(';')
+        }
+      }
+      return fieldValue
+    }
+
+    this.md5 = (pwd) => {
+      let row = this.tags['dialog-table'].rows[0]
+      let fieldName = row['field_name']
+      let ele = this.tags['dialog-table'].refs[fieldName]
+      let username = ele.root.querySelector('input').value
+      return encrypt(username, pwd)
+    }
+
+    this.doInsert = () => {
+      let keyValue = null, fields = '', values = ''
+      for (let i = 0; i < this.tags['dialog-table'].rows.length; i++) {
+        let row = this.tags['dialog-table'].rows[i]
+        let fieldName = row['field_name']
+        let fieldValue = null
+        let fieldType = row['field_type']
+        let ele = this.tags['dialog-table'].refs[fieldName]
+        if (this.checkboxes.includes(fieldName)) {
+          fieldValue = this.getMenus(ele, this.tags['dialog-table'].rows[i].field_type, fieldName)
+          fieldValue = formatFieldValue(this.tags['dialog-table'].rows[i].field_type, fieldValue)
+        } else if (['over_speed_vehicle', 'route_planning', 'reader_planning'].includes(fieldName)) {
+          fieldValue = ele.getValue()
+          if (fieldName === 'reader_planning' && fieldValue !== ''  && !fieldValue) {
+            let xmsg = '请填写完整的分站计划'
+            return testUnenableNullData(xmsg)
+          }
+          fieldValue = formatFieldValue(this.tags['dialog-table'].rows[i].field_type, fieldValue)
+          if (fieldName === 'route_planning' && fieldValue === '""') {
+            return testUnenableNullData()
+          }
+        } else if (fieldName === 'is_check' && xdata.isCheck === 1) {
+          fieldValue = 1
+        } else {
+          if (!ele) continue
+          ele = ele.root.querySelector('input')
+          let value = ele && ele.value
+          if (fieldName === 'staff_id' && fieldType === 'NUMBER') {
+            fieldValue = Number(ele.getAttribute('data-type'))
+          } else if (this.tags['dialog-table'].rows[i].field_type === 'SELECT') {
+            fieldValue =this.tags['dialog-table'].root.querySelector('.' + fieldName+ ' select').getAttribute('value')
+            fieldValue =this.tags['dialog-table'].root.querySelector('.' + fieldName+ ' select').value
+            if (!fieldValue || !fieldValue.match(/\d/ig)) {
+              fieldValue = 0
+            }
+          } else {
+            fieldValue = value
+            if (fieldName === 'pwd') fieldValue = this.md5(fieldValue)
+            fieldValue = formatFieldValue(this.tags['dialog-table'].rows[i].field_type, fieldValue)
+          }
+          if(this.tags['dialog-table'].refs[fieldName].tips && fieldValue !== 0 && (!fieldValue || fieldValue === '""')){//如果是必填字段但是没有值时
+            return testUnenableNullData()
+          } else if(this.tags['dialog-table'].refs[fieldName].tips && fieldValue === 0 ){
+            return testUnenableNullData()
+          }
+          if (i === 0) {
+            keyValue = fieldValue
+          }
+        }
+        fields += ','
+        values += ','
+        fields += fieldName
+        values += fieldValue
+      }
+      if (this.tableName === 'tt_inspection_route_planning') {
+        fields += `,name`
+        values += `,"${xdata.metaStore.getNameByID('staff_id', keyValue)}"`
+      }
+      fields = fields.replace(',', '')
+      values = values.replace(',', '')
+      let sql = ''
+      if (this.tableName === 'tt_inspection_route_planning') {
+        sql = `REPLACE into ${this.tableName} (${fields}) VALUES(${values})`
+      } else {
+        sql = `INSERT into ${this.tableName} (${fields}) VALUES(${values})`
+      }
+      // console.log(sql)
+      this.metaUpdate('INSERT', keyValue, sql)
+    }
+
+    this.doUpdate = () => {
+      let sql = '', keyele = this.tags['dialog-table'].refs[this.tableKeyName].root.querySelector('input'), keyValue = keyele && keyele.value
+      let opType = 'UPDATE'
+      if (this.tableName === 'tt_inspection_route_planning') {
+        keyValue = Number(keyele.parentNode.parentNode.parentNode.getAttribute('data-oldvalue'))
+      } 
+      for (let i = 0; i < this.tags['dialog-table'].rows.length; i++) {
+        let fieldName = this.tags['dialog-table'].rows[i].field_name, inputValue = null
+        let fieldType = this.tags['dialog-table'].rows[i].field_type
+        let ele = this.tags['dialog-table'].refs[fieldName]
+        let value = null
+        //dat_area中的geom是允许为空的，正常添加的话会更新失败
+        if (fieldName === 'geom' && this.tableName === 'dat_area') {
+          continue
+        }
+        if (this.checkboxes.includes(fieldName)) {
+          value = this.getMenus(ele, this.tags['dialog-table'].rows[i].field_type, fieldName)
+        } else if (['over_speed_vehicle', 'route_planning', 'reader_planning'].includes(fieldName)) {
+          value = ele.getValue()
+          if (fieldName === 'reader_planning' && value !== ''  && !value) {
+            let xmsg = '请填写完整的分站计划'
+            return testUnenableNullData(xmsg)
+          }
+        } else if (fieldName === 'is_check' && xdata.isCheck === 1) {
+          value = this.tags['dialog-table'].rows[i].field_value
+        } else {
+          if (!ele) continue
+          ele = ele.root.querySelector('input')
+          value = ele && ele.value
+          if (fieldName === 'staff_id' && fieldType === 'NUMBER') {
+            if(!ele.getAttribute('data-type')){            
+              value = Number(ele.parentNode.parentNode.parentNode.getAttribute('data-oldvalue'))
+            } else {
+              value = Number(ele.getAttribute('data-type'))
+            }
+          } else if (this.tags['dialog-table'].rows[i].field_type === 'SELECT') {
+            value = this.tags['dialog-table'].refs[fieldName].root.querySelector('select').value
+          }
+          
+          if(this.tags['dialog-table'].refs[fieldName].tips && value !==0 && !value){//如果是必填字段但是没有值时
+            return testUnenableNullData()
+          }
+        }
+        if ((fieldName !== 'menus' && this.tags['dialog-table'].rows[i].field_value != value) || (fieldName === 'menus' && `'${this.tags['dialog-table'].rows[i].field_value}'` != value)) {
+          if (fieldName === 'pwd') value = this.md5(value)
+          inputValue = formatFieldValue(this.tags['dialog-table'].rows[i].field_type, value)
+          sql += `,${fieldName}=${inputValue}`
+        }
+        if (this.tableName === 'tt_inspection_route_planning' && fieldName === 'status' && inputValue === 1)  opType = 'DELETE'
+      }
+      //区域里面在实时地图上修改图形后
+      let isAreaId = ! xdata.metaStore.data.area.get(opts.message.maxid) ? false : true
+      if(this.tableName === 'dat_area' && isAreaId && this.fromPage === 'monitor'){
+        for (let i = 0; i < this.tags['dialog-table'].rows.length; i++) {
+          if (this.tags['dialog-table'].rows[i].field_name === 'path' && sql.indexOf('path') < 0) {
+            sql += `,${this.tags['dialog-table'].rows[i].field_name}='${this.tags['dialog-table'].rows[i].field_value}'`
+          }
+        }
+      }
+      if (!sql) {
+        let msg = {
+          value: 'nochange',
+          tip: '数据没有修改，请确认后再提交！'
+        }
+        window.hintip.open(msg)
+        return
+      } else {
+        sql = sql.replace(',', '')
+        if (this.tableKeyName === 'user_id') keyValue = `'${keyValue}'`
+        sql = `UPDATE ${this.tableName} set ${sql} where ${this.tableKeyName}=${keyValue}`
+        // console.log(sql)
+        this.metaUpdate(opType, keyValue, sql)
+      }
+    }
+
+    this.deleteMsg = () => {
+      let keyele = this.tags['dialog-table'].refs[this.tableKeyName].root.querySelector('input')
+      let keyValue = keyele && keyele.value
+      if (this.tableName === 'tt_inspection_route_planning') {
+        keyValue = Number(keyele.parentNode.parentNode.parentNode.getAttribute('data-oldvalue'))
+      }
+      if (this.tableKeyName === 'user_id') keyValue = `'${keyValue}'`
+      let sql = `DELETE FROM ${this.tableName} WHERE ${this.tableKeyName}=${keyValue}`
+      this.metaUpdate('DELETE', keyValue, sql)
+    }
+    this.deletePopup = (evt) => { //弹窗提醒删除
+        let self = this
+        if (this.activePanel) {
+            this.activePanel.unmount(true)
+        }
+        this.activePanel = riot.mount('call-leave', { 
+            name: 'dodelete',
+            currentTag: self
+        })[0]
+    }
+    this.deleteRole = () => {
+      this.deletePopup(this.tableName)
+      return
+      //this.deleteMsg()
+    }
+    this.save = () => {
+      if (this.cmd === 'INSERT') this.doInsert()
+      if (this.cmd === 'UPDATE') this.doUpdate()
+      if (this.cmd === 'DELETE') this.deleteRole()
+    }
+
+    this.init = (opts) => {
+      if (this.tableName === 'dat_area') {
+        let areaTypeID = this.rows[2].field_value
+        this.selectedIndex = Number(areaTypeID)
+      }
+    }
+    this.init(opts)
+
+    this.close = () => {
+      //实时地图便更新
+      if (this.tableName === 'dat_area' && this.fromPage === 'monitor') {
+        xbus.trigger('MAP-SHOW-AREA', {
+            areas: [this.rows[0].field_value],
+            mapID: 5,
+            mapType: 'MONITOR',
+            isVisible: true,
+            visiblearea: 'area_' + this.rows[2].field_value,
+            fromPage:this.fromPage
+          })
+      }
+      this.unmount(true)
+      xbus.off('META-UPDATE-DB-RES')
+    }
+
+    this.metaUpdate = (cmd,value,sql) => {
+      let req = composeUpdateDBReq(cmd, this.topicName, value, sql)
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+    }
+
+    this.updateData = (msg,dialogTable) => {
+      this.isShow = true
+      if (this.topicName === 'tt_inspection_route_planning') {
+        let alignInput = dialogTable.tags['align-input'][0]
+        alignInput && alignInput.updateData(msg)
+      } else {
+        this.data.rows = msg.rows
+        dialogTable && dialogTable.update() 
+      }
+      this.update()
+    }
+
+    xbus.on('UPDATE-ROLE-ROWS', (msg)=> {
+      let dialogTable = this.tags['dialog-table']
+      if (dialogTable !== undefined) {
+        this.updateData(msg,dialogTable)
+      }
+    })
+
+    xbus.on('DIALOG-SHOW', (msg) => {
+      this.isShow = msg.isShow
+      this.update()
+    })
+  </script>
+</role-dialog>

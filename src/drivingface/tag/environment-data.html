@@ -1,0 +1,27 @@
+<environment-data>
+    <p each={ item in environmentDef } class="environment">
+        <span>{ item.name }:</span>
+        <span>{ getData(item.id) } { hasdata ? item.unit : '' }</span>
+    </p>
+    <script>
+         import '../sass/environment.sass'
+         import environmentDef from '../../js/def/environment_def.js'
+         this.hasdata = false
+
+         this.init = () => {
+           this.data = xdata.environmentalStore.environmentalData
+           this.hasdata = Array.from(this.data).length > 0 && true
+           this.environmentDef = environmentDef
+         }
+         this.init()
+
+         this.getData = (id) => {
+           return this.data.get(id) && this.data.get(id)[1]
+         }
+
+         xbus.on('ENVIRONMENTAL-DATA-UPDATE', () => {
+           this.init()
+           this.update()
+         })
+    </script>
+</environment-data>

@@ -1,0 +1,244 @@
+<meta-select>
+  <option if={ fieldName !== 'shift_id' && tableName !== 'dat_user' || (fieldName === 'shift_id' && tableName !== 'leader_arrange') && tableName !== 'dat_user'} tableName={ tableName } each={ item in items } value={ item.value } selected={ item.value==fieldValue || item.name==fieldValue } class="{fieldName}_{item.value}" disabled={ isDisabled(item.value) }>{ item.name }</option>
+  <option if={ fieldName === 'shift_id' && tableName === 'leader_arrange' } each={ item in items } value={ item.value } selected={ item.value==fieldValue || item.name==fieldValue }>{ item.name }</option>
+  <option if={ tableName === 'dat_user' } each={ item in items } value={ item.value } selected={ item.value==fieldValue || item.name==fieldValue }>{ item.name }</option>
+  <script>
+    import numberTurnText from '../config/js/number_turn_text.js'
+    import {compare} from '../js/utils/utils.js'
+    this.fieldName = opts.name
+    this.fieldValue = opts.riotValue
+    this.showData = opts.showData
+    this.tableName = opts.dataName
+    const leaderLevel = 1
+    let deafaultMapId = xdata.metaStore.defaultMapID
+    xbus.on('META-SELECT-UPDATE', (msg) => {
+      this.fieldName = msg.name
+      this.items = this.getItems() 
+      this.update()
+    })
+
+    /*是否禁用选择*/
+    this.isDisabled = (value) => {
+      if (this.tableName === 'dat_reader' && value === 'device_type_id') {
+        if (this.fieldValue === 0 && value === 1) return true
+        if (this.fieldValue === 1 && value !== 1) return true
+      }
+      return false
+    }
+
+    this.getItems = () => {
+      let all = {
+        name: '',
+        value: ''
+      }
+
+      if (this.fieldName === 'name' && this.tableName === 'dat_shift') {//shift传的name值进来
+        this.fieldName = 'shift_id'
+      }      
+      let items = []
+      if (/^(\S*\.)*(\S*)_id$/.test(this.fieldName) && this.fieldName !== 'sanlv_standart_id') {
+        let topicName = RegExp.$2
+        let tableFieldName = topicName + '_id' // 数据表中的字段名称
+        if (tableFieldName === 'patrol_type_id') {//巡检路线类型表名dat_patrol_path_type，id为patrol_type_id
+          topicName = 'patrol_path_type'
+        }
+        let ds = xdata.metaStore.data[topicName]        
+        if (!ds) {
+          console.warn(`metaselect: 没有以 ${tableFieldName} 为 KEY 的数据。`)
+          return items
+        }
+        if (topicName === 'battery') {
+          for (let rec of ds.values()) {
+            let item = {
+              name: rec.name,
+              value: rec[tableFieldName]
+            }
+            items.push(item)
+          }
+          let hash = {}
+          items = items.reduce(function (item, next) {
+            hash[next.name] ? '' : hash[next.name] = true && item.push(next)
+            return item
+          }, [])
+        } else if (topicName === 'vehicle') {
+          let dsArr = Array.from(ds)
+          // dsArr.sort(this.compare)
+          ds = new Map(dsArr)
+          for (let rec of ds.values()) {
+            let item = {
+              name: rec.name,
+              value: rec[tableFieldName]
+            }
+            items.push(item)
+          }
+        } else if (this.tableName === 'his_leader_arrange' && tableFieldName === 'staff_id') {
+          ds = xdata.metaStore.data.staff_extend
+          for (let rec of ds.values()) {
+            let occupationID = rec.occupation_id
+            let occupations = xdata.metaStore.data.occupation
+            let staffLeavel = occupations && occupations.get(occupationID) && occupations.get(occupationID).occupation_level_id
+            if (staffLeavel === leaderLevel) {
+              let item = {
+                name: xdata.metaStore.data.staff.get(rec.staff_id) && xdata.metaStore.data.staff.get(rec.staff_id).name,
+                value: rec[tableFieldName]
+              }
+              items.push(item)
+            }
+          }
+        } else if (this.fieldName === 'device_type_id' || this.fieldName === 'card_type_id') {
+          for (let rec of ds.values()) {
+            let item = {
+              name: rec.detail,
+              value: rec[tableFieldName]
+            }
+            items.push(item)
+          } 
+        } else if (this.fieldName === 'drivingface_id' || this.fieldName === 'coalface_id') {
+        //   let faces = xdata.metaStore.data[topicName] ? Array.from(xdata.metaStore.data[topicName].values()) : []
+          let face_type = this.fieldName === 'coalface_id' ? 1 : 2
+          let faces = Array.from(xdata.metaStore.data.work_face)
+          let workfaces = xdata.metaStore.data.work_face
+          items = []
+          for (let i = 0; i < faces.length; i++) {
+            let key = faces[i][1].work_face_id
+            if(faces[i][1].work_face_type === face_type){
+                let item = {
+                    name: workfaces && workfaces.get(key) && workfaces.get(key).name,
+                    value: key
+                }
+                items.push(item)
+            }
+          }
+        } else if (this.fieldName === 'area_id' && xdata.isCheck === 1) {
+          for (let rec of ds.values()) {
+            if (rec.need_display !== 0) {
+              let item = {
+                name: rec.name,
+                value: rec[tableFieldName]
+              }
+              items.push(item)
+            }
+          }
+        } else {
+          ds = this.fieldName === 'map_id' ? xdata.metaStore.data.map_gis : ds
+          for (let rec of ds.values()) {
+            let item = {
+              name: this.fieldName === 'map_id' && rec[tableFieldName] === deafaultMapId ? `${rec.name}-默认` : rec.name, // 根据默认mapid给使用地图添加 -默认
+              value: rec[tableFieldName]
+            }
+            items.push(item)
+          }
+        }
+      } 
+      if (this.fieldName === 'dept_id_ck' && xdata.isCheck === 0) {
+        let ds = xdata.metaStore.data.dept_ck
+          for (let rec of ds.values()) {
+            let item = {
+              name: rec.name,
+              value: rec['dept_id']
+            }
+            items.push(item)
+          }
+      } else if (this.tableName === 'leader_arrange') {
+        if (this.fieldName === 'shift_type_id') {
+          let ds = xdata.metaStore.data.shift_type
+          for (let rec of ds.values()) {
+            let item = {
+              name: rec.name,
+              value: rec['shift_type_id']
+            }
+            items.push(item)
+          }
+        }
+      } else if (this.fieldName === 'sanlv') {
+        items.push({
+          name: '开机率',
+          value: 'startup'
+        })
+        items.push({
+          name: '正规循环率',
+          value: 'regular'
+        })
+      } else if (this.tableName === 'dat_coalface_vehicle' && this.fieldName === 'stat') {
+        items.push({
+          name: '无效',
+          value: '无效'
+        })
+        items.push({
+          name: '有效',
+          value: '有效'
+        })
+      } else if (this.tableName === 'dat_setting' && this.fieldName === 'value') {
+        items.push({
+          name: '按入井时刻计算',
+          value: '1'
+        }, {
+          name: '按班次有效时长计算',
+          value: '2'
+        })
+      } else if (this.fieldName === 'sanlv_all') {
+        let faces = xdata.metaStore.data.work_face ? Array.from(xdata.metaStore.data.work_face.values()) : []
+        for (let i = 0; i < faces.length; i++) {
+          let face = faces[i]
+          let item = {
+            name: face.name,
+            value: face['work_face_id']
+          }
+          items.push(item)
+        }
+      } else {
+        let tablename = this.tableName
+        if (/^dat_/.test(this.tableName)) tablename = this.tableName.slice(4)
+        if (numberTurnText.hasOwnProperty(tablename)) {
+          let hasTurnName = numberTurnText[tablename][this.fieldName]
+          if (hasTurnName) {
+            for (let rec in hasTurnName) {
+              items.push({
+                value: Number(rec),
+                name: hasTurnName[rec]
+              })
+            }
+          }
+        }
+      }
+      
+      items = this.fieldName === 'map_id' || this.fieldName === 'dimension' ? items : items.sort(compare('name', 'chinese'))
+      return items
+    }
+
+    this.getshiftItems = (ds) => {
+      let all = {
+        name: '所有',
+        value: ''
+      }
+      let shiftItems = []
+      for (let rec of ds) {
+        let item = {
+          name: rec.name,
+          value: rec['shift_id']
+        }
+        shiftItems.push(item)
+      }
+      return shiftItems
+    }
+
+    this.on('mount', () => {
+      if (this.fieldName !== 'shift_id' || (this.fieldName === 'shift_id' && this.tableName !== 'leader_arrange')) {
+        this.items = this.getItems()
+      } else if (this.fieldName === 'shift_id'|| this.fieldName === 'name' && this.tableName === 'leader_arrange') {
+        let ds = xdata.metaStore.data.shift.values()
+        this.items = this.getshiftItems(ds)
+      }
+      this.update()
+      if (this.fieldName === 'area_type_id') {
+        this.root.querySelector(`.${this.fieldName}_4`).setAttribute('disabled', 'disabled')
+      }
+    })
+
+    this.filterout = (value) => {
+      let ds = Array.from(xdata.metaStore.data.shift.values()).filter(item => item.shift_type_id === Number(value))
+      this.items = this.getshiftItems(ds)
+      this.update()
+    }
+  </script>
+</meta-select>

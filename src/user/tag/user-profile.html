@@ -1,0 +1,119 @@
+<user-profile onclick={stopPropagation}>
+  <div class="user-banner hide-on-pc">
+      <img src="../img/user.png" alt="用户图片">
+      <span>{username}</span>
+  </div>
+
+  <ul class="user-dropmenu animated">
+    <li onclick={ changeBg }>
+      <svgicon icon="icon-changeBg"></svgicon>
+      <span>一键换肤</span>
+    </li>
+    <li onclick={ pullMetadata }>
+      <svgicon icon="icon-metadata"></svgicon>
+      <span>更新配置</span>
+    </li>
+    <li onclick={ showPwdDialog }>
+      <svgicon icon="icon-lock"></svgicon>
+      <span>修改密码</span>
+    </li>
+    <li onclick={ logout }>
+      <svgicon icon="icon-poweroff"></svgicon>
+      <span>退出系统</span>
+    </li>
+  </ul>
+
+  <script>
+    import '../../monitor/tag/call-leave.html'
+
+    this.items = opts.items
+    this.username = xdata.userName
+    this.pwdDialog = null
+
+    this.pcFlag = window.isPC
+
+    this.mixin('EventMixin')  // mixin the stopPropagation(evt)
+
+    this.changeBg = (evt) => {
+      if (!this.black) {
+        document.getElementsByTagName('body')[0].setAttribute('id', 'black')
+      } else {
+        document.getElementsByTagName('body')[0].setAttribute('id', '')
+      }
+      this.black = !this.black
+    }
+
+    this.pullMetadata = (evt) => {
+      let self = this
+      if (this.activePanel) {
+        this.activePanel.unmount(true)
+      }
+      this.activePanel = riot.mount('call-leave', { 
+        name: 'metadata',
+        currentTag: self
+      })[0]
+    }
+
+    this.afreshMetadata = () => {
+      xdata.dexieDBStore.forceData.clear()
+      xdata.metaStore.firstPull = false
+      // xdata.metaStore.data = {}
+      let message = {
+        name: 'progress-bar',
+        information: '正在更新数据，请稍候...'
+      }
+      window.xhint.showLoading(message)
+      let msg = {
+        cmd: 'afresh_metadata',
+        data: {
+          user_id: xdata.userName,
+          operation: 'force_afrash'
+        }
+      }
+
+      xbus.trigger('AFRESH-METADATA', msg)
+      xdata.dexieDBStore.forceUpdateMetadata = true  
+    }
+
+    this.showPwdDialog = (evt) => {
+      if (this.pwdDialog) {
+        this.pwdDialog.unmount(true)
+      }
+      this.pwdDialog = riot.mount('modify-pwd-dialog', { title: '修改密码', username: this.username })[0]
+
+      if (this.pcFlag) {
+        this.hide()
+      }
+    }
+
+    this.show = () => {
+      let ele = this.root.classList
+      ele.remove('hide')
+      ele.add('slideInDownHeader')
+    }
+
+    this.hide = () => {
+      let ele = this.root.classList
+      ele.remove('slideInDownHeader')
+      ele.add('hide')
+    }
+
+    this.logout = (evt) => {
+      let msg = {
+        cmd: 'LOGOUT'
+      }
+      xbus.trigger('USER', msg)
+
+      this.hide()
+    }
+
+    xbus.on('HIDE-ALL-POPUP', () => {
+      this.hide()
+    })
+
+    xbus.on('USERINFO-UPDATE', (userinfo) => {
+      this.username = userinfo.name
+      this.update()
+    })
+  </script>
+</user-profile>

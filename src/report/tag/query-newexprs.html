@@ -1,0 +1,434 @@
+<query-newexprs id='query-newexprs'>
+    <div id="search-div">
+        <div each={exprField in exprFields}>
+            <div if={ !timeArr.includes(exprField.type) } data-is="select-choose" def={ exprField } data-value={ getDataValue(exprField) } name={ def.name } joinfield={ getJoinData(exprField) }></div>
+            <div if={ timeArr.includes(exprField.type) } ref='timeChoose' data-is="time-choose" data-value={ chooseTime } def={ exprField } name={ def.name } ></div>
+        </div>
+    </div>
+    <button id='select-button' onclick={ doquery }>筛选</button>
+    <script>
+        import '../sass/query-newexprs.sass' 
+        import './select-choose.html'
+        import './time-choose.html'
+        import { getAccessSql, getDisplaySql,getAreaDisplaySql, dealMonth, clone, getSqlByIsCheck } from '../../js/utils/utils.js'
+        import { reptPageGetPageSize } from '../js/report_utils.js'
+        import { reptNames } from '../js/report_defs.js'
+        this.timeArr = ['DATE', 'MONTH', 'DAY', 'DATETIME']
+        this.def = opts.def
+        this.exprList = opts.def.exprList
+        this.exprFields = opts.def.exprFields
+        this.sqlTmpl = getSqlByIsCheck(opts.def.name, opts.def.sqlTmpl)
+        this.sign = opts.def.sign
+        this.needDisplay = opts.def.needDisplay
+        this.areaDisplay = opts.def.areaDisplay
+        this.resultFields = opts.def.fields.names
+        this.choosepreset = opts.def.choosepreset
+        this.chooseTime = this.choosepreset ? this.choosepreset.defaultTime : null
+        this.reptNames = reptNames
+        const ABSENCEARR = ['vehicle_no_updown_mine', 'person_absence']
+        const UNREPTABLE = ['person_s_dept_month', 'regular_cycle', 'person_s_dept_day']
+        const QUERYPARENT = ['efficiency_overview','efficiency_manage', 'rugular_total', 'worktime_dept_shift']
+        const TIMEDETAIL = ['person_time']
+        const DAYARR = ['operation_rate', 'time_rate', 'regular_cycle', 'worktime_dept_shift', 'rugular_total']
+        const CREATARR = ['person_month', 'leader_month', 'driver_dept_month', 'v_vehicle_month']
+        const DATETIMEARR = ['person_location_area']
+        let noexprs = ''
+        let self = this
+        this.on('PAGEINDEX-CHANGE-REPT', (msg) => {
+          if(msg.name && this.def.name){
+            if (msg.name === this.def.name) {
+              self.doquery('',msg)
+           }
+          }
+        })
+
+        /**
+         * @description: 设置table中的排序函数
+         * @param {type} 
+         * @return: 
+         */
+        this.setTableSort = () => {
+            let parentag = this.parent || this.opts.parentag
+            if (!UNREPTABLE.includes(this.def.name) && parentag.tags["rept-table"]) {
+                if (this.parent.tags["rept-table"] && this.parent.tags["rept-table"].length) {
+                    let tag = this.parent.tags["rept-table"].filter(item => item.reptName === this.def.name)[0]
+                    tag ? tag.sortControl = false : ''
+                } else if (this.parent.tags["rept-table"]) {
+                    this.parent.tags["rept-table"].sortControl = false
+                }
+            }
+        }
+
+        /**
+         * @description: 查询sql函数
+         * @param {type} msg
+         * @return: 
+         */
+        this.doquery = (evt, msg) => {
+            this.setTableSort()
+            if(!msg){
+                this.monthTime = null
+                let accessSql = getAccessSql(this.def.name)
+                let displaySql = getDisplaySql(this.def.name)
+                let areaDisplaySql = getAreaDisplaySql(this.def.name)
+                let objRange = xdata.objRange
+                let isCheck = xdata.isCheck
+                let eles = evt.target.parentElement.parentElement.querySelectorAll('#select-choose'),str = '',scondition,econdition,className = '.' + this.type,searchtime = '', lessSearchtime = ''
+                let timeResult = this.refs['timeChoose'] && this.refs['timeChoose'].getResult()
+                this.stime = timeResult && timeResult.stime
+                this.etime = timeResult && timeResult.etime
+                scondition = timeResult && timeResult.scondition
+                econdition = timeResult && timeResult.econdition
+                let tips = timeResult && timeResult.tips
+                this.type = timeResult && timeResult.type
+                if (tips) {
+                    window.xhint.showHint(tips)
+                    return
+                }
+                if (CREATARR.includes(this.def.name) && this.type === 'DATE') {
+                    this.monthTime = {
+                        stime: this.stime,
+                        etime: this.etime
+                    }
+                }
+                // 获取前一小时的
+                if (this.def.name === 'person_hour'){
+                    str += this.getHour()
+                }
+
+                for(let i=0,len=eles.length;i<len;i++){
+                    let conditionData = eles[i]._tag.store && Array.from( eles[i]._tag.store.values()) && Array.from(eles[i]._tag.store && eles[i]._tag.store.values())[0]
+                    let keyName = eles[i]._tag.ident
+                    let label = eles[i]._tag.label
+                    let tips = ''
+                    if (keyName && keyName !== 'is_enough'){
+                        if(conditionData && conditionData.length>0){
+                            for(let j=0,leng=conditionData.length;j<leng;j++){
+                                let concatstr = conditionData.length > 1 ? ' and (' : ' and '
+                                let keyValue = keyName === 'user_id' ? `"${conditionData[j].key}"` : conditionData[j].key
+                                j === 0 ? str += concatstr + conditionData[j].condition + '=' + keyValue :  str += ' OR '+ conditionData[j].condition + '=' + keyValue 
+                            }
+                            str += conditionData.length > 1 ? ')' : ''
+                        } else if (conditionData && conditionData.length === 0 && ['his_staff_change', 'person_lamp_number'].includes(this.def.name)) {
+                            let inputValue = eles[i].querySelector('input').value
+                            if (inputValue) {
+                                if (keyName === 'lampNo') {
+                                    inputValue = `'${inputValue}'`
+                                }
+                                str += ` and ${keyName} = ${inputValue}`
+                            }
+                        }
+                    }else if(keyName === 'is_enough'){
+                        if(conditionData && conditionData.length === 1){
+                            str += conditionData[0].name === '足班' ? ' and TIMESTAMPDIFF(MINUTE, IFNULL(ras.start_time, CURRENT_TIMESTAMP()), ras.end_time) >= da.min_minutes*60' : ' and TIMESTAMPDIFF(MINUTE, IFNULL(ras.start_time, CURRENT_TIMESTAMP()), ras.end_time) < da.min_minutes*60'
+                        }
+                    } 
+                }
+                
+                if(this.sign && this.sign == 1){
+                    str += accessSql
+                }
+                if((isCheck ===1 || objRange === 1) && this.needDisplay && this.needDisplay == 1){
+                    str += displaySql
+                }
+                if(isCheck ===1 && this.areaDisplay && this.areaDisplay == 1) {
+                    str += areaDisplaySql
+                }
+                if (ABSENCEARR.includes(this.def.name)) {
+                    noexprs = str
+                    str = scondition ? ' AND ' + scondition + '>= "' + this.stime + '"': ''
+                    str += econdition ? ' AND ' + econdition + '<= "' + this.etime + '"' : ''
+                } else if (DAYARR.includes(this.def.name)) {
+                    scondition ? str += ' AND ' + scondition + '= "' + this.stime + '"': ''
+                } else if (this.def.name === 'worktime_detail_table') {
+                    let beforeTime = this.stime ? new Date(this.stime) - 24 * 60 * 60 * 1000 : new Date() - 24 * 60 * 60 * 1000
+                    beforeTime = new Date(beforeTime).format('yyyy-MM-dd')
+                    let shift = xdata.metaStore.data.shift && xdata.metaStore.data.shift.get(1)
+                    let shiftime = shift ? shift.start_time : '23:59:59'
+                    searchtime = this.stime ? `between '${beforeTime} ${shiftime}' and '${this.stime} 23:59:59'` : `between '${beforeTime} ${shiftime}' and '${new Date().format('yyyy-MM-dd')} 23:59:59'`
+                    let theDay = this.stime ? this.stime : new Date().format('yyyy-MM-dd')
+                    searchtime = `((start_work_time between '${beforeTime} ${shiftime}' and '${beforeTime} 23:59:59' and shift_id = 1) or (start_work_time between '${theDay} 00:00:00' and '${theDay} ${shiftime}') or (start_work_time between '${theDay} ${shiftime}' and '${theDay} 00:00:00' and shift_id != 1))`
+                    lessSearchtime = `((start_time between '${beforeTime} ${shiftime}' and '${beforeTime} 23:59:59' and shift_id = 1) or (start_time between '${theDay} 00:00:00' and '${theDay} ${shiftime}') or (start_time between '${theDay} ${shiftime}' and '${theDay} 00:00:00' and shift_id != 1))`
+                } else if (this.type === 'MONTH' && this.def.name !== 'person_month'){   
+                    scondition ? str += ` and ${scondition} between ${dealMonth(this.stime)}`: ''
+                } else if (this.def.name === 'battery_vehicle_rept' || this.def.name === 'battery_rept' || this.def.name === 'vehicle_check'){
+                    scondition ? str += ` and ${scondition} = '${new Date(this.stime).format('yyyy-MM-dd')}'`: ''
+                } else if (DATETIMEARR.includes(this.def.name)){
+                    str += ` and hlas.enter_time >= '${new Date(this.stime).format('yyyy-MM-dd 00:00:00')}' and hlas.enter_time <= '${this.stime}' and (hlas.leave_time >= '${this.stime}' or hlas.leave_time is null)`
+                } else if (this.def.name === 'person_month') {
+                    if (this.type === 'MONTH'){
+                        searchtime = ` and ${scondition} between ${dealMonth(this.stime)}`
+                    } else {
+                        let timeSql = ''
+                        scondition ? timeSql += ' AND ' + scondition + '>= "' + this.stime + '"': ''
+                        econdition ? timeSql += ' AND ' + econdition + '<= "' + this.etime + '"' : ''
+                        searchtime = timeSql
+                    }
+
+                } else if (this.def.name !== 'person_time') {
+                    scondition ? str += ' AND ' + scondition + '>= "' + this.stime + '"': ''
+                    econdition ? str += ' AND ' + econdition + '<= "' + this.etime + '"' : ''
+                }
+
+                if (QUERYPARENT.includes(this.def.name)) {
+                    let tagName = this.def.name.replace(/\_/g,'-')
+                    this.parent.tags[tagName] && this.parent.tags[tagName].doQuery(this.def, this.stime)
+                    return
+                }
+
+                if (this.def.name === 'person_time') {
+                    let exprString1 = ` start_time <= '${this.stime}' and (end_time >= '${this.stime}' or end_time is null)`
+                    // let exprString2 = ` begin_time <= '${this.stime}' and (last_time >= '${this.stime}' or last_time is null)`
+                    // this.sqlString = this.sqlTmpl.replace('{resultFields}', this.resultFields.join(',')).replace('{exprString1}', exprString1).replace('{exprString2}', exprString2).replace('{exprString}', str)
+                    // this.countSql = this.sqlTmpl.replace('{resultFields}', 'count(1) as total').replace('{exprString1}', exprString1).replace('{exprString2}', exprString2).replace('{exprString}', str)
+                    this.sqlString = this.sqlTmpl.replace('{resultFields}', this.resultFields.join(',')).replace('{exprString1}', exprString1).replace('{exprString}', str)
+                    this.countSql = this.sqlTmpl.replace('{resultFields}', 'count(1) as total').replace('{exprString1}', exprString1).replace('{exprString}', str)
+                } else if (this.def.name === 'worktime_detail_table') {
+                    this.sqlString = this.sqlTmpl.replace('{resultFields}', this.resultFields.join(',')).replace('{exprString}', searchtime).replace('{exprStringLess}', lessSearchtime)
+                    this.countSql = this.sqlTmpl.replace('{resultFields}', 'count(1) as total').replace('{exprString}', searchtime).replace('{exprStringLess}', lessSearchtime)
+                    this.sqlString = str ? this.sqlString.replace('{exprStringDept}', str) : this.sqlString.replace('{exprStringDept}', '')
+                    this.countSql = str ? this.countSql.replace('{exprStringDept}', str) : this.countSql.replace('{exprStringDept}', '')
+                } else if (this.def.name === 'person_reader_detail'){
+                    if (this.def.exprFields.length === 1) {
+                        let objID = this.parent.def.objID
+                        let type = this.parent.def.type
+                        str = type === 'staff' ? `and s.staff_id = ${objID} ${str}` : `and r.reader_id = ${objID} ${str}`
+                    }
+                    if ( !str.includes('staff_id') && !str.includes('reader_id')) {
+                        window.xhint.showHint('请选择名称')
+                        return
+                    }
+                    if (str.includes('staff_id')){
+                        let staffSql = clone(this.sqlTmpl.staff)
+                        for (let i = 0; i < Object.keys(staffSql).length; i++) {
+                            let name = Object.keys(staffSql)[i]
+                            if(name === 'wellSql'){
+                                str = str.replace('hed.cur_time','ras.start_time').replace('hed.cur_time','ras.start_time')
+                            }
+                            staffSql[name] = staffSql[name].replace('{exprString}', str)   
+                        }
+                        this.sqlString = staffSql
+                    }else{
+                        let readerSql = this.sqlTmpl.reader
+                        this.sqlString = readerSql.replace('{exprString}', str)
+                    }
+                } else if (this.def.name === 'person_day') {
+                    this.sqlString = this.sqlTmpl.includes('{resultFields}') ? this.sqlTmpl.replace('{resultFields}', this.resultFields.join(',')).replace('{exprString}', str) : this.sqlTmpl.split('where 1=1')[0] +'where 1=1' + str
+                    this.countSql = `select count(1) as total from (${this.sqlString}) aa`
+                } else if (this.def.name === 'person_month'){
+                    this.sqlString = this.sqlTmpl.includes('{resultFields}') ? this.sqlTmpl.replace('{resultFields}', this.resultFields.join(',')).replace('{exprStringTime}', searchtime).replace('{exprString}', str) : this.sqlTmpl.replace('{exprStringTime}', searchtime).split('where 1=1')[0] +'where 1=1' + str 
+                    this.countSql = this.sqlTmpl.includes('{resultFields}') ? this.sqlTmpl.replace('{resultFields}', 'count(1) as total').replace('{exprStringTime}', searchtime).replace('{exprString}', str) : this.sqlTmpl.replace('{exprStringTime}', searchtime).split('where 1=1')[0] +'where 1=1' + str
+                } else {
+                    this.sqlString = this.sqlTmpl.includes('{resultFields}') ? this.sqlTmpl.replace('{resultFields}', this.resultFields.join(',')).replace('{exprString}', str) : this.sqlTmpl.split('where 1=1')[0] +'where 1=1' + str //解决快捷跳转后父标签未刷新问题
+                    this.countSql = this.sqlTmpl.includes('{resultFields}') ? this.sqlTmpl.replace('{resultFields}', 'count(1) as total').replace('{exprString}', str) : this.sqlTmpl.split('where 1=1')[0] +'where 1=1' + str
+                    if (['person', 'person_special', 'person_card_battery_alarm', 'person_well_overtime'].includes(this.def.name)) {
+                        let stime = new Date(new Date(this.etime) - 30*24*60*60*1000).format('yyyy-MM-dd hh:mm')
+                        this.sqlString = this.sqlString.replace('{batlogExprString}', `and time >= '${stime}' and time <= '${this.etime}'`)
+                        this.countSql = this.countSql.replace('{batlogExprString}', `and time >= '${stime}' and time <= '${this.etime}'`)
+                    }
+                }
+                
+                if (ABSENCEARR.includes(this.def.name)) {
+                    this.sqlString = this.sqlString.replace('{noexprString}', noexprs)
+                    this.countSql = this.countSql.replace('{noexprString}', noexprs)
+                }
+            }
+            
+            let pageIndex = msg ? msg.pageIndex : 0
+            let total = msg ? msg.total : -1
+            let page_size = reptPageGetPageSize(this.def.name)
+            this.message = {
+                cmd: 'query',
+                data: {
+                    name: this.def.name,
+                    pageSize: page_size,
+                    pageIndex: pageIndex,
+                    total: total, // 默认
+                    sql: this.sqlString ? this.sqlString : this.parent.sqlString,
+                    countSql: this.countSql ? this.countSql : this.parent.countSql,
+                }
+            }
+            console.log(this.message)
+            let timeResult = this.refs['timeChoose'] && this.refs['timeChoose'].getResult()
+            this.graphMsg = {   
+                type: this.type,
+                name: this.def.name,
+                time: [String(this.stime),String(this.etime)],
+                monthTime: this.monthTime,
+                timeResult: timeResult
+            }
+            if (this.reptNames.includes(this.graphMsg.name)) {
+                this.showGraph(this.graphMsg)
+            }
+
+            xbus.trigger('REPT-FETCH-DATA', {
+                req: this.message,
+                def: this.def,
+                monthTime: this.monthTime
+            })
+            xbus.trigger('SEND-START-TIME',{sTime:this.stime,eTime:this.etime})
+            xbus.trigger('CLEAR-SEARCH-VALUE')
+            window.xhint.showLoading()        
+            if (this.parent && this.parent.tags["rept-table"]) this.parent.tags["rept-table"].sortControl = false
+        }
+
+        xbus.on('ASK-FILE', (msg) => {
+            if (msg.name === this.def.name && msg.reptIndex === this.def.reptIndex) {
+                this.doQueryFile(msg)
+            }
+        })
+
+        /**
+         * @description: 导出文件函数
+         * @param {type} msg
+         * @return: 
+         */
+        this.doQueryFile = (msg) =>{
+            let arr = ['vehicle_no_updown_mine', 'person_absence']
+            let sqlString // 未出勤
+            if(arr.includes(msg.name)){
+                let sql = this.sqlString || this.parent.sqlString
+                sqlString= sql.replace('{noexprString}',noexprs)
+            }else{
+                sqlString = this.sqlString || this.parent.sqlString
+            }
+            if (msg.name === 'worktime_dept_shift') {
+                // console.log(this.graphMsg,this.parent.graphMsg,this.stime)
+                // let time = this.graphMsg.time[0]
+                let time = this.stime || new Date().format('yyyy-MM-dd')
+                msg.title = `${time}${msg.title}`
+                sqlString = msg.sql
+            }
+            if (msg.name === 'efficiency_manage'){
+                sqlString = msg.sql
+            }
+            if (msg.name === 'person_month') {
+                let sql = this.sqlString || this.parent.sqlString
+                sqlString = sql.replace('date_format(ras.att_date, "%Y-%m") as month,','')
+            }
+            if (['person', 'person_well_overtime', 'person_card_battery_alarm'].includes(msg.name)) {
+                sqlString = sqlString.replace(',aa.card_id is null as isbat','')
+            }
+            msg.sql = sqlString
+            msg.userName = xdata.userName
+            msg.exprList = this.exprList.slice(1)
+            
+            if (msg.fileType === 'pdf' && msg.searchTotal && msg.searchTotal > 5000) {    
+                window.xhint.close()
+                window.xhint.showHint('数据过多，请使用CSV导出！')
+                return 
+            }
+
+            xbus.trigger('REPT-FETCH-FILE', msg)
+        }
+
+        /**
+         * @description: 显示图形函数
+         * @param {type} graphMsg
+         * @return: 
+         */
+        this.showGraph = (graphMsg) => {
+            let name = 'QGraph_' + graphMsg.name
+            let childtag = this.parent.refs[name]
+            childtag.getGraphData(graphMsg)
+            childtag.existgraph = true
+            childtag.update()
+        }
+        
+        /**
+         * @description: 获取一小时的sql函数
+         * @param {type} 
+         * @return: 
+         */
+        this.getHour = () => {
+            let now = new Date()
+            let time =new Date(now.getTime() - 1*60*60*1000).format('yyyy-MM-dd hh:mm:ss')
+            return ` and (ras.start_time between '${time}' and '${now.format('yyyy-MM-dd hh:mm:ss')}' or ras.end_time between '${time}' and '${now.format('yyyy-MM-dd hh:mm:ss')}')`
+        }
+
+        this.getJoinData = (exprField) => {
+            let isJoin = exprField.name.includes(' or ')
+            let fieldsName = isJoin ? exprField.name.split(' or ') : null
+            let searchArr = []
+            let identObj = {}
+            if(fieldsName){
+                for(let i=0; i< fieldsName.length; i++){
+                    let fieldName = fieldsName[i].indexOf('.') === -1 ?  fieldsName[i] :  fieldsName[i].split('.')[1]
+                    let ident = fieldName.replace('_id', '')
+                    let searchData = ident === 'staff' ? Array.from(xdata.metaStore.staffs.values()) : xdata.metaStore.data[ident] && Array.from(xdata.metaStore.data[ident].values())
+                    identObj[fieldName] = fieldsName[i]
+                    searchArr.push(searchData)
+                }
+                searchArr = searchArr.flat()
+            }
+            return {
+                isJoin: isJoin,
+                searchArr: searchArr,
+                identObj: identObj
+            }
+        }
+        /**
+         * @description: table中点击表头排序函数
+         * @param {type} condition, isAscending
+         * @return: 
+         */
+        this.sortResult = (condition, isAscending) => {
+            if(!condition) return
+            this.message = this.message ? this.message : this.parent.message
+            this.sqlString = this.sqlString ? this.sqlString : this.message.data.sql
+            if (typeof this.sqlString === 'object') {
+                let sql = clone(this.sqlString)
+                for (let i = 0; i < Object.keys(sql).length; i++) {
+                    let name = Object.keys(sql)[i]
+                    condition = condition.split(' as ')[0]
+                    if (name === 'wellSql') {
+                        if (condition.includes('hed.cur_time')) {
+                            condition = condition.replace('hed.cur_time','ras.start_time')
+                        } else if (condition.includes('hed.event_type_id')) {
+                            condition = condition.replace('hed.event_type_id','event_type_id')
+                        }
+                    }
+                    let isContains = /order by/ig.test(sql[name])
+                    if (isContains) {
+                        sql[name] = sql[name].split('order by')[0]
+                    }
+                    sql[name] = isAscending ? `${sql[name]} order by ${condition}` : `${sql[name]} order by ${condition} desc` 
+                }
+                this.message.data.sql = sql
+                this.sqlString = this.message.data.sql
+            } else {
+                let isContains = /order by/ig.test(this.sqlString)
+                condition = condition.split(' as ')[0]
+                if (isContains) {
+                    this.sqlString = this.sqlString.split('order by')[0]
+                }
+                this.message.data.sql = isAscending ? `${this.sqlString} order by ${condition}` : `${this.sqlString} order by ${condition} desc`
+                this.sqlString = this.message.data.sql
+            }
+            this.message.data.pageIndex = 0
+            this.message.data.total = -1
+            // console.log(this.message)
+            xbus.trigger('REPT-FETCH-DATA', {
+                req: this.message,
+                def: this.def
+            })
+            window.xhint.showLoading()
+        }
+
+        /**
+         * @description: 获取默认数据
+         * @param {type} 
+         * @return: 
+         */
+        this.getDataValue = (exprField) => {
+            let fieldsName = exprField.name
+            let fieldName = fieldsName.indexOf( '.') === -1 ?  fieldsName :  fieldsName.split( '.')[1]
+            let value = ''
+            
+            if(this.choosepreset){
+                value = this.choosepreset[fieldName] ? this.choosepreset[fieldName] : ''
+            }
+            return value
+        }
+    </script>
+</query-newexprs>

@@ -1,0 +1,153 @@
+@import defs
+
+.page-header
+  @media screen and (max-width: $width-medium)
+    display: none
+  flex: 0 0 $topbar-height
+  background: #191919
+  color: $main-color
+  
+  .user-bar
+    span
+      .icon
+         fill: #fff
+      .icon:hover
+         fill: #009fff
+    @media screen and (max-width: $width-medium) and (orientation: portrait)
+      #call_indicator
+        margin-right: -0.4rem
+
+  @include align-middle
+  min-width: 56rem
+
+  @media screen and (min-width: $width-medium)
+    flex: 0 0 $topbar-height
+  @media screen and (max-width: $width-medium)
+    min-width: 20rem
+    height: 2.93rem
+    flex-direction: column
+    justify-content: center
+    align-items: center
+
+  .logo
+    @include align-middle
+    flex: 0 0 $sidebar-width
+    font-size: $fontsize-slarge
+    padding: 0 2px 0 15px
+    @media screen and (max-width: $width-medium)
+        font-size: 0.8rem
+        flex: 0 0 10%
+    @media screen and (max-width: $width-small)
+        font-size: 0.8rem
+        //flex: 0 0 27%
+
+    img
+      width: 126%
+      margin-top: 0.5rem
+
+  .main-nav
+    height: $topbar-height
+    flex: 1 1 auto
+    display: flex
+    flex-flow: row
+    justify-content: center
+    @media screen and (max-width: $width-medium)
+      flex: 1 1 20%
+      font-size: 1.06rem
+      margin-left: -1.3rem
+      margin-top: -0.3rem
+
+    ul
+      display: flex
+      justify-content: flex-start
+      flex-flow: row
+      @media screen and (min-width: $width-medium)
+        width: 100%
+      #sp_report_nav,#sp_manage_nav,#sp_user_nav
+        @media screen and (max-width: $width-medium)
+          display: none
+
+      li
+        flex: 0 0 15%
+        @include align-middle
+        flex-flow: row
+        cursor: pointer
+        @media screen and (min-width: $width-medium)
+          justify-content: center
+          //height: $topbar-height
+        @media screen and (max-width: $width-medium)
+          flex: 0 0 4rem
+          //padding: 0 7px
+
+        span
+          @media screen and (max-width: $width-medium)
+            padding: 0 0 0 5px
+            font-size: 1rem
+
+        &:hover, &.active
+          border-top: 2px solid #009fff
+          @media screen and (max-width: $width-medium)
+            border-bottom: none
+          .icon
+            fill: $minor-color
+
+  .user-bar
+    display: flex
+    flex-flow: row nowrap
+    justify-content: space-between
+    padding: 0 10px 0 0
+    align-items: baseline
+    @media screen and (min-width: $width-medium)
+      flex: 0 0 9%
+      padding: 0 5px 0 125px
+    @media screen and (max-width: $width-medium)
+      //flex: 0 0 9%
+      font-size: 20%
+      position: absolute
+      top: 0.68rem
+    @media screen and (max-width: $width-medium) and (orientation: portrait)
+      right: -0.8rem
+    @media screen and (max-width: $width-medium) and (orientation: landscape)
+      right: 1rem
+    @media screen and (max-width: $width-small)
+      flex: 0 0 3.5rem
+      padding: 0 5px 0 0
+    
+    #call_indicator
+      @include justify-middle
+      .badge-container
+        display: none
+    .name
+      @include align-middle
+      justify-content: flex-end
+      cursor: pointer
+
+      span
+        padding: 0 12px 0 5px
+        @media screen and (max-width: $width-medium)
+          padding-right: .6rem
+        @media screen and (max-width: $width-small)
+          display: none
+    
+    .icon-width
+      @media screen and (min-width: $width-medium)
+        padding-right: .9rem
+        display: none
+      @media screen and (max-width: $width-medium)
+        padding-right: .6rem
+      @media screen and (max-width: $width-medium) and (orientation: portrait)
+        margin-right: 0.3rem
+
+    .boxButton
+      cursor: pointer
+      display: flex
+
+      .user-icon
+        @include wh(26px,26px)
+        margin-right: .6rem
+        padding: 2px
+        border: 1px solid #009fff
+        border-radius: 100%
+      
+      span
+        color: #ccc

@@ -1,0 +1,29 @@
+<text-select>
+    <div class="mdc-form-field">
+        <div class="mdc-text-field  demand-field" data-mdc-auto-init="MDCTextField">
+            <select id="firstname" class="{ isFaceClass(opts.name) } query-option query-select mdc-text-field__input" value={opts.riotValue} data-is="meta-select" name={ opts.name } value={ opts.choose ? opts.choose[i] : 'all' } disabled={disabled} data-name={opts.dataName}></select>
+            <label for="firstname" class="mdc-text-field__label mdc-text-field__label--float-above">
+                <span>{opts.text}</span> 
+                <span style="color:red;">{ tips }</span>
+            </label>
+        </div>
+    </div>
+    <script>
+        import './meta-select.html'
+        // this.needAll = 'disNeedAll'//向子组件传递
+        this.needAll = this.parent.needAll
+        this.enableNull = opts.enablenull
+        this.tips = this.enableNull ? '' : ' *'
+        this.disabled = opts.disabled
+        this.addAbove = (evt)=> {
+            let label = this.root.querySelector('label').classList
+            !label.contains('mdc-text-field__label--float-above') && label.add('mdc-text-field__label--float-above')
+        }
+
+        //下拉框名称太长时class改为face-padding减少padding-left
+        let subtractPaddName = ['coalface_id','drivingface_id']
+        this.isFaceClass = (name) => { 
+            if (subtractPaddName.includes(name) ) return 'face-padding'
+        }
+    </script>
+</text-select>

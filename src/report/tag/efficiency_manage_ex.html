@@ -1,0 +1,359 @@
+<efficiency_manage>
+    <div class="efficiency_manage">
+            <h2 if={ hasdata }>高河能源有限公司 “数字化” 管理工作调度日报</h2>
+            <div if={ hasdata } class="op-panel manage-panel">
+                <span class="printButton hint--bottom-left" aria-label="导出xlsx" name="xlsx" onclick="{askFile}">
+                    <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-file-excel"></use></svg>
+                </span>
+            </div>
+            <div if={ hasdata } class="manage-time"><span>{`日期：${this.time.replace('-','年').replace('-','月')}日`}</span></div>
+            <table class="efficiency-table" if={ hasdata }>
+                <thead>
+                    <tr>
+                        <th each={ i in title } colspan={ i.row }>{i.name} </th>
+                    </tr>
+                </thead>
+                <tbody each={ item in bootData }>
+                        <tr each={ i in item}>
+                            <td if={ item.indexOf(i)===0 ? true : false} rowspan={ item.indexOf(i)===0 ? bootLength: '' }>{ i.rateType}</td>
+                            <td if={ (item.indexOf(i)===0 || item.indexOf(i) === item.length-1) ? true : false} rowspan={ item.indexOf(i)===0 ? item.length-1: '' }>{ i.workType }</td>
+                            <td>{ i.name }</td>
+                            <td>{getReplace(i.dept_id, i.vehicle_id, i)}</td>
+                            <td>{i.overWorktime && i.overWorktime.toFixed(2)}</td>
+                            <td>{i.overChecktime && i.overChecktime.toFixed(2)}</td>
+                            <td>{ i.worktime == 0 ? '' : i.worktime + '%' }</td>
+                            <td>{ i.Analysis }</td>
+                        </tr>
+                </tbody>
+                <thead>
+                    <tr>
+                        <th each={ i in rugularTitleJ } colspan={ i.row }>{i.name} </th>
+                    </tr>
+                </thead>
+                <tbody each={ item in rugularData }>
+                        <tr each={ i in item}>
+                            <td if={ item.indexOf(i)===0 ? true : false} rowspan={ item.indexOf(i)===0 ? rugularLength: '' }>{ i.rateType}</td>
+                            <td if={ (item.indexOf(i)===0 || item.indexOf(i) === item.length-1) ? true : false} rowspan={ item.indexOf(i)===0 ? item.length-1: '' }>{ i.workType }</td>
+                            <td>{ i.name }</td>
+                            <td>{getReplace(i.dept_id, i.vehicle_id, i)}</td>
+                            <td>{i.overWorktime && i.overWorktime.toFixed(2)}</td>
+                            <td>{i.overChecktime && i.overChecktime.toFixed(2)}</td>
+                            <td>{ i.worktime == 0 ? '' : i.worktime + '%' }</td>
+                            <td>{ i.Analysis }</td>
+                        </tr>
+                </tbody>
+                <thead>
+                    <tr>
+                        <th each={ i in worktimeTitle } colspan={ i.row }>{i.name} </th>
+                    </tr>
+                </thead>
+                <tbody each={ item in worktimeData }>
+                        <tr each={ i in item}>
+                            <td if={ item.indexOf(i)===0 ? true : false} rowspan={ item.indexOf(i)===0 ? worktimeLength: '' }>{ i.rateType}</td>
+                            <td if={ (item.indexOf(i)===0 || item.indexOf(i) === item.length-1) ? true : false} rowspan={ item.indexOf(i)===0 ? item.length-1: '' }>{ i.workType }</td>
+                            <td>{ i.name }</td>
+                            <td>{getReplace(i.dept_id, '', i)}</td>
+                            <td>{i.overWorktime && i.overWorktime.toFixed(2)}</td>
+                            <td>{getcheckworktime(i.overWorktime, i.overChecktime, i)}</td>
+                            <td>{ i.worktime == 0 ? '' : i.worktime + '%' }</td>
+                            <td>{ i.Analysis }</td>
+                        </tr>
+                </tbody>
+            </table>
+            
+            <div data-is="blank-message" message="没有符合条件的记录！请确认您的查询条件后再试。" class="blank-message" if={ !hasdata }></div>
+    </div>
+    <script>
+        import '../sass/efficiency_manage.sass'
+        import {getMonth, clone} from '../../js/utils/utils.js'
+        const DEPTARR = [12, 13, 46, 47, 48, 61, 62, 65, 66, 68, 69, 56, 57] // 演示掘进队组
+        const DEPTARRC = [22, 23, 24] //演示综采队组
+        this.title = [{ name: '管理项目', row: '2' }, { name: '队组', row: '1' }, {name: '地点', row: '1'}, {name: '实际开机时长(h)', row: '1'}, {name: '计划开机时长(h)', row: '1'}, { name: '当日开机率', row: '1' }, { name: '原因分析', row: '1' }]
+        this.rugularTitleJ = [{ name: '管理项目', row: '2' }, {name: '队组', row: '1'}, {name: '地点', row: '1'}, {name: '实际值', row: '1'}, {name: '计划值', row: '1'}, { name: '当日正规循环率', row: '1' }, { name: '原因分析', row: '1' }]
+        this.rugularTitleC = [{ name: '管理项目', row: '2' }, {name: '队组', row: '1'}, {name: '地点', row: '1'}, {name: '计划刀数', row: '1'}, {name: '实际刀数', row: '1'}, { name: '当日正规循环率', row: '1' }, { name: '原因分析', row: '1' }]
+        this.worktimeTitle = [{ name: '管理项目', row: '2' }, {name: '队组', row: '1'}, {name: '地点', row: '1'}, {name: '工作面时长(h)', row: '1'}, {name: '路途时长(h)', row: '1'}, { name: '当日工时利用率', row: '1' }, { name: '原因分析', row: '1' }]
+        this.reptIndex = opts.reptindex
+        
+        this.clone = (obj) => {
+            return JSON.parse(JSON.stringify(obj))
+        }
+        
+        this.getcheckworktime = (overWorktime, overChecktime, row) => {
+            if (overWorktime && overChecktime) {
+                row['overWorktime'] = Number(overWorktime.toFixed(2))
+                row['overChecktime'] = Number((overChecktime - overWorktime).toFixed(2))
+                return Number((overChecktime - overWorktime).toFixed(2))
+            }
+        }
+        this.getReplace = (deptID, vehicleID, row) => {
+            let name = ''
+            if (!this.deptReplace.get(deptID)) {
+                if (typeof deptID === 'number') {
+                    let coalfaceVehicle = xdata.metaStore.data.coalface_vehicle && Array.from(xdata.metaStore.data.coalface_vehicle.values())
+                    let face = coalfaceVehicle && coalfaceVehicle.filter(item => item.vehicle_id === vehicleID)
+                    if (face.length <= 0) {
+                        let driverVehicle = xdata.metaStore.data.drivingface_vehicle && Array.from(xdata.metaStore.data.drivingface_vehicle.values())
+                        face = driverVehicle && driverVehicle.filter(item => item.vehicle_id === vehicleID)
+                    }
+                    if (face.length > 0) face = face[0]
+                    let key = face.coalface_id || face.drivingface_id
+                    if (face.coalface_id) {
+                        let coalface = xdata.metaStore.data.coalface.get(key)
+                        name = coalface && coalface.name
+                    } else {
+                        let driverface = xdata.metaStore.data.drivingface.get(key)
+                        name = driverface && driverface.name
+                    }
+                }
+                this.deptReplace.set(deptID, name) 
+            } else {
+                name = this.deptReplace.get(deptID)
+            }
+            row['replace'] = name
+            return name
+        }
+
+        this.query = (name, sqlString) => {
+            let message = {
+                cmd: 'query',
+                data: {
+                name: name,
+                sql: sqlString
+                }
+            }
+            xbus.trigger('REPT-FETCH-DATA', {
+                req: message,
+                def: {
+                name: name
+                }
+            })
+            window.xhint.showLoading()
+        }
+
+        this.doQuery = (tabDef, time) => {
+            this.deptData = new Map()
+            this.deptReplace = new Map()
+            this.name = tabDef.name
+            this.time = time
+            let sqlString = null  
+            sqlString = clone(tabDef.sqlTmpl)
+            for (let i = 0; i < Object.keys(sqlString).length; i++) {
+                let name = Object.keys(sqlString)[i]
+                sqlString[name] = sqlString[name].replace('{exprString}', `'${time}' and '${time}'`)
+            }
+            this.sql = sqlString
+            this.query(this.name, sqlString)
+        }
+        
+        this.splitDeptData = (rows, name) => { 
+            let rateType = 0
+            switch (name) {
+                case 'dept_boot':
+                    rateType = 0
+                    break;
+                case 'dept_rugular':
+                    rateType = 1
+                    break;
+                default:
+                    rateType = 2
+                    break;
+            }
+            let dataFalse = new Map()
+            for(let i = 0, len = DEPTARR.length; i < len; i++){
+                if (!dataFalse.get(DEPTARR[i].rateType)) {
+                    dataFalse.set(DEPTARR[i], {
+                        dept_id: DEPTARR[i],
+                        rateType: rateType,
+                        vehicleTypeID: 26,
+                        worktime: 0,
+                        Analysis: '',
+                        overChecktime: '',
+                        overWorktime: '',
+                        vehicle_id: ''
+                    })
+                }
+            }
+            for(let i = 0, len = DEPTARRC.length; i < len; i++){
+                if (!dataFalse.get(DEPTARRC[i].rateType)) {
+                    dataFalse.set(DEPTARRC[i], {
+                        dept_id: DEPTARRC[i],
+                        rateType: rateType,
+                        vehicleTypeID: null,
+                        worktime: 0,
+                        Analysis: '',
+                        overChecktime: '',
+                        overWorktime: '',
+                        vehicle_id: ''
+                    })
+                }
+            }
+            let dataf = Array.from(dataFalse.values())
+            if (rows.length>0){
+                let result = this.clone(rows)
+                for(var i = 0; i < dataf.length; i++){
+                    var obj =dataf[i];
+                    var num = obj.dept_id;
+                    var isTrue = false;
+                    for(var j = 0; j <rows.length; j++){
+                        var aj =rows[j];
+                        var n = aj.dept_id;
+                        if(n == num){
+                            isTrue = true;
+                            break;
+                        }
+                    }
+                    if(!isTrue){
+                        result.push(obj);
+                    }
+                }
+                rows = result
+            }else{
+                rows = dataf
+            }
+            let data = new Map()
+            this.hasdata = rows.length > 0 ? true : false
+            let accessResult = xdata.depts
+            let showAllDept = accessResult == '' ? true : false
+            rows.forEach(row => {
+                if(accessResult.includes(row.dept_id) || showAllDept){
+                    if (DEPTARR.includes(row.dept_id) || DEPTARRC.includes(row.dept_id)) {
+                        switch (name) {
+                        case 'dept_boot':
+                            row.rateType = 0
+                            break;
+                        case 'dept_rugular':
+                            row.rateType = 1
+                            break;
+                        default:
+                            row.rateType = 2
+                            break;
+                        }
+                        row.Analysis = row.Analysis == null ? '' : row.Analysis
+                        //假判断
+                        row.workType = DEPTARR.includes(row.dept_id) ? 0 : 1
+                        //真实用来判断的是掘进还是综采
+                        //row.workType = row.vehicleTypeID === 26 ? 0 : 1
+                        if (name === 'dept_worktime') {
+                            if (row.stime !== this.time) return
+                            row.worktime = Number((row.overWorktime / row.overChecktime * 100).toFixed(1))
+                        } else {
+                            row.worktime = Number(row.worktime.toFixed(1))
+                        }
+                        if (!this.deptData.get(row.rateType)) {
+                            let ret = new Map()
+                            this.deptData.set(row.rateType, ret)
+                        }
+                        let deptdata = this.deptData.get(row.rateType)
+                        if (!deptdata.get(row.workType)) {
+                            let ret = new Map()
+                            deptdata.set(row.workType, ret)
+                        }
+                        let data = deptdata.get(row.workType)
+                        data.set(row.dept_id, row)
+                    } else {
+                        console.warn('该队组已被过滤:', row.dept_id)
+                    }
+                }
+            })
+        }
+
+        this.deal = (data, dataSum) => {
+            let sum = 0
+            for(let i in data) { 
+                if (data[i].rateType === 0) {
+                    data[i].rateType = '开机率'
+                }else if (data[i].rateType === 1) {
+                    data[i].rateType = '正规循环率'
+                }else{
+                    data[i].rateType = '工时利用率'
+                }
+                data[i].workType = data[i].workType === 0 ? '掘进' : '综采'
+                data[i].name = xdata.metaStore.getNameByID('dept_id', data[i].dept_id)
+                dataSum.worktime= dataSum.worktime + data[i].worktime*1
+                if (data[i].worktime) sum += 1
+            }
+            dataSum.worktime = data && sum && Number((dataSum.worktime/sum).toFixed(1))
+            data && data.push(dataSum)
+            return data
+        }
+
+        this.dealBoot = () => {
+            this.bootData = []
+            let bootDataJuSum = {rateType: '开机率', workType: '合计', dept_id: '掘进工作面', worktime: 0, Analysis: ''}
+            let bootDataCaiSum = {rateType: '开机率', workType: '合计', dept_id: '综采工作面', worktime: 0, Analysis: ''}
+            let bootData = []
+            let bootDataJu = this.deptData.get(0).get(0) && Array.from(this.deptData.get(0).get(0).values())
+            let bootDataCai = this.deptData.get(0).get(1) && Array.from(this.deptData.get(0).get(1).values())
+            bootDataJu = this.deal(bootDataJu, bootDataJuSum)
+            bootDataCai = this.deal(bootDataCai, bootDataCaiSum)
+            this.bootLength = bootDataJu.length + bootDataCai.length
+            this.bootData.push(bootDataJu,bootDataCai)
+        }
+        
+        this.dealRugular = () => {
+            this.rugularData = []
+            let rugularDataJuSum = {rateType: '正规循环率', workType: '合计', dept_id: '掘进工作面', worktime: 0, Analysis: ''}
+            let rugularDataCaiSum = {rateType: '正规循环率', workType: '合计', dept_id: '综采工作面', worktime: 0, Analysis: ''}
+            let rugularData = []
+            let rugularDataJu = this.deptData.get(1).get(0) && Array.from(this.deptData.get(1).get(0).values())
+            let rugularDataCai = this.deptData.get(1).get(1) && Array.from(this.deptData.get(1).get(1).values())
+            rugularDataJu = this.deal(rugularDataJu, rugularDataJuSum)
+            rugularDataCai = this.deal(rugularDataCai, rugularDataCaiSum)
+            this.rugularLength = rugularDataJu.length + rugularDataCai.length
+            this.rugularData.push(rugularDataJu,rugularDataCai)
+        }
+        
+        this.dealWorktime = () => {
+            this.worktimeData = []
+            let worktimeDataJuSum = {rateType: '工时利用率', workType: '合计', dept_id: '掘进工作面', worktime: 0, Analysis: ''}
+            let worktimeDataCaiSum = {rateType: '工时利用率', workType: '合计', dept_id: '综采工作面', worktime: 0, Analysis: ''}
+            let worktimeData = []
+            let worktimeDataJu = this.deptData.get(2) && this.deptData.get(2).get(0) && Array.from(this.deptData.get(2).get(0).values())
+            let worktimeDataCai = this.deptData.get(2) && this.deptData.get(2).get(1) && Array.from(this.deptData.get(2).get(1).values())
+            worktimeDataJu = this.deal(worktimeDataJu, worktimeDataJuSum)
+            worktimeDataCai = this.deal(worktimeDataCai, worktimeDataCaiSum)
+            if (worktimeDataJu && worktimeDataCai) {
+                this.worktimeLength = worktimeDataJu.length + worktimeDataCai.length
+                this.worktimeData.push(worktimeDataJu,worktimeDataCai)
+            }
+        }
+
+        this.dealResult = (ds) => {
+            window.xhint.close()
+            if (ds.def.name !== 'efficiency_manage') return         
+            this.def = ds.def
+            let rows = ds.rows
+            let deptBoot = this.splitDeptData(rows['dept_boot'], 'dept_boot')
+            let deptWorktime = this.splitDeptData(rows['dept_worktime'], 'dept_worktime')
+            let deptRugular = this.splitDeptData(rows['dept_rugular'], 'dept_rugular')
+            this.dealBoot()
+            this.dealRugular()
+            this.dealWorktime()
+            this.totalData = [this.bootData,this.rugularData,this.worktimeData]
+            this.update()
+        }
+
+        xbus.on('REPT-SHOW-RESULT', (ds) => {
+            this.def = ds.def
+            this.dealResult(ds)
+        })
+
+        this.askFile = (evt) => {
+            let target = evt.currentTarget
+            let opname = target.getAttribute('name')
+            let data = JSON.stringify(this.totalData)
+            let msg = {
+                cmd: 'file',
+                name: 'efficiency_manage',
+                title: '高河能源有限公司 “数字化” 管理工作调度日报',
+                fileType: opname,
+                labels: [],
+                data: data,
+                sql: this.sql.dept_boot,
+                time: '日期：'+this.time.replace('-','年').replace('-','月') +'日',
+                reptIndex: this.reptIndex
+            }
+            xbus.trigger('ASK-FILE', msg)
+        }
+    </script>
+</efficiency_manage>

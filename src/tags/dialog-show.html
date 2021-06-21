@@ -1,0 +1,17 @@
+<dialog-show>
+  <div class="dlg-bg animated">
+    <div class="dlg-window dialog-show">
+      <dialog-head title={title}></dialog-head>
+      <div class="content" data-is={mountag}></div>
+      <div class="pagination" data-is="pagination" totalpage={ totalPage } pageindex={ pageIndex } tablename={ name } if={hasdata}></div>
+      <div data-is="blank-message" message="没有符合条件的数据。" class="blank-message" if={ !hasdata }></div>
+    </div>
+  </div>
+  <script>
+    import '../report/tag/worktime-shift.html'
+    this.hasdata = true
+    this.opts = opts
+    this.title = opts.title
+    this.mountag = opts.riotTag
+  </script>
+</dialog-show>

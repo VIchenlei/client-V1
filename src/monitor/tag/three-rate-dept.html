@@ -1,0 +1,88 @@
+<three-rate-dept>
+  <div class="rate-dept">
+    <div class="rate-dept_boot" style="width:100%;height:12rem;"></div>
+    <span>队组开机率(%)</span>
+  </div>
+  <div class="rate-dept">
+    <div class="rate-dept_worktime" style="width:100%;height:12rem;"></div>
+    <span>队组工时利用率(%)</span>
+  </div>
+  <div class="rate-dept">
+    <div class="rate-dept_rugular" style="width:100%;height:12rem;"></div>
+    <span>队组正规循环率(%)</span>
+  </div>
+  <script>
+    import echarts from 'echarts'
+    import {rateBar} from '../../js/def/graph_def.js'
+    import {getDeptID} from '../../js/utils/utils.js'
+    const DEPTARR = [12, 13, 22, 46, 56, 57, 61, 68, 69, 100, 62, 23] // 演示队组
+    const CM = 1 // 采煤面ID
+    const JJ = 2 // 掘进面ID
+    this.initCharts = () => {
+      let keys = Array.from(this.deptMap.keys())
+      keys.forEach(key => {
+        let series = []
+        let xAxis = []
+        let yAxis = []
+        let data = Array.from(this.deptMap.get(key).values())
+        data.sort(function(a,b){return a[1]-b[1]})
+        let domname = `.rate-${key}`
+        let initdom = this.root.querySelector(domname)
+        if (!initdom) return
+        echarts.dispose(initdom)
+        let chart = echarts.init(initdom)
+        data.forEach(item => {
+          xAxis.push(item[0])
+          yAxis.push(item[1])
+        })
+        let msg = {
+          xAxis: xAxis,
+          yAxis: yAxis,
+          key: key
+        }
+        let option = rateBar(msg)
+        chart.setOption(option)
+      })
+    }
+
+    this.splitDeptData = (rows, name) => {
+      if (!this.deptMap.get(name)) {
+        let ret = new Map()
+        this.deptMap.set(name, ret)
+      }
+      rows.forEach(row => {
+        let deptData = this.deptMap.get(name)
+        let deptID = Number(row.dept_id)
+        let accessResult = xdata.depts
+        let showAllDept = accessResult == '' ? true : false
+        if (name === 'dept_worktime' || name === 'dept_boot') {
+          deptID = getDeptID(row)
+          console.log(deptID)
+        }
+        if ((accessResult.includes(deptID) || showAllDept)) { // 演示队组
+          let depts = xdata.metaStore.data.dept
+          let deptname = depts && depts.get(deptID) && depts.get(deptID).abbr
+          deptname = deptname || xdata.metaStore.getNameByID('dept_id', deptID)
+          // if (!row.worktime && row.overWorktime) {
+          //   row['worktime'] = Number(((row.overWorktime - row.overChecktime) / row.overWorktime * 100).toFixed(2))
+          // }
+          if (name === 'dept_worktime') {
+
+          }
+          deptData.set(deptID, [deptname, row.worktime])
+        } else {
+          console.warn('该队组已被过滤:', deptID)
+        }
+        
+      })
+    }
+
+    this.initDate = (deptB, deptW, deptR) => {
+      this.deptMap = new Map()
+      let deptBoot = this.splitDeptData(deptB, 'dept_boot')
+      let deptWorktime = this.splitDeptData(deptW, 'dept_worktime')
+      let deptRugular = this.splitDeptData(deptR, 'dept_rugular')
+      this.initCharts()
+    }
+  </script>
+</three-rate-dept>

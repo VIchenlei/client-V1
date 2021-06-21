@@ -1,0 +1,46 @@
+<input-select>
+    <ul class="inputSelect">
+        <li each={ item in items } value={ value } selected={ value==fieldValue } cardName={ item.name }>{ item.name }</li>
+    </ul>
+    
+    <script>
+        this.fieldName = opts.name
+        this.fieldValue = opts.value
+        
+        this.items = opts.items
+        this.getItems = () => {
+            let item = []
+           
+            if (xdata.metaStore.dataInArray.get('dept')) {
+                let dept = Array.from(xdata.metaStore.dataInArray.get('dept'))
+                item.push(dept)  
+            }
+            return item
+        }
+
+        this.on('ENTER-FOR-SEARCH', (target) => {
+            console.log(target)
+        })
+
+        this.init = (msg) => {
+            console.log(msg)
+        }
+        // this.init(opts)
+
+        // this.on('update', () => {
+            
+        //     let position = opts.data
+        //     if (position) {
+        //         let showName = position.showName
+        //         if (showName === 'reshipment_dept_id' || showName === 'residues_dept_id') {
+        //             this.items = this.getItems()
+        //         }
+        //         let inputSelect = this.root.querySelector('.inputSelect')
+        //         inputSelect.style.width = position.width + 'px'
+        //         inputSelect.style.left = position.x + 'px'
+        //         inputSelect.style.top = position.y + position.height + position.top + 'px'
+        //     }
+            
+        // })
+    </script>
+</input-select>

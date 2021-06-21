@@ -1,0 +1,11 @@
+<persononel-info>
+    <li each={list in lists} if={ list.isShow } class={ list.value } name={ list.name } onclick={ list.cb }>{ list.text }</li>
+  <script>
+    this.init = (opts) => {    
+      if (opts.dataMsg) {
+        this.lists = opts.dataMsg
+      }
+    }
+    this.init(opts)
+  </script>
+</persononel-info>

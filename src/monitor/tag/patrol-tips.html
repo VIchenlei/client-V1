@@ -1,0 +1,68 @@
+<patrol-tips class="tool-tips-container patrol-tips hide">
+  <div ref="tool_tips">
+    <nav ref="draggeTitle" class="tips-title">巡检点详情</nav>
+    <article if={ hasdata } class="tips-content patrol-tips">
+        <div>
+          <p each={ i in nameArr }>{ i }</p>
+        </div>
+        <div>
+            <p>{ pointBaseData.name }</p>
+            <p>{ getPointType(pointBaseData.patrol_point_type_id) }</p>
+            <p>{ pointBaseData.ranging }米</p>
+            <p>{ data.duration_last }分</p>
+            <p>{ data.duration_stay_min }分</p>
+            <p>{ data.duration_stay_max }分</p>
+            <p>{ data.duration_ranging }分</p>
+        </div>
+    </article>
+  </div>
+    <script>
+        import { getShowPoint } from '../../js/def/getShowPos.js'
+
+        this.nameArr = ['巡检点名称:','巡检点类型:','巡检点范围:','距离上点时间差(分):','停留最短时间(分):','停留最长时间(分):','巡检点时间范围偏差(分):']
+        this.hasdata = false
+        xbus.on('PATROL-TOOLTIPS-SHOW', (msg) => {
+          let tt = this.root
+          tt.classList.remove('hide')
+          this.initData(msg)
+          this.hasdata = true
+          this.setPos(msg, tt)          
+          window.setDraggable({
+            target: this.root,
+            handle: this.refs.tool_tips
+          })
+          this.update()
+        })
+
+        this.getPointType = (id) => {
+          let data = xdata.metaStore.data.patrol_point_type
+          let typeData = data && data.get(Number(id))
+          let pointName = typeData && typeData.name
+          return pointName
+        }
+
+        this.initData = (msg) => {
+          this.data = xdata.metaStore.dataInArray.get('patrol_path_detail')
+          this.data = this.data && this.data.filter(item => item.patrol_point_id === Number(msg.id))
+          this.data = this.data && this.data[0]
+          this.pointBaseData = xdata.metaStore.data.patrol_point.get(Number(msg.id))
+        }
+
+        this.setPos = (msg, tt) => {
+          let point = getShowPoint(msg.evt, tt)
+          this.root.style.left = `${point.x}px`
+          this.root.style.top = `${point.y}px`
+        }
+
+        xbus.on('HIDE-ALL-POPUP', () => {
+          this.close()
+        })
+
+        this.close = () => {
+          let tt = this.root
+          if (!tt.classList.contains('hide')) {
+            tt.classList.add('hide')
+          }
+        }
+    </script>
+</patrol-tips>

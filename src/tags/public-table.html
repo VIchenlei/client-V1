@@ -1,0 +1,348 @@
+<public-table>
+    <table>
+      <thead>
+        <tr onclick={sortRows}>
+          <th if={name === 'rt_person_forbid_down_mine'} class="selectAll">
+            <input type="checkbox" name="selectAll" id="selectAll" onchange={chooseAllOrNot} checked={checked}>
+            <label for="selectAll">全选</label>
+          </th>
+          <th each={label in labels} if={needDisplay(label)}>
+              <span class="handShape">{label}</span>
+              <img class="hide" src="/img/{isAscending ? 'angle-up.png' : 'angle-down.png'}" alt="">
+          </th>
+          <!-- <th each={label in labels} if={ label !=='最后更新时间' && label==='是否显示' }>{xdata.roleID===1? label : ''}</th> -->
+          <th class="no-print">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr each={row in subRows} if={ row }>
+          <td if={name === 'rt_person_forbid_down_mine'}>
+            <input type="checkbox" onchange={chooseInput} checked={selectInputs.get(row.id)}>
+          </td>
+          <td each={ _name in names} if={needDisplay(_name)}>
+            <span class="detailNumber" if={ _name!=='color' } data-type={_name} title={ getInnerText(_name, row)}>{getInnerText(_name, row)}</span>
+            <span class="color-label" if={ _name==='color' } style="background: {getInnerText(_name, row)}"></span>
+          </td>
+          <td class="no-print">
+            <span onclick={ edit } class="hint--top-left" aria-label="编辑" if={name !== 'rt_person_forbid_down_mine'}>
+              <img src="/img/edit.png" alt="">
+            </span>
+            <span onclick={ delete } if={!['font_size', 'number_bars', 'area_reader', 'shift_setting', 'dept_info', 'occupation_info', 'reader_manager', 'reader_rssi'].includes(name)} class="hint--top-left {isHide(row)}" aria-label="删除">
+              <img src="/img/delete.png" alt="">
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  <script>
+    import { getRows, getMessage, formatTime, noTurnTxt } from '../js/utils/utils.js'
+
+    const SPECIALTYPE = ['COLOR', 'ICON', 'DATETIME', 'DATE']
+    const SPECIALTABLE = ['drivingface_worktype_permission', 'coalface_vehicle', 'drivingface_vehicle', 'coalface', 'drivingface']
+    const NAMEARR = ['his_patrol_data','rt_person_forbid_down_mine']
+    const MENU = {
+      'sensor': 'sensor',
+      'role': 'role',
+      'access': 'role',
+      'area': 'role',
+      'operate_log': 'rept',
+      'his_staff_change': 'rept',
+      'user': 'role'
+    }
+    let self = this.parent
+    this.judge = false
+    this.hideTableName = ['reader', 'drivingface', 'coalface'] //用于判断 为分站、工作面配置界面需要隐藏字段
+    this.hideLabel = ['最后更新时间', '是否显示', '区分员工(0全，1正式)', '区域核对人数上限']
+
+    this.needDisplay = (field) => {
+      if (xdata.isCheck === 1 && (field === '用户类别' || field === '是否对外展示' || field === 'is_check' || field === 'need_display' || field === '检查人员是否可见' || field === '虹膜部门编号' || field === 'hm_dept_id')) return false
+      if (this.hideLabel.includes(field)) return false
+      let names = ['lastUpdate', 'obj_range', 'tof', 'over_count_person_rp']
+      if (names.includes(field)) return false
+      return true
+    }
+
+    this.isHide = (row) => {
+      if (this.def.name === 'area' && row.area_id == 0) {
+        return 'hide'
+      }
+      return ''
+    }
+
+    this.dealSpecialFieldValue = (name, rows) => {
+      if (name === 'rt_person_forbid_down_mine') {
+        rows.find(item => item.field_name === 'staff_id').field_value = ''
+        rows.find(item => item.field_name === 'start_time').field_value = `${new Date().format('yyyy-MM-dd hh:mm:ss')}`
+      } else if (name === 'dept') {
+        rows.find(item => item.field_name === 'hm_dept_id').field_value = xdata.metaStore.hmDeptIDMax
+      }
+    }
+
+    this.insert = () => {//增
+      if (this.from === 'meta' && this.name === 'month' && this.subRows && this.subRows.length >= 1) {
+        let msg = {
+          value: 'failure',
+          tip: '此表不允许继续添加数据'
+        }
+        window.hintip.open(msg)
+        return
+      }
+      if(this.name === 'his_patrol_data') this.maxid = this.subRows[this.subRows.length-1].patrol_task_id
+      let rows = getRows(null, this.def, this.maxid)
+      this.dealSpecialFieldValue(this.name, rows)
+      
+      let msg = getMessage('INSERT', rows, this.def, this.maxid)
+      if (NAMEARR.includes(this.name))  msg.currentTag = self
+      this.parent.opts.parentag.trigger('META-INSERT-ROW', msg)
+    }
+
+    this.edit = (evt) => {//改
+      if(!this.parent.root.querySelector('#searchinput').value) this.parent.inputValue = ''
+      let key = this.parent.tableKeyName
+      this.parent.keyValue = evt.item.row[key]
+      let rows = getRows(evt.item, this.def, this.maxid)
+      let msg = getMessage('UPDATE', rows, this.def, this.maxid)
+      if (NAMEARR.includes(this.name))  msg.currentTag = self
+      if (this.name === 'sensor') {
+        this.editSensor = evt.item.row.sensor_id
+        msg['editable'] = this
+      }
+      if (this.parent.opts.hasOwnProperty('alias')) {
+        this.parent.opts.parentag.trigger('META-UPDATE-ROW', msg, this.parent.opts.alias)
+      } else {
+        this.parent.opts.parentag.trigger('META-UPDATE-ROW', msg)
+      }
+    }
+
+    this.showMetaDialog = (msg,info) => {
+      if(info){
+        msg.alias = info
+      }
+      if (this.metaDialog) {
+        this.metaDialog.unmount(true)
+      }           
+      if (msg.hasOwnProperty('alias')) {//部门、职务对换用swap-dialog展示信息
+        this.metaDialog = riot.mount('swap-dialog', { message: msg })[0]
+      } else { 
+        if (this.name === 'area_reader') {
+          msg['tag-name'] = 'check-tree'
+          msg['title'] = `${msg.rows[1].field_value}分站列表`
+          msg['origin'] = 2 // 数据源的index
+        }       
+        this.metaDialog = MENU[msg.name] ? riot.mount(`${MENU[msg.name]}-dialog`, {message: msg})[0] : riot.mount('meta-dialog', { message: msg })[0]
+      }
+    }
+
+    this.delete = (evt) => { //删
+      let rows = getRows(evt.item, this.def, this.maxid)
+      let msg = getMessage('DELETE', rows, this.def, this.maxid)      
+      if (NAMEARR.includes(this.name))  msg.currentTag = self
+      if (this.name === 'sensor') {
+        this.editSensor = evt.item.row.sensor_id
+        msg['editable'] = this
+      } 
+      this.parent.opts.parentag.trigger('META-DELETE-ROW', msg)
+    }
+
+    this.getResult = (results, lists, type) => {
+      if (lists) {
+        results = results && results.split(';')
+        let resName = ''
+        if (this.name === 'user' && results.includes('0')) return '全矿所有'
+        results && results.forEach(result => {
+          if (type === 'NUMBER') result = parseInt(result, 10)
+          let list = lists.get(result) ? lists.get(result).name : result
+          resName += `${list};`
+        })
+        return resName
+      }
+    }
+    
+    this.sortRows = (evt) => {//排序     
+      this.parent.sortRows(evt)
+    }  
+    
+    this.controlDisplay = (target, nodename) => {//改变箭头的方向、显隐 
+      this.preTarget && this.preTarget.querySelector('img').classList.add('hide')
+      if (!target) return
+      target = nodename === 'th' ? target : target.parentElement
+      target.querySelector('img').classList.remove('hide')
+      this.preTarget = target
+    } 
+    
+    this.getSpeed = (name, row) => {
+      let vehicleCate = xdata.metaStore.data.vehicle_category
+      let value = row[name]
+      if (!isNaN(value)) return value
+      return value.replace('1,', '人车,').replace('2,', '料车,').replace('3,', '特种车,')
+    }
+
+    this.getBusiness = (name, row) => {
+      let values = row[name]
+      let businesses = xdata.metaStore.data.area_business
+      if (!values || !businesses) return values
+      businesses = Array.from(businesses.values())
+      values = values.toString(2).padStart(12, 0).split('').reverse()
+      let result = ''
+      for (let i = 0; i < values.length; i++) {
+        if (parseInt(values[i], 10)) {
+          let res = businesses[i] ? businesses[i].name : ''
+          result += res ? `${res};` : ''
+        }
+      }
+      return result
+    }
+
+    //设定人员路线配置设置时间按分展示
+    this.getRouteValue = (values) => {
+      values = values.split(';')
+      let texts = ''
+      for (let i = 0; i < values.length; i++) {
+        let value = values[i].split(',')
+        for (let j = 0; j < value.length; j++) {
+          if (j === 1) value[j] =  Number(value[j])/60
+          if (j === 3 || j === 5) value[j] =  -Number(value[j])
+          texts +=  j < value.length-1 ? `${value[j]},` : `${value[j]}${i < values.length-1 ? ';' : ''}`
+        }
+      }
+      return texts
+    }
+
+    //路径集Y坐标取反展示
+    this.getcoodValue = (values) => {
+      values = values.split(',')
+      let texts = ''
+      for (let i = 0; i < values.length; i++) {
+        if (i === 1) values[i] =  -Number(values[i])
+        texts +=  i < values.length-1 ? `${values[i]},` : `${values[i]}`
+      }
+      return texts
+    }
+
+    this.getInnerText = (name, row) => { // 格式化文字 日期及数字转化成文字
+      if (name === 'pwd') return xdata.roleID === 1 ? row.pwd : '***'
+      if (this.from === 'role') {
+        if (name === 'menus') {
+          let menus = xdata.metaStore.data.menu
+          return this.getResult(row[name], menus, 'STRING')
+        } else if (name === 'depts' || name === 'access_id') {
+          let results = row[name]
+          let depts = xdata.metaStore.data.dept
+          return this.getResult(results, depts, 'NUMBER')
+        } else if (name === 'over_speed_vehicle') {
+          return this.getSpeed(name, row)
+        } else if (name === 'business_type') {
+          return this.getBusiness(name, row)
+        } else if (name === 'is_work_area') {
+          return row[name] === 0 ? '否':'是'
+        } else if (name === 'is_check' || name === 'need_display') {
+          return noTurnTxt(this.name, name, row[name])
+        }
+        return name === `${this.def.name}_id` ? row[name] : xdata.metaStore.getNameByID(name, row[name])
+      } else {   
+        let index = this.def.fields.names.indexOf(name) 
+        let key = this.def.fields.names[this.def.keyIndex]
+        let type = this.def.fields.types[index]        
+        if (type !='COLOR' && type !='ICON' && type !='DATETIME' && type !='DATE') {
+          if (name === 'vehicle_id') return xdata.metaStore.getNameByID(name, row[name])
+          if (name === 'coalface_id' || name === 'drivingface_id') {
+            return xdata.metaStore.data.work_face && xdata.metaStore.data.work_face.get(row[name]) && xdata.metaStore.data.work_face.get(row[name]).name
+          }
+          if(name === 'map_id' && (this.name === 'work_face' || this.name === 'landmark')){  // 工作面 与地标 用map_gis_id 转换文字
+            let _name = 'map_gis_id'
+            return xdata.metaStore.getNameByID(_name,row[name])
+          }
+          if (name === 'staff_id' && this.name === 'rt_person_forbid_down_mine') {
+            return row[name]
+          }
+          if (name === 'route_planning') {
+            return this.getRouteValue(row[name])
+          }
+          if (this.name === 'road_segment' && ['bpoint', 'epoint'].includes(name)) {
+            return this.getcoodValue(row[name])
+          }
+          return noTurnTxt(this.name, name, name == key ? row[name] : xdata.metaStore.getNameByID(name, row[name]))
+        }
+        if (type === 'DATETIME' || type ==='DATE') return formatTime(row[name], type)
+        
+        if (!SPECIALTYPE.includes(type) || !SPECIALTABLE.includes(this.name)) {
+          return name == this.def.fields.names[this.def.keyIndex] || name == this.def.fields.names[this.def.keyOtherIndex] ?  noTurnTxt(this.name,name,row[name]) : noTurnTxt(this.name,name,xdata.metaStore.getNameByID(name, row[name]))
+        }
+        if (!SPECIALTYPE.includes(type) && SPECIALTABLE.includes(name)) return noTurnTxt(this.name,name,xdata.metaStore.getNameByID(name, row[name]))
+      }
+    }
+
+    this.updateList = (msg) => {  
+      this.subRows = msg.value
+      this.maxid = msg.maxid
+      if (this.name === 'rt_person_forbid_down_mine') this.chooseAllOrNot()
+      this.update()
+    }
+
+    this.init = (msg) => {
+        this.def = msg.data.def
+        this.subRows = msg.data.subRows
+        this.labels = this.def.fields.labels
+        this.names = this.def.fields.names
+        this.name = this.def.name
+        this.maxid = msg.data.maxid
+        this.from = msg.data.from
+        this.selectInputs = new Map()
+        this.checked  = false // 全选状态
+        this.notChecked = new Map() // 全选后，取消其中某几个的id
+        this.isSelectAll = false // 需要保留全选状态，避免点击全选后，再取消其中某几个后，再将这几个选中导致全选失效
+        if (msg.data.hasOwnProperty('alias')) {
+            this.alias = msg.data.alias
+        }
+        /**
+         * @description: 分站/掘进面/综采面配置页面需要隐藏的字段
+         */
+        if(this.name === 'reader'){
+            this.hideName = ['坐标Z', '分站仰角', '是否可以模拟成定位卡']
+            this.hideField = ['z', 'angle', 'enable_simulate_card']
+        }else if(this.name === 'drivingface'){
+            this.hideName = ['计划完成(天)','图标x','图标y','图标z']
+            this.hideField = ['plan_day','icon_x','icon_y','icon_z']
+        }else if(this.name === 'coalface'){
+            this.hideName = ['计划完成(天)']
+            this.hideField = ['plan_day']
+        }
+    }
+
+    this.init(opts)
+
+    this.chooseInput = (evt) => {
+      let row = evt.item.row
+      let key = row.id
+      let checked = evt.target.checked
+      checked ? this.selectInputs.set(key, true) : this.selectInputs.delete(key)
+      if (this.isSelectAll) {
+        this.checked = !checked ? false : this.checked
+        !checked ? this.notChecked.set(key, true) : this.notChecked.delete(key)
+        if (this.notChecked.size === 0) this.checked = true
+        this.update()
+      }
+    }
+
+    this.chooseAllOrNot = (evt) => {
+      this.selectChooseStaffID = null
+      this.checked = evt ? evt.target.checked : this.checked
+      if (this.checked && this.parent.inputVal) {
+        let row = this.subRows[0]
+        this.selectChooseStaffID = row && row.staff_id
+      }
+      this.isSelectAll = evt ? evt.target.checked : this.isSelectAll
+      let self = this
+      this.subRows && this.subRows.forEach(item => {
+        if (evt) { // 只有点击‘全选’，才能控制所有数据是否重新选择活取消，此时需要清空notChecked的数据
+          self.checked ? self.selectInputs.set(item.id, true) : self.selectInputs.delete(item.id)
+          self.notChecked.clear()
+        } else if (self.isSelectAll) { // 点击全选后，再取消其中几个的选中
+          self.notChecked.get(item.id) ? self.selectInputs.delete(item.id) : self.selectInputs.set(item.id, true)
+        } else {
+          self.selectInputs.delete(item.id)
+        }
+      })
+    }
+  </script>
+</public-table>

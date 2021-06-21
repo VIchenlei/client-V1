@@ -1,0 +1,612 @@
+<!--
+message 结构
+message = {
+	def : table_def,
+	rows : [[v1, v2, ...], [...], ...]
+}
+ -->
+ <!-- name !== 'font_size' && name !== 'number_bars' && name !== 'area_reader' && alias !=='dept_info' && alias !=='occupation_info' -->
+<meta-table>
+  <div class={isHide()}>
+    <span>
+      <span class="hint--bottom-left" aria-label="添加信息" onclick={ insert }>
+        <svg class="icon black-icon">
+          <use xlink:href="/icons/icons.svg#icon-add"></use>
+        </svg>
+      </span>
+      <span if={name != 'reader_manager'} class="hint--bottom-left icon" aria-label="批量导入" if={ name !=='map' } onclick={ importFile }>
+        <img class='pointImg' src="/img/import.png" alt="">
+      </span>
+      <span if={name != 'reader_manager'} onclick={ askFile } name="csv" class="hint--bottom-left icon" aria-label="批量导出">
+        <img class='pointImg' src="/img/export.png" alt="">
+      </span>
+      <span if={name === 'rt_person_forbid_down_mine'} onclick={deleteAll} name="delete" class="hint--bottom-left icon" aria-label="批量删除">
+        <img src="/img/delete.png" alt="" class="pointImg">
+      </span>
+    </span>
+  </div>
+  <span class="seek-staff {name==='font_size'||name==='number_bars' || name === 'shift_setting' || name === 'reader_rssi'?'hide':''}">
+    <span if={ name !== 'card' } class="id-{name} search-bar" ref="search"></span>
+    <div class="icon-input card_icon-input" if={ name === 'card' }>
+        <div class="search-icon card_search-icon" id="selecticon"><img src="./img/search.png"></div>
+        <input type='search' class="card_search" id="searchinput" ref='searchinput' class="login-input" placeholder={ placeholder } onkeyup={ enterForLogin } onfocus={ changeHr } onblur={
+            changeHrOrigin } oninput={ searchInput }>
+        <svg class="icon svg_icon">
+            <use xlink:href="/icons/icons.svg#icon-down"></use>
+        </svg>
+        <hr class="input_bottom searchinput" ref="hr">
+    </div>
+    <div if={ isShowResultList && name === 'card' } class="card_list popup-list">
+        <span if={ hasresult } class="list-item"  each={ item, i in resultCardList  } data-name={item} onclick={ chooseItem } data-type={ item[name + '_id'] } data-index={ i }>{ item.card_id}</span>
+        <span if={ !hasresult } class="tips"> 无符合条件的卡号 </span>
+    </div>
+  </span>
+  </div>
+  <div data-is="public-table" ref="public-table" class="public-table content-panel {name==='font_size'||name==='number_bars'?'topDistance':''}" data={ data }></div>
+  <div class="pagination" if={ hasdata } data-is="pagination" totalpage={ totalPage } pageindex={ pageIndex }
+    tablename={ name }></div>
+  <div data-is="blank-message" message="当前数据库中没有相关记录！请查证后再试。" class="blank-message" if={ !hasdata }></div>
+  <script>
+    import '../../tags/maintenance-detail.html'
+    import { getRows, getMessage, copySubRows, specialName , compare, getSearchData, initPagination, checkClick, composeUpdateDBReq } from '../../js/utils/utils.js'
+    import {testUnenableNullData, metaUpdateRes} from '../utils.js'
+    import fuzzySearch from '../../js/def/fuzzy_search.js'
+    import queryData from '../../js/def/query_data.js'
+    import personForbid from '../../js/def/rt_def.js'
+    const sqlQuery = ['leader_arrange','dat_vehicle_state','his_maintenance','dat_vehicle_drive','his_patrol_data']
+    this.ediot = true
+    this.judge = false
+    this.root.classList.remove('hide')
+    let typeDef = null
+    let dataSet = null
+    let searchname = null
+    const sortByNumber = ['staff_id','coalface_id','drivingface_id']
+    /**
+     * @description: 添加 修改 分站 红绿灯 综采掘进等页面时 更新合并页面下的数据
+     */
+    const updateName = ['reader_path_tof_n', 'antenna', 'light', 'coalface_vehicle', 'sensor', 'drivingface_vehicle', 'drivingface_warning_point', 'drivingface_ref_point']
+    let tagMonitor = opts.parentag.opts.papa
+    //翻页 2019-5-17 lmj
+    this.pageTurnOver = (pageIndex) => {  
+      let pages = pageIndex ? initPagination(this.rows,pageIndex) : initPagination(this.rows)
+      this.total = pages.total
+      this.totalPage = pages.totalPage
+      this.pageIndex = pages.pageIndex
+    }
+
+    this.isHide = () => {
+      let hideOp = ['font_size', 'number_bars', 'area_reader', 'shift_setting', 'dept_info', 'occupation_info']
+      if (hideOp.includes(this.name)) return 'hide'
+      return 'op-panel'
+    }
+
+    this.sortRows = (evt) => { //排序
+      let target = evt && evt.target
+      let nodename = target.nodeName.toLowerCase()      
+      let label = checkClick(target, nodename)
+      if(!label) return //为‘操作’时label无值，不能点击
+			this.tags['public-table'].isAscending = label === this.sortBasic ? !this.tags['public-table'].isAscending : true
+      this.sortBasic = label   
+			let labelIndex = this.def.fields.labels.indexOf(label)
+			let condition = this.def.fields.names[labelIndex]
+		  let sortType = this.def.fields.types[labelIndex] !== 'NUMBER' && this.def.fields.types[labelIndex] !== 'SELECT' && !sortByNumber.includes(condition) ? 'chinese' : ''
+      this.rows.sort(compare(condition, sortType , this.tags['public-table'].isAscending ? null : 'reverse'))
+      this.subRows = copySubRows(this.rows, this.pageIndex) 
+      this.tags['public-table'].updateList({
+        value: this.subRows,
+        maxid: this.maxid
+      }) 
+      this.tags['public-table'].controlDisplay(target, nodename)
+    }  
+    
+    this.accurateSearch = () => {
+      let value = this.root.querySelector('.search-box') && this.root.querySelector('.search-box').querySelector('#searchinput').value, filterdata, searchData
+      let name = this.name
+      // if (name === 'rt_person_forbid_down_mine') {
+      //   let sql = `select id,fdm.staff_id, name, dept_id,start_time,oper_time,oper_user from rt_person_forbid_down_mine fdm LEFT JOIN dat_staff ds ON fdm.staff_id = ds.staff_id LEFT JOIN dat_staff_extend dse ON ds.staff_id = dse.staff_id where status = 1;`
+      //   let sqlName = 'rt_person_forbid_down_mine'
+      //   let countSql = `select count(1) as total from rt_person_forbid_down_mine where status = 1;`
+      //   this.inquireDB(sqlName, sql, countSql)
+      //   return
+      // }
+      filterdata = xdata.metaStore.dataInArray.get(name)
+      if (value) {
+        if (fuzzySearch.hasOwnProperty(name)) {
+          let len = fuzzySearch[name].keys.length
+          for (let i = 0; i < len; i++) {
+            searchData = filterdata.filter(item => {
+              value = fuzzySearch[name].keys[i] === 'name' ? value : Number(value)
+              return item[fuzzySearch[name].keys[i]] === value
+            })
+            if (searchData.length > 0) {
+              break;
+            }
+          }
+        } else {
+          searchData = filterdata.filter(item => item.name === value)
+          if (searchData.length <= 0) {
+            searchData = filterdata.filter(item => item[name + '_id'] === Number(value))
+          }
+        }
+      } else {
+        searchData = xdata.metaStore.dataInArray.get(name)
+      }
+      let msg = {
+        def: xdata.metaStore.defs[name],
+        rows: searchData,
+        maxid: xdata.metaStore.maxIDs[name]
+      }
+      xbus.trigger('HIDE-ALL-POPUP')
+      this.init(msg)
+    }
+
+    this.getResult = (result) => {
+      let chosedStaff = result     
+      let desc = dataSet.desc
+      // 检索之后 页面分页为第一页
+      this.pageIndex = 0
+      if(this.root.querySelector('#searchinput').value){
+        if(desc!=='name' || dataSet.keys.includes('staff_id')){     
+          this.root.querySelector('#searchinput').value = result[desc]
+          this.inputValue = result[desc]
+          this.subRows = copySubRows([result], this.pageIndex)
+        } else {
+          this.root.querySelector('#searchinput').value = result[0][desc]
+          this.inputValue = result[0][desc]
+          if (this.name === 'area_reader' || this.name === 'area_persons_dynamic_thre') result = this.gerAreaReader(result)
+          this.subRows = copySubRows(result, this.pageIndex)
+        }          
+        this.rows = this.subRows 
+      } else {
+        if (this.name === 'area_reader') result = this.opts.parentag.concatAreaReader()
+        if (this.name === 'area_persons_dynamic_thre') result = xdata.metaStore.data.area_persons_dynamic_thre && Array.from(xdata.metaStore.data.area_persons_dynamic_thre.values())
+
+        this.subRows = copySubRows(result, this.pageIndex)
+        this.root.querySelector('#searchinput').value = '' 
+        this.inputValue = ''
+        this.rows = result
+      }
+      this.pageTurnOver()
+      this.tags['public-table'].updateList({
+        value: this.subRows,
+        maxid: this.maxid
+      }) 
+      // this.rows = this.subRows
+      this.update()
+    }
+
+    this.getDownWellResult = (result) => {//禁止人员下井查询框返回选项的结果点击
+      let field = queryData[this.name].field
+      let sql = queryData[this.name].sql 
+      let sqlname = queryData[this.name].sqlname
+      let countSql = queryData[this.name].countSql
+      if(this.root.querySelector('#searchinput').value){
+        sql = sql +`="${result[field]}"`
+        sqlname = sqlname
+        countSql = countSql + `=${result[field]}`
+        this.inputValue = result.name
+        this.root.querySelector('#searchinput').value = result.name
+        this.inquireDB(sqlname, sql, countSql) 
+      } 
+    }
+
+    this.sendToDb = (cmd, name, sql) => { // 查询数据库
+      this.def.inputValue = this.inputValue
+      let msg = {
+        cmd: cmd,
+        data: {
+          name: name,
+          sql: sql
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: msg,
+        def: {
+          name: name
+        }
+      })
+    }
+
+    this.inquireDB = (name, sql, countSql) => {
+      if(this.inputValue) this.def.inputValue = this.inputValue
+      let message = {
+        cmd: 'query',
+        data: {
+          name: name,
+          sql: sql,
+          pageSize: 10000,
+          pageIndex: 0,
+          total: -1,
+          countSql: countSql
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: name
+        }
+      })
+    }
+
+    this.init = (msg) => {
+      this.msg = msg
+      if (msg.hasOwnProperty('alias')) {
+        this.alias = msg.alias
+      }
+      this.def = msg.def
+      if (!this.def) {
+        this.hasdata = false
+        return
+      }
+      let judge = window.sessionStorage.getItem('select')
+      if (judge === 'his_maintenance') {
+        this.tags['public-table'].judge = true
+      }
+      this.title = msg.def.label
+      this.name = msg.def.name
+      searchname = this.name
+      if (searchname === 'area_reader') searchname = 'area'
+      if (searchname === 'reader_manager') searchname = 'reader'
+      this.tableKeyName = specialName(this.name)
+      this.labels = msg.def.fields.labels
+      this.label = msg.def.label
+      this.rows = msg.rows
+      this.inRows=msg.rows
+      if(this.name === 'card') this.placeholder = fuzzySearch[this.name].placeholder
+      this.maxid = msg.maxid
+      let searchDatas = searchname === 'area_persons_dynamic_thre' && Array.from(xdata.metaStore.data.area.values())
+      let results = getSearchData(this.label, searchname, this.rows, (sqlQuery.includes(this.name) ? this.getDownWellResult : this.getResult), searchDatas)
+      typeDef = results.typeDef
+      dataSet = results.dataSet
+      if(msg.hasOwnProperty('inputValue')) this.inputVal = msg.inputValue
+      if (msg.def.name.match(/battery/ig)) {
+        this.ediot = false
+      }
+      this.hasdata = !!(this.rows && this.rows.length > 0)
+      if (this.hasdata) {
+        this.pageTurnOver(this.pageIndex)
+        this.subRows = copySubRows(this.rows, this.pageIndex) // 初始化显示第一页        
+      }
+      this.data = {
+        def : this.def,
+        subRows : this.subRows,
+        maxid : this.maxid,
+        alias : this.alias,
+        tableKeyName : this.tableKeyName,
+        from : 'meta'
+      }
+    }
+
+    this.init(opts)
+
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+      if (msg.name === this.name) {
+        this.pageIndex = msg.pageIndex
+        this.subRows = copySubRows(this.rows, this.pageIndex)
+        this.tags['public-table'].updateList({
+          value: this.subRows,
+          maxid: this.maxid
+        }) 
+        this.update()
+        window.xhint.close()
+      }
+    })
+
+    this.insert = (evt) => {
+      if(this.name === 'reader' || this.name === 'lights_group'){
+        // 添加分站 红绿灯 添加提示框
+        let self = this
+        this.activePanel = riot.mount('call-leave', {
+            name: 'jump-realtime-interface',
+            currentTag: self
+        })[0]
+      }else if (this.name === 'reader_manager') {
+        let self = this;
+        let msg = {
+          cmd: this.key ? 'UPDATE' : 'INSERT',
+          fieldName: '*',
+          fileType: 'map',
+          fileName: 'null',
+          fileNamePrefix: '3000',
+          data: {
+            cmd: this.key ? 'UPDATE' : 'INSERT',
+            key: 'log',
+            name: this.name
+          },
+          parentTag: self
+        }
+        this.showFileDialog(msg);
+      }else{
+        this.tags['public-table'].insert()
+      }
+    }
+    this.showFileDialog = (msg) => {
+      if (this.fileDialog) {
+        this.fileDialog.unmount(true)
+      }
+
+      this.fileDialog = riot.mount('file-dialog', msg)[0]
+    }
+
+    this.importFile = (evt) => {
+      let self = this
+      let def = this.name === 'rt_person_forbid_down_mine' ? personForbid[this.name] : this.def
+      let rows = getRows(null, def, this.maxid)
+      let msg = this.composeImportDataMessage('IMPORT-DATA', rows, def)
+      msg.ptag = self
+      this.opts.parentag.trigger('META-IMPORT-DATA', msg)
+    }
+
+    this.getAskFileSql = (def) => {
+      let names = def.fields.names
+      let fstring = names.join(',')
+      let keyIndex = def.fields.names[def.keyIndex]
+      // let condition = this.name === 'rt_person_forbid_down_mine' ? ' where status = 1' : ''
+      let sql = `select ${fstring} from ${def.table} order by ${keyIndex};`
+      sql = this.name === 'rt_person_forbid_down_mine' ? `select fdm.staff_id, name, dept_id,start_time,oper_time,oper_user from rt_person_forbid_down_mine fdm LEFT JOIN dat_staff ds ON fdm.staff_id = ds.staff_id LEFT JOIN dat_staff_extend dse ON ds.staff_id = dse.staff_id where status = 1;` : sql
+      return sql
+    }
+    
+    this.askFile = (evt) => {
+			window.xhint.close()
+			window.xhint.showLoading()
+      let opName = evt.currentTarget.getAttribute('name')
+      let sqlString = this.getAskFileSql(this.def)
+      let name = this.name
+      let reptTime = new Date().getTime()
+      let msg = {
+        cmd: 'file',
+        exprList: [],
+		    name: name,
+		    labels: this.def.fields.labels,
+		    title: this.def.label,
+		    namesInShort: this.def.fields.names,
+		    types: this.def.fields.types,
+		    fileType: opName,
+        reptIndex: reptTime,
+        sql: sqlString,
+        userName: xdata.userName
+      }
+      console.log(msg)
+		  xbus.trigger('REPT-FETCH-FILE', msg)
+    }
+    
+    // for import-file-dialog
+    this.composeImportDataMessage = (cmd, rows, def) => {
+      return {
+        cmd: cmd,
+        def: def,  // field definition
+        maxid: this.maxid,
+        rows: rows
+      }
+    }
+
+    // 区域所属分站\区域各时间段人员上限，特殊处理
+    this.gerAreaReader = (subRows) => {
+      let areaID = subRows[0].area_id
+      let rows = this.rows.filter(item => item.area_id === areaID)
+      return rows
+    }
+
+    xbus.on('META-DATA-UPDATE', (msg) => {
+      if (!msg.def) return
+      if(updateName.includes(msg.def.name)){
+           xbus.trigger('TABLE-CONFIG-UPDATE', {
+                msg: msg
+           })    
+      }
+      if (msg.def.name === this.name || (this.name === 'area_reader' && msg.def.name === 'reader') || (this.name === 'shift_setting' && msg.def.name === 'setting')) {
+        this.hasdata = msg && msg.def && msg.rows && msg.rows.length > 0
+        this.rows = msg.rows
+        if (this.name === 'area_reader') this.rows = this.opts.parentag && this.opts.parentag.concatAreaReader()
+        if (this.name === 'shift_setting') this.rows = msg.rows.filter(item => item.setting_id === 15)
+        if (this.rows && (this.rows.length === 1 || this.rows.length === 0)) this.inRows = this.rows
+        this.maxid = msg.maxid
+        let results = null
+        // if (this.hasdata) {
+          if ((this.subRows && this.subRows.length > 1) || this.inRows.length===1) {
+            // 多条数据
+            this.pageTurnOver(this.pageIndex)
+            let singleRow =  this.rows
+            this.subRows=copySubRows(singleRow, this.pageIndex)
+          } else if( this.inRows.length===0 ){
+            // 删除没有数据
+            let singleRow = this.inRows
+            this.subRows = singleRow
+          }else {
+            // 检索时数据只有一条时
+            let singleRow = null
+            let keyValue = this.subRows[0] && this.subRows[0][this.tableKeyName]
+            if (this.name !== 'area_reader') singleRow = this.subRows && this.subRows.length === 1 ? xdata.metaStore.data[this.name].get(keyValue) : this.rows
+            singleRow = this.name === 'area_reader' || this.name === 'area_persons_dynamic_thre' ? this.gerAreaReader(this.subRows) : singleRow
+
+            this.subRows = this.subRows && this.subRows.length === 1 ? (Array.isArray(singleRow) ? singleRow : [singleRow]) : (this.inRows.length>1?copySubRows(singleRow, this.pageIndex):this.rows)
+          }
+          this.tags['public-table'] && this.tags['public-table'].updateList({
+            value: this.subRows,
+            maxid: this.maxid
+          })
+          let searchDatas = searchname === 'area_persons_dynamic_thre' && Array.from(xdata.metaStore.data.area.values())  
+          if ((this.subRows && this.subRows.length > 1) || this.inRows.length===1) {
+            results = getSearchData(this.label, searchname, this.rows, (sqlQuery.includes(searchname) ? this.getDownWellResult : this.getResult), searchDatas)
+          } else {
+            results = getSearchData(this.label, searchname, this.subRows, (sqlQuery.includes(searchname) ? this.getDownWellResult : this.getResult), searchDatas)       
+          }
+          typeDef = results.typeDef
+          dataSet = results.dataSet
+          if(this.inputValue){
+            this.root.querySelector('#searchinput').value=this.inputValue
+          }else{
+            this.root.querySelector('#searchinput').value=''
+          }
+          if (this.fuzz) {
+            this.fuzz.updateData({ typeDef: typeDef, dataSet: dataSet, searchType: false, searchIcon: false })
+          }
+        // }
+        this.update()
+      }
+    })
+
+    this.on('META-SWITCH-TABLE', (msg) => {
+      this.hasdata = msg && msg.def && msg.rows && msg.rows.length > 0
+      this.init(msg)
+      this.update()
+    })
+
+    this.registerGlobalEventHandlers = () => {
+      xbus.on('META-UPDATE-DB-RES', res => {
+        if (res.data.name === 'rt_person_forbid_down_mine') {
+          if (res.data.op !== 'DELETE') return
+          let updateRes = metaUpdateRes(res, 'rt_person_forbid_down_mine', 'DELETE')
+          if (updateRes) {
+            this.accurateSearch()
+          }
+        }
+      })
+    }
+
+    this.on('mount', () => {
+      this.fuzz = riot.mount('span.id-' + this.name, 'fuzzy-search2', { typeDef: typeDef, dataSet: dataSet, searchIcon: true })[0]
+      if(this.msg.hasOwnProperty('inputValue')){
+        this.fuzz.root.querySelector('#searchinput').value = this.inputVal
+        delete this.msg.inputValue
+      } 
+      // this.registerGlobalEventHandlers() 
+    })
+
+    this.on('unmount', () => {
+      this.root.classList.add('hide')
+      xbus.off('META-UPDATE-DB-RES')
+    })
+
+    /**
+     * @description: 卡号输入框聚焦 显示蓝色边框线
+     * @param {type} 
+     * @return: 
+     */
+    this.changeHr = (evt) => {
+        this.refs.hr.style.transform = `scale(1)`
+        this.root.querySelector('.svg_icon').style = `fill: #09f;`
+        this.opts.onfocus && this.opts.onfocus()
+    }
+
+    /**
+     * @description: 卡号输入框失去焦点 隐藏蓝色边框线
+     * @param {type} 
+     * @return: 
+     */
+    this.changeHrOrigin = (evt) => {
+        this.refs.hr.style.transform = `scale(0)`
+        this.root.querySelector('.svg_icon').style = `fill: #999;`
+        if (opts.blurname) {
+            this.parent[opts.blurname](evt)
+        }
+    }
+
+    /**
+     * @description: 检索所需要的卡号
+     * @param {type} 
+     * @return: 
+     */
+    this.enterForLogin = (evt) =>{
+        let s = evt.target.value
+        let cards = xdata.metaStore.data.card && Array.from(xdata.metaStore.data.card.values())
+        let card = null 
+        let num = s.substr(0,3)
+        if(num === '0' || num === '00') num = '001'
+        if(s.length<=10){
+            switch (num) {
+                case '001':
+                case '002':
+                case '004':
+                case '005':
+                  card = cards.filter(item => item.card_id.toString().substr(0,3) === num).slice(0,20)
+                  break
+                default:
+                  card = cards.filter(item => item.ident === parseInt(s))
+                  break
+            }
+            this.resultCardList = card
+        }else{
+            card = cards.filter(item => item.card_id === s)
+            this.resultCardList = card
+        }
+        this.isShowResultList = true
+        card.length>0 ? this.hasresult = true : this.hasresult = false
+        if(s === ''){
+            this.isShowResultList = false
+        }
+    }
+
+    /**
+     * @description: 在卡号检索面板中选择卡号来检索
+     * @param {type} 
+     * @return: 
+     */
+    this.chooseItem = (evt) => {
+        evt.stopPropagation()
+        let t = evt.currentTarget
+        let v = t.getAttribute('data-index')
+        let i = v && parseInt(v, 10)
+        let self = this
+        let value = this.resultCardList[i].card_id
+        this.getResult(this.resultCardList[i])
+        this.isShowResultList = false
+        // this.root.querySelector('input').value = value
+    }
+
+    /**
+     * @description: 清空输入框 隐藏检索面板
+     * @param {type} 
+     * @return: 
+     */
+    this.searchInput = (evt) =>{
+        let value = evt.target.value
+        if (value === "") {
+            let rows = Array.from(xdata.metaStore.data[this.name].values())
+            this.getResult(rows) 
+            this.isShowResultList = false
+        }
+    }
+
+  /**
+   * @description: 添加分站 红绿灯跳转实时界面 添加弹出窗是否跳转 
+   */  
+  this.jumpRealtimeInterface  = () =>{
+    tagMonitor.gotoPage('sp_monitor',null)
+    let name = this.name === 'reader' ? 'edit_forbid_bstation' : ''
+    xbus.trigger('DRAW-STATE', name)
+  }
+
+  this.deleteAll = (evt) => { //弹窗提醒删除
+    let self = this
+    if (this.activePanel) this.activePanel.unmount(true)
+    this.activePanel = riot.mount('call-leave', { 
+      name: 'deleteAll',
+      currentTag: self
+    })[0]
+  }
+
+  this.deleteAllMsg = () => {
+    this.registerGlobalEventHandlers()
+    let publicTableTag = this.tags['public-table']
+    let selectInputs = publicTableTag.selectInputs
+    selectInputs = Array.from(selectInputs.keys())
+    let selectAll = publicTableTag.isSelectAll
+    if (selectInputs.length <= 0 && !selectAll) return testUnenableNullData('没有选中的数据！')
+    
+    let notSelect = publicTableTag.notChecked
+    let selectChooseStaffID = publicTableTag.selectChooseStaffID
+    notSelect = Array.from(notSelect.keys())
+
+    let selectChooseStaffs = selectChooseStaffID ? ` and staff_id = ${selectChooseStaffID}` : ''
+    let notSelectCondition = notSelect.length > 0 ? ` and id not in (${notSelect.join(',')})` : ''
+    let condition = selectAll ? `status = 1${selectChooseStaffs}${notSelectCondition}` : `id in (${selectInputs.join(',')})`
+    let sql = `update rt_person_forbid_down_mine set status = 0 where ${condition};`
+    let req = composeUpdateDBReq('DELETE', 'rt_person_forbid_down_mine', selectAll ? 'selectall' : selectInputs.join(','), sql)
+    xbus.trigger('META-UPDATE-DB', {
+      req: req
+    })
+  }
+  </script>
+</meta-table>

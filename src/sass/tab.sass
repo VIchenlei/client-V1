@@ -1,0 +1,106 @@
+
+@import defs
+
+.tab-bar
+  span
+    line-height: 2rem
+
+.map-bar-new
+  span
+     .icon
+        fill: #ccc
+
+  .map-topbar-right
+    background: $main-mapbgcolor
+    padding: 0 0.3rem
+    .tab-container
+        height: 39px
+        li
+          height: 100%
+          &:hover
+              background: $header-active-color
+
+  .fullScreen
+      position: fixed
+      top: 0
+      right: 0
+      background: #f5f5f5
+      &:hover,&.active
+        .icon
+          fill: $active-bg
+.message
+  @include absolute(162px,90px)
+  @include wh(300px,152px)
+  .title,.cont
+    width: 100%
+  .title
+    @include line-height(30px,30px)
+    background: rgba(0,0,0,0.5)
+    color: #999
+    padding-left: 20px
+  .cont
+    .cont-title
+      @include align-center-middle
+      background: #eee
+      height: 30px
+      padding-left: 20px
+      li
+        flex: 1
+        list-style: none
+        font-size: .8rem
+        color: #333
+        margin-right: 2.9%
+    .cont-cont
+      height: 132px
+      list-style: none
+      padding: 0 20px
+      font-size: .8rem
+      margin-top: 22px
+      li
+        background: #fff
+        width: 100%
+        margin-bottom: 15px
+        display: flex
+        span
+          flex: 1
+        span:nth-child(even)
+          display: inline-block
+          text-align: right
+
+.tab-container
+  display: flex
+  align-items: flex-end
+  flex: 0 0 $head-height
+  overflow-x: auto
+  overflow-y: hidden
+
+  .tab
+    @include align-center-middle
+    flex: 0 0 auto
+    min-width: 3rem
+    margin-right: 2px
+    height: 30px
+    cursor: pointer
+    font-size: $fontsize-s
+    img
+      @include wh(0.5rem, 0.5rem)
+    .icon
+      @include wh(1rem,1rem)
+      fill: #ccc
+    @media screen and (max-width: 981px)
+     .icon
+       span
+         display: none
+
+    span
+      display: flex
+      padding: 0 0 0 5px
+      color: #666
+    
+    &.active
+      border-bottom: 3px solid rgb(0, 159, 255)
+      span
+        color: #009fff
+      
+
+

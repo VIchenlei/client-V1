@@ -1,0 +1,22 @@
+@import '../../sass/defs.sass'
+.lights-list
+    p
+        display: flex
+        justify-content: space-around
+        margin: .8rem 0
+        span
+            min-width: 20%
+            text-align: center
+            overflow: hidden
+            text-overflow: ellipsis
+            white-space: nowrap
+            .icon
+                fill: #353535
+                padding-bottom: 2px
+                border-bottom: 1px solid #353535
+                &:hover
+                    fill: #09f
+        &:nth-child(1)
+            height: 2rem
+            line-height: 2rem
+            margin: 0

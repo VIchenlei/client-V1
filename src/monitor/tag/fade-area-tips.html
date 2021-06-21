@@ -1,0 +1,68 @@
+<fade-area-tips>
+  <div class="dlg-bg animated">
+    <div name="meta_dialog" ref="meta_dialog" class="dlg-window meta-dialog animated">
+      <div name="meta_title" ref="meta_title" class="dlg-head">
+        <span class="dlg-title">
+          <grip type="grip-horizontal"></grip>
+          盲区显示
+        </span>
+      </div>
+      <div class="dlg-body">
+        <span class="time-tile">时间选择</span>
+        <div class="fade-time">
+          <span>开始时间：<input type="datetime-local" step="01" class="query-option" value={ startDate }/></span>  
+          <span>结束时间：<input type="datetime-local" step="01" class="query-option" value={ endDate }/></span>
+      </div>      
+      <div class="dlg-foot">
+        <button class="btn-sure" onclick={ save }>确定</button>
+        <button class="btn-cancel" onclick={ close }>取消</button>
+      </div>
+    </div>   
+  </div>
+  <script>
+    import '../sass/fade-area-tips.sass'
+    let msg = opts.message
+    this.startDate = new Date(new Date().getTime() - 14 * 24 * 60 * 60 * 1000).format('yyyy-MM-ddThh:mm:ss')
+    this.endDate = new Date().format('yyyy-MM-ddThh:mm:ss')
+
+    this.save = (evt) => {
+      let time = this.root.querySelectorAll('.query-option')
+      let stime = time[0].value 
+      let etime = time[1].value
+      if (!stime || !etime) {
+        window.hintip.open({
+          value: 'notsave',
+          tip: '请将时间填写完整'
+        })
+        return
+      }
+      stime = new Date(stime).format('yyyy-MM-dd hh:mm:ss')
+      etime = new Date(etime).format('yyyy-MM-dd hh:mm:ss')
+      this.doquery(stime, etime)
+      this.unmount(true)
+    }
+
+    this.doquery = () => {
+      let sqlString = !msg.readerId ? `select * from dat_reader` : `select * from dat_reader where reader_id = ${msg.readerId}`
+      let message = {
+        cmd: 'query',
+        data: {
+          name: 'fadeArea',
+          sql: sqlString
+        }
+      }
+      window.xhint.showLoading()
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: 'fadeArea'
+        }
+      })
+    }
+
+    this.close = (evt) => {
+      xdata.metaStore.fadeAreaArr = new Map()
+      this.unmount(true)
+    }
+  </script>
+</fade-area-tips>

@@ -1,0 +1,725 @@
+<import-file-dialog>
+  <div class="dlg-bg animated">
+    <div name="file_insert_dialog" ref="file_insert_dialog" class="dlg-window file-dialog animated">
+      <div class="dlg-head">
+        <span class="dlg-title">
+          <grip type="grip-horizontal"></grip>
+          <span>{ title }</span>
+        </span>
+        <span onclick={ close }>
+          <svg class="icon"><use xlink:href="/icons/icons.svg#icon-close"></use></svg>
+        </span>
+      </div>
+      <div class="dlg-body">
+        <input type="file" class="fileinput" name="inputChooseFile" ref="inputChooseFile" style="display:none">
+        <div name="preview_box" class="file-dropbox csv-dropbox" if={ isPreviewFile }>
+          <table>
+            <thead>
+              <tr>
+                <th each={ label in labels } if={ label.field_name !='lastUpdate' }>
+                  {label.field_label}
+                </th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody id="importTableBody">
+              <tr each={ row in fileData }>
+                <td each={ value, name in row }>{getName(value,name)}</td>
+                <td data-id={delBlank(row[keyName])}>{ fileState }</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div name="drop_box" ref="drop_box" class="file-dropbox" if={ !isPreviewFile }>
+          <!-- <div>请将文件拖放到这里...</div>
+          <span>或</span> -->
+          <div>
+            <soan class="choose-file" op-name="choose-file" onclick={ chooseFile }>请选择文件...</soan>
+          </div>
+        </div>
+      </div>
+      <div class="dlg-foot">
+        <button id="btnImport" class="btn-sure" ref="btnImport" op-name="save-update" onclick={ importData } if={ isModified }>导入</button>
+        <button id="btnDelete" class="btn-cancel" ref="btnDelete" op-name="delete-from-remote" onclick={ deleteFile } if={ isPreviewFile }>删除</button>
+        <button id="btnClose" class="button-cancel" ref="btnClose" op-name="close" onclick={ close }>取消</button>
+      </div>
+      <div class="waiting-panel" if={ show_tips }>
+        <span class="close-message" onclick={ closeTips }>X</span>
+        <span class="message">{ dlg_tips }</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import Papa from 'papaparse'
+    import XLSX from 'xlsx'
+    import {composeUpdateDBReq, trim, objKeySort, judgeRepeat, show, editDetail, noTurnTxt} from '../js/utils/utils.js'
+
+    this.show_tips = false
+    this.def = opts.def
+    this.title = '批量添加 - ' + this.def.label
+    this.tableName = this.def.table
+    this.topicName = this.def.name
+    this.labels = opts.rows
+    this.keyName = this.def.fields.labels[this.def.keyIndex]
+    this.keyId = this.def.fields.names[this.def.keyIndex]
+    this.selectedFile = null
+    this.isPreviewFile = false
+    this.isModified = false
+    this.fileData = null
+    this.cardsData = null
+    this.total = 0
+    this.countDone = 0
+    this.countOK = 0
+    this.countFail = 0
+    this.blockIndex = []
+    this.staffTip = []
+    this.cardTip = []
+    this.fileState ='未导入'
+    this.on('mount', () => {
+      show(this.root)
+      // riot 会执行 preventDefault 自动把事件注销，无法使用事件代理 this.file_panel.addEventListener('click', this.eventHandler)
+      this.refs.inputChooseFile.addEventListener('change', this.fileChosen)
+
+      this.initDropBox()
+      window.setDialogDraggable(this.root)
+
+      // this.setupDraggable()
+      // this.resetPosition()
+      this.registerGlobalEventHandlers()
+    })
+
+    this.on('unmount', () => {
+      this.unregisterGlobalEventHandlers()
+    })
+
+    this.on('updated', () => {
+      this.tbody = this.root.querySelector('#importTableBody')
+    })
+
+    this.closeTips = (evt) => {
+      this.show_tips = false
+      // this.update()
+    }
+
+    this.delBlank = (key) => {
+      if (['coalface_id','drivingface_id'].includes(this.keyId)) {
+        return this.getWorkName(key,this.keyId)
+      } else {
+        return key && trim(key.toString())
+      }
+    }
+
+    this.registerGlobalEventHandlers = () => {
+      xbus.on('META-UPDATE-DB-RES', (res) => {
+        // this.tbody = this.root.querySelector('#importTableBody')
+        let keyID = res.data.id
+        if (typeof keyID === 'string') keyID = keyID.slice(1, keyID.length - 1)
+        let cell = this.tbody.querySelector(`[data-id="${keyID}"]`)
+        let state = ''
+        this.countDone++
+        if (res.code === 0) {
+          // console.log(keyID)
+          this.countOK++
+          if (cell) cell.style = 'color: green'
+          state = '成功'
+          this.fileState = '已导入'
+        } else {
+          this.countFail++
+          if (cell) cell.style = 'color: red'
+          state = '失败'
+          console.log('导入失败：' + res.msg)
+        }
+
+        if (cell) cell.innerHTML = state
+
+        if (this.countDone >= this.total) {
+          this.countDone = 0
+          this.refs['btnImport'].style = 'display: none'
+          this.refs['btnDelete'].style = 'display: none'
+          this.refs['btnClose'].innerText = '关闭'
+          this.setButtonsDisabled(false, 'import')
+        }
+      })
+    }
+
+    this.unregisterGlobalEventHandlers = () => {
+      xbus.off('META-UPDATE-DB-RES')
+    }
+
+    this.close = () => {
+      this.unmount(true)
+    }
+
+    // this.setupDraggable = () => {
+    //   let dragHandler = this.refs.dialog_title
+    //   let dragTarget = this.refs.file_insert_dialog
+    //   window.setDraggable({
+    //     target: dragTarget,
+    //     handle: dragHandler
+    //   })
+    // }
+
+    this.chooseFile = (evt) => {
+      this.refs.inputChooseFile.click()
+    }
+
+    this.fileChosen = (evt) => {
+      let target = evt.currentTarget
+      let file = target.files[0]
+      let name = file.name
+      name = name.split('.')
+      let fileType = name[name.length-1]
+      if (fileType === 'csv') {
+        this.fileChosenCsv(evt)
+      } else {
+        this.fileChosenExcel(file)
+      }
+    }
+
+    this.fileChosenExcel = (file) => {
+      let reader = new FileReader()
+      let self = this
+      reader.onload = function (e) {
+        let data = e.target.result
+        let wb = XLSX.read(data, {
+            type: 'binary'
+        })
+        let values = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]])
+        self.previewData(values)
+        
+      }
+      reader.readAsBinaryString(file)
+    }
+
+    this.fileChosenCsv = (event) => {
+      let files = event.target.files || event.dataTransfer.files
+      this.selectedFile = files[0]
+
+      if (this.selectedFile) {
+        let self = this
+        Papa.parse(this.selectedFile, {
+          header: true,
+          complete: function (results) {
+            let tooFewFieldIndex = []
+            let errors = results.errors
+            for (let item of errors) {
+              if (item.code === 'TooFewFields') {
+                tooFewFieldIndex.push(item.row)
+              }
+            }
+            let data = []
+            for (let i = 0; i < results.data.length; i++) {
+              if (!tooFewFieldIndex.includes(i)) {
+                data.push(results.data[i])
+              }
+            }
+            self.previewData(data)
+          },
+          encoding: 'GB2312'
+        })
+      }
+    }
+
+    // 暂不分页预览，仅支持 < 1000 条数据的导入
+    this.previewData = (msg) => {
+      if(this.tableName === 'dat_staff_extend' && msg[0] && msg[0].hasOwnProperty('姓名')){
+        let cards = []
+        msg = msg.map(item =>{
+          let staffeArr = xdata.metaStore.data.staff_extend.get(Number(item['员工编号']))
+          let staffeObj = {}
+          for (let i in staffeArr) {
+            let name = this.def.fields.labels[this.def.fields.names.indexOf(i)]
+            if(item.hasOwnProperty(name)){
+              let value = item[name]
+              if (name === '卡号') {
+                let ident = 0
+                if (`${item[name]}`.length <= 10) {
+                  value = `001${item[name].toString().padStart(10, 0)}`
+                  ident = item[name]
+                } else {
+                  ident = Number(item[name].toString().substring(3))
+                }
+                cards.push({
+                  'card_id': value,
+                  'ident': ident
+                })
+              }
+              staffeObj[name] = value
+            }else{
+              staffeObj[name] = staffeArr[i]
+            }
+          }
+          this.cardsData = cards
+          return staffeObj
+        })
+      }
+      let newlabels = this.labels.map(item =>{
+        return item.field_label
+      })
+
+      this.fileData = this.getFileData(msg, newlabels)
+      this.checkName(this.tableName)
+      this.isPreviewFile = true
+      this.isModified = true
+
+      this.update()
+    }
+
+    this.deleteFile = (evt) => {
+      // Here, must clean the file input (set the value to be null),
+      // otherwise, the input's ' 'change' event will NOT triggered for choosing the same file
+      this.selectedFile = null
+      this.refs.inputChooseFile.value = null
+
+      // clear local preview
+      this.isPreviewFile = false
+      this.isModified = false
+      this.staffTip = []
+      this.cardTip = []
+      // this.update()
+    }
+
+    this.showTips = (evt) => {
+      if (this.isRepeat) {
+        if (this.staffTip.length > 0 || this.cardTip.length > 0) {
+          let tips = ''
+          if (this.staffTip.length > 0) tips += `员工编号为${this.staffTip.join(',')}的已在系统中注册，`
+          if (this.cardTip.length > 0) tips += `卡号为${this.cardTip.join(',')}的卡已被绑定，`
+          tips += '是否继续批量导入操作？'
+          let self = this
+          if (this.activePanel) this.activePanel.unmount(true)
+          this.activePanel = riot.mount('call-leave', { 
+            name: 'doImportData',
+            currentTag: self,
+            content: tips,
+            evt: evt
+          })[0]
+        } else {
+          return window.hintip.open({
+            value: 'failure',
+            tip: `存在重复${this.tips}！`
+          })
+        }
+      }else {
+        this.doImportData(evt)
+      }
+    }
+
+    this.judgeCard = (keyValue, cardID) => {
+      let objName = /staff/.test(this.tableName) ? 'staff_extend' : 'vehicle_extend'
+      let objs = xdata.metaStore.data[objName]
+      let obj = objs && objs.get(Number(keyValue))
+      let objCardID = obj && obj.card_id
+      if (objCardID && Number(objCardID) == Number(cardID)) return 0
+      return 1
+    }
+
+    this.illegalTips = (tips) => {
+      window.hintip.open({
+        value: 'failure',
+        tip: tips
+      })
+    }
+
+    this.judgeKeyValue = (fieldValue) => {
+      let tablename = this.tableName.slice(4)
+      let objects = xdata.metaStore.data[tablename]
+      objects = !objects ? xdata.metaStore.data[`${/staff/.test(this.def.name) ? 'staff' : 'vehicle'}_extend`] : objects
+      fieldValue = parseInt(fieldValue, 10)
+      if (objects.get(fieldValue)) return 'UPDATE'
+      return 'INSERT'
+    }
+
+    // 补全默认数据
+    this.completDefaultData = (fields, values) => {
+      // if (this.tableName === 'his_leader_arrange') {
+      //   fields += ',user_id'
+      //   values += ',"' + xdata.userName + '"'
+      // } else 
+      if (this.tableName === 'rt_person_forbid_down_mine') {
+        if (!fields.includes('start_time')) {
+          fields += ',start_time'
+          values += `,'${new Date().format('yyyy-MM-ddThh:mm:ss')}'`
+        }
+        if (!fields.includes('end_time')) {
+          fields += ',end_time'
+          values += `,'${new Date().getFullYear() + 1}-${new Date().format('MM-dd hh:mm:ss')}'`
+        }
+        if (!fields.includes('oper_time')) {
+          fields += ',oper_time'
+          values += `,'${new Date().format('yyyy-MM-ddThh:mm:ss')}'`
+        }
+        if (!fields.includes('oper_user')) {
+          fields += ',oper_user'
+          values += `,'${xdata.userName}'`
+        }
+      }
+      return {
+        fields: fields,
+        values: values
+      }
+    }
+
+    this.doImportData = (evt) => {
+      let rows = this.fileData
+      this.total = rows.length
+      // this.countDone = 0
+      this.countOK = 0
+      this.countFail = 0
+
+      // setup the definition
+      if (this.topicName.includes('/')) {
+        let def = this.def
+        let fields = def.fields
+        let fnames = fields.names
+        let flabels = fields.labels
+        let ftypes = fields.types
+        let fnulls = fields.enableNull
+        let fieldCount = fnames.length
+        for (let i = 0; i < this.total; i++) {
+          let sqlMsg = {}
+          let sql = null
+          let keyValue = null
+          let cardID = null
+          let notifyCard = null // 通知采集卡号
+          let detail = ''
+          this.topicName.split('/').forEach(item => {
+            let fields = ''
+            let values = ''
+            let row = rows[i]
+            let cardReq = null
+            for (let j = 0; j < fieldCount; j++) {
+              let fieldName = fnames[j]
+              let fieldLabel = flabels[fnames.indexOf(fieldName)]
+              let fieldNull = fnulls[fnames.indexOf(fieldName)]
+              let fieldValue = row[fieldLabel]
+              let textValue = fieldValue
+              if (fieldName === 'card_id') {
+                fieldValue = fieldValue.toString()
+                let ident = 0
+                let fieldTypeId = 1 // 默认人员
+                let title = this.topicName === 'vehicle/vehicle_extend' ? '车辆' : '人员'
+                if (!fieldValue && !fieldNull) return this.illegalTips(`${title}编号为${row[`${title}编号`]}的${fieldLabel}错误`)
+
+                if (this.topicName === 'vehicle/vehicle_extend') {
+                  fieldValue = fieldValue.length <= 10 ? `002${fieldValue.toString().padStart(10, 0)}` : `${fieldValue.toString().padStart(13, 0)}`
+                  ident = Number(fieldValue.toString().substring(3))
+                  fieldTypeId = 2
+                } else {
+                  fieldValue = fieldValue.length <= 10 ? `001${fieldValue.toString().padStart(10, 0)}` : `${fieldValue.toString().padStart(13, 0)}`
+                  ident = fieldValue.substring(3)
+                }
+                let cards = xdata.metaStore.data.card
+                if (!cards || !cards.get(fieldValue)) {
+                  cardReq = `REPLACE into dat_card (card_id, card_type_id, ident, state_id) VALUES (${fieldValue}, ${fieldTypeId}, ${ident}, 0)`
+                  sqlMsg['card_sql'] = cardReq
+                  notifyCard = fieldValue
+                }
+                cardID = fieldValue
+              } else if (fieldName === 'lampNo' && fieldValue) {
+                let test = /^\d{2}\-\d{3}$/.test(fieldValue)
+                if (!test) return this.illegalTips(`员工编号为${row['员工编号']}的灯架号格式错误`)         
+              }
+              fieldValue = this.formatFieldValue(ftypes[j], fieldValue, fieldName)
+
+              if (fieldName === 'vehicle_type_id' && !fieldValue) return this.illegalTips(`${row['类型']}类型不存在`)
+              if(!fieldValue && row['员工编号'] && !fieldNull) return this.illegalTips(`员工编号为${row['员工编号']}的${fieldLabel}错误`)
+
+              if (xdata.metaStore.defs[item].fields.names.includes(fieldName) && (fieldValue || fieldValue === 0)) {
+                if (j === 0) {
+                  keyValue = fieldValue
+                } else {
+                  fields += ','
+                  values += ','
+                }
+                fields += fieldName
+                values += fieldValue
+              }
+              detail = editDetail(fieldName, textValue, detail, item, `${item}_extend`)
+            }
+            if (item === 'staff') {
+              fields += ',sex_id'
+              values += `,${1}`
+              let staffID = row['员工编号'] && Number(row['员工编号'])
+              let staff = xdata.metaStore.data.staff && xdata.metaStore.data.staff.get(staffID)
+              if (staff) {
+                let pic = staff.pic
+                fields += ',pic'
+                values += `,'${pic}'`
+              }
+            }
+
+            if (item === 'staff' || item === 'staff_extend') {
+              fields += ',user_id'
+              values += `,'${xdata.userName}'`
+            }
+
+            sql = `REPLACE into dat_${item} (${fields}) VALUES(${values})`
+            // console.log('人车导入sql-',sql)
+            sqlMsg[`${item}`] = sql
+          })
+          let opType = this.judgeKeyValue(keyValue)
+          let req = composeUpdateDBReq(opType, `complex_data_${/vehicle/.test(this.def.name) ? 'vehicle' : 'staff'}`, keyValue, sqlMsg)
+          req.data['notify'] = `${keyValue};${cardID}`
+          req.data['notifyCard'] = notifyCard
+          req.data['detail'] = detail
+          req.data['user_id'] = xdata.userName
+          // let state = this.judgeCard(keyValue, cardID)
+          // req['state'] = state
+          req['import'] = 'importfile'
+          if (keyValue && cardID) {
+            xbus.trigger('META-UPDATE-DB', {
+              req: req
+            })
+          }
+        }
+      } else {
+        let def = this.def
+        let fields = def.fields
+        let fnames = fields.names
+        let flabels = fields.labels
+        let ftypes = fields.types
+        let fnulls = fields.enableNull
+        let fieldCount = fnames.length
+        let cardkey = null
+        let opType = 'INSERT'
+
+        for (let i = 0; i < this.total; i++) {
+          let fields = ''
+          let values = ''
+          let keyValue = null, notify = null
+          let row = rows[i]
+
+          for (let j = 0; j < fieldCount; j++) {  // 不包括最后一列：lastUpdate
+            let fieldName = fnames[j]
+            let fieldLabel = flabels[fnames.indexOf(fieldName)]
+            let fieldNull = fnulls[fnames.indexOf(fieldName)]
+            let fieldValue = row[fieldLabel]
+            if (!fieldValue && fieldValue !== 0) fieldValue = row[fieldName]
+            fieldValue = this.formatFieldValue(ftypes[j], fieldValue, fieldName)
+            if (fieldName === 'shift_type_id' && this.tableName === 'his_leader_arrange') continue
+            if (this.tableName === 'dat_staff_extend') {
+              if (fieldName === 'card_id') {
+                cardkey = fieldValue.toString().padStart(13, 0)
+              }
+            } else if (this.tableName === 'rt_person_forbid_down_mine') {
+              if (fieldName === 'staff_id') notify = fieldValue
+              if (['name','dept_id'].includes(fieldName)) continue
+            } else if (this.tableName === 'tt_inspection_route_planning')  {
+              if (fieldName === 'staff_id') notify = fieldValue
+            }
+            if (fieldValue || fieldValue === 0) {
+              if (j === 0) {
+                keyValue = fieldValue
+              } else {
+                fields += ','
+                values += ','
+              }
+              fields += fieldName
+              values += fieldValue
+            } 
+          }
+          opType = this.judgeKeyValue(keyValue)
+          let judgeCompletDefaultData = this.completDefaultData(fields, values)
+          fields = judgeCompletDefaultData.fields
+          values = judgeCompletDefaultData.values
+          let sql = `REPLACE into ${this.tableName} (${fields}) VALUES(${values})`
+          // console.log('普通导入',sql)
+          let req = composeUpdateDBReq(opType, this.topicName, keyValue, sql)
+          if (this.tableName === 'dat_staff_extend') req.data['notify'] = `${keyValue};${cardkey}`
+          if (['rt_person_forbid_down_mine', 'tt_inspection_route_planning'].includes(this.tableName)) req.data['notify'] = notify
+          req['import'] = 'importfile'
+          xbus.trigger('META-UPDATE-DB', {
+            req: req
+          })
+        }
+        if (this.cardsData) {
+          for (let i = 0; i < this.cardsData.length; i++) {
+            let card = this.cardsData[i]
+            let keyValue = card['card_id']
+            let cards = xdata.metaStore.data.card
+            if (!cards || !cards.get(keyValue)) {
+              let sql = `REPLACE into dat_card (card_id, card_type_id, ident, state_id) VALUES (${keyValue}, 1, ${card['ident']}, 0)`
+              let req = composeUpdateDBReq('INSERT', 'card', keyValue, sql)
+              console.log('card_sql', sql)
+              xbus.trigger('META-UPDATE-DB', {
+                req: req
+              })
+            }
+          }
+          this.cardsData = null
+        }
+      }
+      
+      evt.preventUpdate = true
+    }
+
+    this.importData = (evt) => {
+      let self = this
+      this.setButtonsDisabled(false)
+      this.showTips(evt)
+    }
+
+    this.formatFieldValue = (type, value, name) => {
+      let ret = null
+      let row
+      switch (type) {
+        case 'SELECT':
+          let isnum = !isNaN(value)
+          if (/_id$/.test(name) && !isnum) {
+            let tablename = name.replace('_id', '')
+            let table = xdata.metaStore.data[tablename]
+            if (['coalface_id','drivingface_id'].includes(name)) {
+              ret = +this.getWorkName(value,name)
+            } else if (name === 'sanlv_standart_id') {
+              ret = +noTurnTxt(this.topicName, name, value, 'key')
+            } else {
+              row = table && Array.from(table.values()).filter(item => item.name == value || item.detail == value)[0]
+              ret = row && +row[name]
+            } 
+          } else if (name === 'dept_id_ck') {
+            let table = xdata.isCheck === 1 ? xdata.metaStore.data['dept'] : xdata.metaStore.data['dept_ck']
+            let row = table && Array.from(table.values()).filter(item => item.name == value || item.detail == value)[0]
+            ret = row && +row['dept_id']
+          } else {
+            ret = +noTurnTxt(this.topicName, name, value, 'key')
+            // ret = +value
+          }
+          break
+        case 'NUMBER':
+          if (name === 'staff_id' && isNaN(+value)) {
+            let tablename = name.replace('_id', '')
+            let table = xdata.metaStore.data[tablename]
+            let row = table && Array.from(table.values()).filter(item => item.name == value || item.detail == value)[0]
+            ret = row && +row[name]
+          } else {
+            ret = +value // Number
+          }
+          break
+        default:
+          ret = value ? `"${value}"` : value // String
+          break
+      }
+
+      return ret
+    }
+
+    this.judgeStaffRept = (staff, card) => {
+      let staffs = xdata.metaStore.data.staff
+      let extend = xdata.metaStore.data.staff_extend
+      this.fileData && this.fileData.forEach(data => {
+        let staffID = data[staff]
+        let card_id = data[card]
+        if (staffID && card_id) {
+          let cardID = data[card] && data[card].toString()
+          if (cardID.length < 10) cardID = `001${cardID.padStart(10, 0)}`
+          if (cardID.length >= 11 && cardID.length <= 12) cardID = `${cardID.padStart(13, 0)}`
+          if (staffs && staffs.get(staffID)) this.staffTip.push(staffID)
+          if (xdata.metaStore.getCardBindObjectInfo(cardID)) this.cardTip.push(card_id)
+        }
+      })
+      if (this.staffTip.length > 0 || this.cardTip.length > 0) return true
+    }
+
+    this.checkName = (tableName) =>{
+      if (/^dat_/ig.test(tableName)) {
+        let def = this.def
+        let labels = this.def.fields.labels
+        let names = this.def.fields.names
+        if (/^dat_staff/.test(tableName)) {
+          let staff = labels[names.indexOf('staff_id')]
+          let card = labels[names.indexOf('card_id')]
+          this.isRepeat = this.judgeStaffRept(staff, card)
+        } else {
+          let name = labels[names.indexOf('name')]
+          if (!name) return
+          let storeName = def.name
+          let fileDataName = this.fileData.map(item => item[name])
+          let table = null
+          this.isRepeat = judgeRepeat(fileDataName)
+          if(storeName === 'vehicle/vehicle_extend'){
+            table = Array.from(xdata.metaStore.vehicles.values())
+          }else{
+            table = Array.from(xdata.metaStore.data[storeName].values())
+          }
+          !this.isRepeat && fileDataName.length > 0 && fileDataName.forEach(it => {
+            this.isRepeat = table && Array.from(table.values()).some(item => item.name === it)
+          })
+          this.tips = name
+        }
+      }
+    }
+
+    this.setButtonsDisabled = (flag, type) => {
+      let foot = this.root.querySelector('.dlg-foot')
+      let buttons = foot.querySelectorAll('button')
+      for (let i = 0; i < buttons.length; i++) {
+        buttons[i].disabled = flag
+      }
+      if (type) {
+        console.log(type)
+        this.tableName === 'rt_person_forbid_down_mine' ? this.opts.ptag.accurateSearch() : xbus.trigger('PULL-IMPORT-FILE', this.tableName)
+      }
+    }
+
+    this.initDropBox = () => {
+      this.refs.drop_box.addEventListener('dragenter', this.dragenter, false)
+      this.refs.drop_box.addEventListener('dragover', this.dragover, false)
+      this.refs.drop_box.addEventListener('drop', this.drop, false)
+    }
+
+    this.disableDefaultAction = (evt) => {
+      evt.stopPropagation()
+      evt.preventDefault()
+    }
+
+    this.dragenter = (evt) => {
+      this.disableDefaultAction(evt)
+    }
+
+    this.dragover = (evt) => {
+      this.disableDefaultAction(evt)
+    }
+
+    this.drop = (evt) => {
+      this.disableDefaultAction(evt)
+      this.fileChosen(evt)
+    }
+
+    this.getName = (value,name) => {
+      let def = this.def
+      let fields = def.fields
+      let fnames = fields.names
+      let flabels = fields.labels
+      let ftypes = fields.types
+      let fieldName = fnames[flabels.indexOf(name)]
+      let fieldtype = ftypes[flabels.indexOf(name)]
+      if(fieldName !== 'staff_id' && name != this.keyName){
+        value = xdata.metaStore.formatField(fieldName,value,fieldtype)
+      }
+      return value
+    }
+
+    this.getFileData = (msg, newlabels) => {
+      let fileData = []
+      for (let i = 0; i < msg.length; i++) {
+        let objValue = objKeySort(msg[i], newlabels)
+        if(objValue) fileData.push(objValue)
+      }
+      return fileData
+    }
+    
+    this.getWorkName = (value,name) =>{
+      let row =  null
+      let face_type = name === 'coalface_id' ? 1 : 2
+      let faces = Array.from(xdata.metaStore.data.work_face.values())
+      for (let i = 0; i < faces.length; i++) {
+        if(faces[i].work_face_type === face_type){
+          row = faces && faces.filter(item => item.name == value)[0]
+        }
+      }
+      return row && row['work_face_id']
+    }
+  </script>
+</import-file-dialog>

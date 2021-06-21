@@ -1,0 +1,504 @@
+@import defs
+symbol-rightslidebar
+    .pagination
+      display: none
+    #showDetail
+        height: 31.5rem
+    .dlg-bg
+      height: 95%
+      //max-height: 660px;
+      position: absolute
+      right: 20px
+      top: 13px
+      max-width: 19rem
+      background: #242424
+      z-index: 10
+      //opacity: 0.7
+      border: 1px solid #666
+      @media screen and (max-width: $width-medium)
+        position: fixed
+        top: 6.5rem
+        max-width: 22.5rem
+        height: 0
+        border: 0
+        left: 0.5rem
+        
+
+      .span
+        display: block
+        position: absolute
+        width: 95%
+        height: 2px
+        background: #1f1f1f
+        &:nth-child(1)
+            top: -2px
+            left: 2.5%
+        &:nth-child(2)
+            top: 100%
+            left: 2.5%
+        &:nth-child(3)
+            height: 98%
+            width: 2px
+            top: 1%
+            left: -2px
+        &:nth-child(4)
+            height: 98%
+            width: 2px
+            top: 1%
+            left: 100%
+
+      .dlg-window
+        width: 100% !important
+        height: 100%
+        left: 0 !important
+        top: 0 !important
+
+        .bar-title
+            background: #282828
+            width: 100%
+            height: 8rem
+            padding-bottom: 1rem
+            display: flex
+            justify-content: space-around
+            align-items: center
+            @media screen and (max-width: $width-medium)
+                position: fixed
+                width: 3rem
+                height: 3rem
+                bottom: 3.5rem
+                background: none
+                left: 2rem
+            span
+                font-size: 1.125rem
+                width: 90px
+                height: 36px
+                float: left
+                text-align: center
+                line-height: 40px
+                color: #ccc
+                &.activetitle
+                    background: #27ca41
+                    color: #fff
+                .icon
+                    fill: #fff
+            .tittle-container
+                width: 25%
+                display: flex
+                flex-flow: column
+                align-items: center
+                @media screen and (max-width: $width-medium)
+                    #vehicle
+                        background: #009fff
+                .activeTag
+                    background: #009fff
+                    width: 36px
+                    border-radius: 100%
+                .disActiveTag
+                    background: #696969
+                    width: 36px
+                    border-radius: 100%
+        .bar-title-two
+            display: block
+            .tittle-container
+                margin-top: 17px
+        .dlg-body
+            .tab-bar
+                .alarm-detail
+                    display: flex
+
+                    .alarm-panel
+                        width: 100%
+                        height: 100%
+                        background: #242424
+
+                        .alarm-op-title
+                            color: #e1e228 !important
+                .tab-container
+                    display: flex
+                    flex-direction: column
+                    li
+                        color: #666
+                        height: 100%
+                        width: 100%
+                        justify-content: flex-start
+                        display: flex
+                        flex-direction: column
+                        padding: 0
+                        .barTitle
+                            height: 26px
+                            width: 100%
+                            background: #f1f1f1
+                            line-height: 26px
+                            padding-left: 20px
+                            &.active
+                                background: #cdcdcd
+                            &:hover
+                                background: #cdcdcd
+                        .content
+                            width: 100%
+                            display: none
+                            &.active
+                                display: block
+                            .tips
+                                width: 100%
+                                background: #f1f1f1
+                        //&:nth-child(3)
+                            //display: none
+
+                .icon
+                  fill: #484848
+                  &.activated
+                    fill: #009fff
+                
+                //@font-face 
+                    //font-family: "iconfont"
+                    //src: url('../img/iconfont/iconfont.woff?t=1497330945400') format('woff')
+        
+                    
+                
+
+                .iconfont 
+                    font-family: "iconfont" !important
+                    font-size: 1rem
+                    font-style: normal
+                    -webkit-font-smoothing: antialiased
+                    -moz-osx-font-smoothing: grayscale
+                
+
+                .icon-earth:before 
+                     content: "\e628" 
+
+                .icon-location:before 
+                     content: "\e629" 
+
+
+            @media screen and (max-width: $width-medium)
+                background: none
+            #light-detail
+                .totleDetail
+                    background: #3A3A3A
+                    color: #E1E828
+                    text-align: center
+                    height: 3rem
+                    line-height: 3rem
+                .all
+                    background: #282828
+                    color: #fff
+                    text-align: right
+                    line-height: 30px
+                    cursor: pointer
+                    &:hover,&.active
+                        color: #009fff
+
+        .dlg-body
+            overflow-x: hidden
+            background: #282828
+            overflow-y: auto
+            height: 100%
+            .content-panel
+              span
+                white-space: nowrap
+              table
+                width: 100%
+                .readerdetail
+                    background: #242424
+                    tr
+                        td:nth-child(1)
+                            cursor: pointer
+
+
+                tbody,thead
+                    background: #282828 
+                    th,td
+                        min-width: 46px
+                    th:nth-child(3)
+                        width: 65px
+                    td:nth-child(4)
+                        width: 30px
+                    
+                    tr
+                        color: #fff 
+                        //background: rgba(36,36,36,1.8) 
+                        //display: flex
+                        //flex-direction: column
+                        background: #282828
+                        border: 0
+                        .abnormal
+                             color: #ff5454
+              
+                    
+                    td
+                    .content-detail
+                        display: inline-block
+                        float: left
+                        margin-left: 51px
+                        cursor: pointer
+                        
+                    .icon
+                        margin-right: 10px
+                        fill: #d3d3d3
+                        float: right
+                        &:hover
+                            fill: #a1daf4
+                        &.activated
+                            fill: #a1daf4
+                    
+
+            .tab-bar
+                .rebuild
+                    display: none
+                    position: relative
+                    p
+                      height: 35px
+                      padding: 8px 0px
+                      background: #e5e5e5
+                      margin-bottom: 8px
+                      .icon
+                         fill: #666
+                         margin-left: 13px
+                      span
+                         font-size: 13px
+                         color: #666
+                         margin-left: 4px
+                         display: inline-block
+                         height: 20px
+                         line-height: 20px
+                    table
+                        width: auto
+                        margin-right: 20px
+                        td:nth-child(1)
+                            padding-left: 20px
+                            width: 73px
+                        td:nth-child(2)
+                          padding: 3px 3px  
+                          input
+                                border: 1px solid #e5e5e5
+                                color: #666
+                    .Editsucess
+                        display: none
+                        position: absolute
+                        width: 100%
+                        height: 175px
+                        background: #fff
+                        top: 30px
+                        text-align: center
+                        //line-height: 175px
+                        font-size: .9rem
+                        color: #999
+                        padding-top: 16px
+
+                    .dlg-foot
+                        margin-left: 20px
+                        margin-right: 20px
+                        button
+                            width: 100px 
+                            min-width: 100px
+                            height: 30px 
+                    .bar-title
+                        span
+                            text-align: left
+                            padding-left: 20px
+                #device
+                   text-align: left
+                background: #fff
+                @media screen and (max-width: $width-medium)
+                    background: none
+                .detail
+                    min-width: 246px
+                    height: 100%
+                    background: #f1f1f1
+                    position: absolute
+                    top: 0
+                    //overflow-y: auto
+                    .content-list
+                        overflow: hidden
+                        //overflow-y: scroll
+                        max-height: 651px
+                    .div_icon
+                        height: 44px
+                        background: #e4e4e4
+                        margin-top: 12px
+                        width: 100%
+                       
+                        span
+                           line-height: 44px
+                           display: inline-block
+                           height: 44px
+                           float: left
+                           position: absolute
+                           left: 60px
+                           font-size: .8125rem
+                        .icon
+                            width: 32px
+                            height: 32px
+                            margin: 7px 0px 7px 20px
+                            fill: #ccc
+                            background: #f3f3f3
+                            padding: 5px
+                            border-radius: 100% 
+                            
+                            &.activated
+                                background: #27ca41
+                                fill: #fff
+
+                            
+                    .information
+                        font-size: .8125rem 
+                        float: left
+                        width: 123px
+
+                        .lableright
+                            display: block
+                            white-space: nowrap
+                            height: 40px
+                            line-height: 40px
+                            overflow: hidden
+                            text-overflow: ellipsis
+                            text-align: right
+                            padding-right: 20px
+                            cursor: pointer
+                    .infor
+                         p
+                            height: 40px
+                            line-height: 40px
+                            padding-left: 20px
+
+                    .back-title
+                        background: #484848
+                        height: 30px
+                        color: #ccc
+                        line-height: 30px
+                        font-size: .8125rem
+                        .icon
+                            height: 30px
+                            fill: #ccc
+                            float: left
+                            margin: 0 10px 0 20px
+
+
+
+                .title-bar
+                    height: 26px
+                    font-size: .8125rem
+                    background: #fff
+                    cursor: pointer
+                    .icon
+                        fill: #666
+                        margin-left: 13px
+                        margin-right: 10px
+                        line-height: 26px
+                        height: 26px
+                        float: left
+                    span 
+                       color: #666
+                       float: left
+                       height: 26px
+                       line-height: 26px
+                    &.active
+                        background: #cdcdcd
+
+               
+
+
+            .tips
+                display: block
+                font-size: .8125rem
+                text-align: center
+                line-height: 42px
+                background: #282828
+            .tab-container
+                display: block
+
+    .light-call
+        position: absolute
+        width: 360px
+        top: 300px
+        left: 500px
+        z-index: 2
+        .lcTitle
+            width: 100%
+            height: 40px
+            line-height: 40px
+            background: #000
+            padding-left: 2rem
+        .detail
+            list-style: none
+            background: #fff
+            color: #333
+            padding-left: 1rem
+            padding-bottom: 1rem
+            .btn
+                display: flex
+                justify-content: center
+                button
+                    &:hover,&.active
+                        background: #009fff
+                        color: #fff
+
+            li
+                height: 40px
+                line-height: 40px
+                .lightName
+                    margin-left: 1rem
+                .light-state
+                    margin-left: 1rem
+                    .allTrafficLight
+                        width: 4rem
+                        height: 40px
+                        border-radius: 0
+                        text-align: center
+                        cursor: pointer
+                        &:hover,&.active
+                            background: #009fff
+                            color: #fff
+            .light-color
+                margin-left: 1rem
+                span
+                    margin-right: 0.5rem
+                    cursor: pointer
+                    opacity: 0.4
+                    &.active
+                        opacity: 1 
+                
+tr
+    background: #282828 
+    color: #fff
+
+#symbol-table,.light-color,.light-state
+    span
+        display: inline-block
+        width: 1rem
+        height: 1rem
+        border-radius: 100px
+    .breakdown
+        background: gray
+    .redsolid
+        background: red
+    .redhollow
+        border: 4px solid red
+    .redfork
+        .icon
+            margin-right: 0
+            fill: red
+    .greenup,.greendown,.greenleft,.greenright
+        color: #01B81E
+        font-weight: bolder
+        //border: 2px solid #01B81E
+    .redblink
+        background: red
+        animation: twinkling 1s infinite linear
+        &.active
+            animation: activeTwink 1s infinite linear
+    .greenblink
+        background: green
+        animation: twinkling 1s infinite linear
+        &.active
+            animation: activeTwink 1s infinite linear
+    @keyframes twinkling 
+        0%{ opacity: 0 }
+        50%{ opacity: 0.2}
+        100%{ opacity: 0.4 }
+    @keyframes activeTwink
+        0%{ opacity: 0 }
+        50%{ opacity: 0.5}
+        100%{ opacity: 1 }

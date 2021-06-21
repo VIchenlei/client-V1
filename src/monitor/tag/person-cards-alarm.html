@@ -1,0 +1,45 @@
+<person-cards-alarm class="dlg-window alarm-list-panel person-alarm hide animated">
+  <div data-is="dialog-head" classname="dlg-head-alarm" title="一人带多卡"></div>
+  <div data-is="person-alarm-list" if={alarms} class="person-alarm-list"></div>
+  <div data-is="blank-message" message="当前没有一人带多卡情况。" class="blank-message" if={ !alarms }></div>
+  <script>
+    import './person-alarm-list.html'
+    this.isShowing = false
+    let defaultMapID = parseInt(xdata.metaStore.defaultMapID, 10)
+
+    this.updateList = () => {
+      this.alarmsList = xdata.alarmStore.personCardsMapAlarm.get(defaultMapID) ? xdata.alarmStore.personCardsMapAlarm.get(defaultMapID).size : 0
+      this.alarms = this.alarmsList ? true : false
+      this.update()
+      this.tags['person-alarm-list'] && this.tags['person-alarm-list'].updateList(xdata.alarmStore.personCardsMapAlarm.get(defaultMapID))
+    }
+
+    this.show = () => {
+      if (!this.isShowing) {
+        this.isShowing = true
+        let ele = this.root.classList
+        ele.remove('hide')
+        ele.remove('slideOutUp')
+        ele.add('slideInDown')
+      }
+    }
+
+    xbus.on('ALARM-LIST-CHANGED', () => {
+      if (this.isShowing) {
+        let alarms = xdata.alarmStore.personCardsMapAlarm.get(defaultMapID) ? xdata.alarmStore.personCardsMapAlarm.get(defaultMapID).size : 0
+        if (alarms !== this.alarmsList) {
+          this.updateList()
+        }
+      }
+    })
+
+    xbus.on('PERSON-CARDS-ALARM-SHOW', () => {
+      this.updateList()
+      this.show()
+    })
+
+    this.close = (evt) => {
+      this.isShowing = false
+    }
+  </script>
+</person-cards-alarm>

@@ -1,0 +1,78 @@
+@import '../../sass/defs'
+
+.shortcut-operation
+  @include align-center-middle
+  position: relative
+  border-right: 1px solid $head-bg-light
+
+  // @media screen and (max-width: $width-medium)
+  //   display: none
+  @media screen and (max-width: $width-medium) and (max-aspect-ratio: 10/8)
+    display: none
+  @media screen and (max-width: $width-medium) and (min-aspect-ratio: 10/8) //(orientation: landscape)
+    display: flex
+    justify-content: flex-end
+    border-right: none
+
+  .shortcut-item
+    margin: 0 0.3rem
+    display: flex
+
+    .icon
+      @include wh(1.5rem,1.5rem)
+      border-radius: 50%
+      padding: .2rem
+      background-image: url('/img/icon.png')
+      background-size: 17.5625rem 20.75rem
+      &:hover
+        background: $color-white
+        background-image: url('/img/icon.png')
+        background-size: 17.5625rem 20.75rem
+    .icon-warning
+      background-position: 0rem -0.0625rem
+      &:hover
+        background-position: -0.125rem -1.375rem
+    .icon-cards
+      background-position: -1.625rem -0.0625rem
+      &:hover
+        background-position: -1.625rem -1.375rem
+    .icon-location-4
+      background-position: -3.125rem -0.0625rem
+      &:hover
+        background-position: -3.125rem -1.375rem
+    .icon-megaphone-1
+      background-position: -4.5625rem -0.0625rem
+      &:hover
+        background-position: -4.5625rem -1.375rem
+    .icon-stop-call
+      background-position: -6.0625rem -0.0625rem
+      &:hover
+        background-position: -6.0625rem -1.375rem
+    .icon-street-view
+      background-position: -7.3125rem -0.0625rem
+      &:hover
+        background-position: -7.3125rem -1.375rem
+    .icon-directions_run
+      background-position: -8.625rem -0.0625rem
+      &:hover
+        background-position: -8.625rem -1.375rem
+    .icon-staff-curve
+      background-position: -9.9375rem -0.0625rem
+      &:hover
+        background-position: -9.9375rem -1.375rem
+    .icon-geofault
+      background-position: -16.3125rem -0.0625rem
+      &:hover
+        background-position: -16.3125rem -1.375rem
+    .icon-about
+      background-position: -11.5625rem 0rem
+      &:hover
+        background-position: -11.5625rem -1.3125rem
+    .icon-rule
+      background-position: -13.125rem 0rem
+      &:hover
+        background-position: -13.125rem -1.3125rem
+  #fullScreen .icon
+      background-position: -14.625rem 0rem
+      &:hover
+        background-position: -14.625rem -1.3125rem

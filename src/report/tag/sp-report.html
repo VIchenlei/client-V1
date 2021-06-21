@@ -1,0 +1,69 @@
+<sp-report>
+  <aside data-is="side-bar" id="rept-menu" name="REPT" menus={reptMenu} class="sidebar"></aside>
+  <div data-is="rept-page" id="rept-canvas" class="report-canvas" roleID={roleID}></div>
+
+  <script>
+    import { clone } from '../../js/utils/utils.js'
+    import { searchchoose } from '../js/report_utils.js'
+    import reptMenu from '../../js/def/rept_menu.js'
+    import reptQuery from '../../js/def/rept_query.js'
+    import './rept-table.html'
+    import './rept-special.html'
+    import './rept-dept-month.html'
+    import './rugular-total.html'
+    import './rept-page.html'
+    import './rept-graph.html'
+    import './worktime-dept-shift.html'
+    import './efficiency-manage.html'
+    import './efficiency-overview.html'
+    import './efficiency-detail.html'
+    import './boot-eff.html'
+    import './worktime-eff.html'
+    import './rugular-eff.html'
+    // import './query-newexprs.html'
+    import './query-newexprs.html'
+    import '../../tags/side-bar.html'
+    import '../../tags/dialog-show.html'
+    import '../../tags/rept-print/rept-print.html'
+    
+    this.roleID = this.opts.roleID || xdata.roleID
+    this.reptMenu = this.roleID === 100 ? reptMenu.slice(0, 1) : reptMenu
+
+    xbus.on('REPT-SWITCH-MENU', (msg) => {
+      this.switchTopic(msg)
+    })
+
+    this.on('mount', () => {
+      this.roleID === 100 && this.switchTopic({menuname: 'person_special'})
+    })
+
+    /**
+     * @description: 接收REPT-SWITCH-MENU事件执行跳转函数
+     * @param {type} msg
+     * @return: 触发OPEN-TAB事件
+     */
+    this.switchTopic = (msg) => {
+      let reportDef = reptQuery[msg.menuname]
+      if (reportDef) {
+        let def = clone(reportDef)
+        let date = new Date()
+        let timeStamp = date.format('yyyyMMddhhmmss')
+        def.reptIndex = timeStamp
+        def.msg = msg.msg ? msg.msg : ''
+        if (def.msg) {
+          this.quick = def.msg
+          searchchoose(def)
+        }
+        if (msg.exprList) { // add the init exprList to def
+          if (def.exprList) {
+            def.exprList = def.exprList.concat(msg.exprList)
+          } else {
+            def.exprList = msg.exprList
+          }
+        }
+        this.tags['rept-page'] && this.tags['rept-page'].trigger('OPEN-TAB', def)
+        def = null
+      }
+    }
+  </script>
+</sp-report>

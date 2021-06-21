@@ -1,0 +1,457 @@
+<basic-message>
+  <div class="display-report-tag" if={ showDisPlay }></div>
+  <div class="title" onclick={ hideList }>
+    <span>{ title }</span>
+    <div>
+      <span class="hint--bottom-left icon" aria-label="批量删除" if={ name === 'staff' || name === 'vehicle'} onclick={ deleteChoose }>
+        <img src="/img/delete.png" alt="">
+      </span>
+      <!-- <span class="hint--bottom-left" aria-label="是否显示或上报" if={ xdata.roleID===1 } onclick = { showDisplayTag }>
+        <img src="/img/setting.png" alt="">
+      </span> -->
+      <span class="hint--bottom-left icon" aria-label="批量导入/出" if={ name !=='map' }>
+        <span onclick={ showChooseList }>
+          <img class="import" src="/img/import.png" alt="">
+          <!-- <svg class="icon black-icon"><use xlink:href="./icons/icons.svg#icon-import"></use></svg> -->
+        </span>
+        
+      </span>
+      <ul ref="importList" name="importList" class="hide">
+        <persononel-info data-msg={ info }></persononel-info>       
+      </ul>
+    </div>
+  </div>
+  <div class="basic-message" onclick={ hidelist }>
+    <div class="basic_left" onclick={ hidelist }>
+      <div data-is="basic-list" class="basic_list" name={ name }></div>
+    </div>
+    <div class="basic_right">
+      <div data-is="basic-msg" class="basic" name={ name } data={ parent }></div>
+      <div data-is="operation-msg" class="operation" name={ name } data={ parent }></div>
+      <div data-is="credentials-staffs" class="credentials" if={ credentials } data={ parent }></div>
+    </div>
+  </div>
+  <script>
+    import './basic-list.html'
+    import './basic-msg.html'
+    import './operation-msg.html'
+    import './credentials-table.html'
+    import './credentials-staffs.html'
+    import { childTag } from '../../js/def/child_tag_def.js'
+    import { allMt, anyMt } from '../../js/def/mt.js'
+    import { allMsg, anyMsg } from '../../js/def/all_msg_def.js'
+    import '../../tags/import-file-dialog.html'
+    import { getRows, trim, composeUpdateDBReq } from '../../js/utils/utils.js'
+    import '../../monitor/tag/call-leave.html'
+    import './display-report.html'
+    import '../../tags/personnel-info/personnel-info.html'
+    let self = this
+    const NAMEARR = ['staff', 'staff_extend', 'credentials_staff', 'vehicle', 'vehicle_extend', 'complex_data_staffs', 'complex_data_vehicles','staff_extend_ck']
+    const MTARR = ['staff_staff_extend', 'vehicle_vehicle_extend']
+    let titleMsg = {
+      staff: '人员基本信息',
+      vehicle: '车辆基本信息',
+      credentials_staff: '资格证信息'
+    }
+    this.showDisPlay = false
+
+    this.staffcardAll = (msg) => {//当前发卡人数
+      let cardAll 
+      let key 
+      switch (msg) {
+        case 'cardAll':
+          key = 'card_id'
+          cardAll = this.cardAll(key)
+          break;
+        case 'cardEnable':
+          key = 'state_id'
+          cardAll = this.cardAll(key)
+          break;
+      }      
+      return cardAll
+    }  
+
+    // 当前发卡人数提取公共循环 2019-05-20 14:28 chenl
+    this.cardAll = (key) =>{
+      let cardAll = 0
+      let staffAll = xdata.metaStore.data.staff && Array.from(xdata.metaStore.data.staff.values()).length
+      let staffArr = xdata.metaStore.data.staff && Array.from(xdata.metaStore.data.staff.values()) 
+      if (!staffAll) return cardAll  
+      for (let i = 0; i < staffAll; i++) {
+        let staff_key = key === 'card_id' ? staffArr[i][key] : staffArr[i][key] == 0
+        if(staff_key){
+          cardAll += 1
+        } 
+      }
+      return cardAll
+    }
+
+    this.on('mount', () => {
+      this.root.classList.remove('hide')
+      
+      // this.resetPosition()
+    })
+
+    this.showDisplayTag =() => {
+      this.showDisPlay = true
+      this.update()
+      riot.mount('div.display-report-tag','display-report',{name:this.name,parentTag:this})[0]
+    }
+    
+    this.change = (evt) => {
+      let target = evt.currentTarget
+      let choose = target.getAttribute('class')
+      let isCheck = xdata.isCheck === 1 ? true : false
+      if (choose === 'dat_credentials_staff') {
+        this.def = childTag[choose]
+      } else if(MTARR.includes(choose)){
+        this.def = isCheck ? anyMt[choose] : allMt[choose]
+      } else {
+        this.def = xdata.metaStore.defs[choose]
+      }
+      let rows = getRows(null, this.def, this.maxid)
+      let msg = this.composeImportDataMessage('IMPORT-DATA', rows)
+      this.showImportFileDialog(msg)
+      this.refs['importList'].classList.add('hide')
+    }
+
+    this.getAskFileSql = (name) => {
+      // let sqlString = name === 'staff' ? `select ds.staff_id, ds.name, ${xdata.isCheck === 1 ? 'd.dept_id_ck, ' : 'd.dept_id, d.dept_id_ck,'} d.worktype_id, d.occupation_id, d.lampNo, concat(ds.certification, '\t'), ds.blood, ds.birthday, d.card_id, ds.marry_id, ds.education_id, ds.telephone, ds.address from dat_staff ds left join dat_staff_extend d on d.staff_id = ds.staff_id where 1=1 {diffDepts};` : `select dv.vehicle_id, dv.name, dv.vehicle_type_id, d.card_id, d.dept_id, d.group_id, d.shift_type_id from dat_vehicle dv left join dat_vehicle_extend d on d.vehicle_id = dv.vehicle_id where 1=1 {diffDepts};`
+      let sqlString = null
+      if (name === 'credentials_staff') {
+        sqlString = `select dcs.staff_id as numberstaff, dcs.staff_id, dcs.credentials_id, dcs.credentials_number, dcs.get_credentials_time,dcs.expire_time,dcs.warn_id from dat_credentials_staff dcs left join dat_staff ds on ds.staff_id = dcs.staff_id left join dat_staff_extend d on d.staff_id = ds.staff_id where 1=1 and ds.staff_id is not null {diffDepts};`
+      } else {
+        sqlString = name === 'staff' ? `select ds.staff_id, ds.name, ${xdata.isCheck === 1 ? 'd.dept_id_ck, ' : 'd.dept_id, d.dept_id_ck,'} d.worktype_id, d.occupation_id, d.lampNo, concat(ds.certification, '\t'), ds.blood, ds.birthday, d.card_id, ds.marry_id, ds.education_id, ds.telephone, ds.address from dat_staff ds left join dat_staff_extend d on d.staff_id = ds.staff_id where 1=1 {diffDepts};` : `select dv.vehicle_id, dv.name, dv.vehicle_type_id, d.card_id, d.dept_id, d.group_id, d.shift_type_id from dat_vehicle dv left join dat_vehicle_extend d on d.vehicle_id = dv.vehicle_id where 1=1 {diffDepts};`
+      }
+      
+      if (xdata.depts) {
+        let diffDepts = ''
+        xdata.depts.forEach(dept => {
+          diffDepts += `or d.dept_id = ${dept} `
+        })
+        diffDepts = diffDepts.replace('or', '')
+        sqlString = sqlString.replace('{diffDepts}', `and (${diffDepts})`)
+      } else {
+        let searchDiff = ''
+        let searchbar = this.tags["basic-list"] && this.tags["basic-list"].searchbar
+        searchbar = searchbar && searchbar.root
+        if (searchbar) {
+          let staff = searchbar.querySelector('.search-box') && trim(searchbar.querySelector('.search-box').querySelector('#searchinput').value)
+          searchDiff += staff ? ` and ds.name = '${staff}'` : ''
+          let vehicle = searchbar.querySelector('.vehicle') && searchbar.querySelector('.vehicle').querySelector('#vehicle').value
+          searchDiff += vehicle ? ` and dv.name = '${vehicle}'` : ''
+          let deptName = searchbar.querySelector('.dept').querySelector('#dept').value && searchbar.querySelector('.dept').getAttribute('data-value')
+          searchDiff += deptName ? ` and d.dept_id = ${Number(deptName)}` : ''
+          let cardname = searchbar.querySelector('.card-number') && searchbar.querySelector('.card-number').value
+          searchDiff += cardname ? ` and d.card_id = ${Number(cardname)}` : ''
+          sqlString = sqlString.replace('{diffDepts}', searchDiff)
+        }
+        
+      }
+      // sqlString = diffDepts ? sqlString.replace('{diffDepts}', `and (${diffDepts})`) : sqlString
+      return sqlString
+    }
+
+    
+    this.askFile = (evt) => {
+      window.xhint.close()
+      window.xhint.showLoading()
+      let opName = evt.currentTarget.getAttribute('class')
+      let name = evt.currentTarget.getAttribute('name')
+      let sqlString = this.getAskFileSql(name)
+      console.log(sqlString)
+      let reptTime = new Date().getTime()
+      let title = titleMsg[name]
+      let isCheck = xdata.isCheck === 1 ? true : false
+      let msg = {
+        cmd: 'file',
+        exprList: [],
+		    name: name,
+		    labels: isCheck ? anyMsg[name].table.labels : allMsg[name].table.labels,
+		    title: title,
+		    namesInShort: isCheck ? anyMsg[name].table.names : allMsg[name].table.names,
+		    types: isCheck ? anyMsg[name].table.types : allMsg[name].table.types,
+		    fileType: opName,
+        reptIndex: reptTime,
+        sql: sqlString,
+        userName: xdata.userName
+      }
+		  xbus.trigger('REPT-FETCH-FILE', msg)
+		}
+
+    this.resetPosition = () => {
+      let dialog = this.refs.show_tips
+      let box = dialog.getBoundingClientRect()
+      dialog.style.left = `${(window.innerWidth - box.width) / 2} - 300 + px`
+      dialog.style.top = `${(window.innerHeight - box.height) / 2}px`
+      dialog.style.zIndex = 10
+    }
+
+    this.composeImportDataMessage = (cmd, rows) => {
+      return {
+        cmd: cmd,
+        def: this.def,  // field definition
+        // maxid: this.maxid,
+        rows: rows
+      }
+    }
+
+    this.showChooseList = (evt) => {
+      this.refs['importList'].classList.toggle('hide')
+    }
+
+    this.deleteChoose = (evt) => {
+      let self = this
+      this.deleteArr = []
+      this.selectList = this.tags['basic-list'] && this.tags['basic-list'].selectInputs
+      Array.from(this.selectList).forEach(e => {
+        this.deleteArr.push(e[0])
+      })
+      if (this.activePanel) {
+        this.activePanel.unmount(true)
+      }
+      this.activePanel = riot.mount('call-leave', {
+        name: 'deleteAll',
+        currentTag: self
+      })[0]
+    }
+
+    this.showImportFileDialog = (msg) => {
+      if (this.importFileDialog) {
+        this.importFileDialog.unmount(true)
+      }
+      this.importFileDialog = riot.mount('import-file-dialog', msg)[0]
+    }
+
+    this.handleDB = (name) => {
+      let self = this
+      this.curname = name
+      if (this.activePanel) {
+        this.activePanel.unmount(true)
+      }
+      this.activePanel = riot.mount('call-leave', {
+        name: 'dodelete',
+        currentTag: self
+      })[0]
+      // evt.stopPropagation()
+      // let target = evt.currentTarget
+      // let classname = target.getAttribute('class')
+    }
+
+    this.deleteMsg = () => {
+      this.tags['basic-msg'].doDelete(this.curname)
+      this.tags['operation-msg'].doDelete(this.curname)
+      if (this.credentials) {
+        this.tags['credentials-staffs'].doDelete(this.curname)
+      }
+      this.registerGlobalEventHandlers()
+    }
+
+    this.getDeleteCards = () => {
+      let extendObjs = xdata.metaStore.data[`${this.name}_extend`]
+      let deletecards = ''
+      for (let i = 0; i < this.deleteArr.length; i++) {
+        let deleteKey = this.deleteArr[i]
+        let obj = extendObjs && extendObjs.get(parseInt(deleteKey, 10))
+        let cardID = obj && obj.card_id
+        deletecards += `,${deleteKey};${cardID}`
+      }
+      deletecards = deletecards.replace(',', '')
+      return deletecards
+    }
+
+    this.deleteAllMsg = () => {
+      let len = this.deleteArr.length
+      let deletes = this.deleteArr.join(',')
+      let deletecards = this.getDeleteCards()
+      let deleteAllSql = this.name === 'staff' ? `delete ds, dse, dcs from dat_staff ds left join dat_staff_extend dse on ds.staff_id = dse.staff_id left join dat_credentials_staff dcs on ds.staff_id = dcs.staff_id where ds.staff_id in (${deletes});` : `delete dv, dve from dat_vehicle dv left join dat_vehicle_extend dve on dv.vehicle_id = dve.vehicle_id where dv.vehicle_id in (${deletes});`
+      let req = composeUpdateDBReq('DELETE', `complex_data_${this.name}s`, deletes, deleteAllSql) // 批量删除
+      req.data['notify'] = deletecards
+      // req.data['detail'] = `批量删除员工编号为${deletes}的员工`
+      req.data['user_id'] = xdata.userName
+      req.username = xdata.userName
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+      this.registerGlobalEventHandlers()
+    }
+
+    this.updateBasicList = () => {
+      this.tags['basic-list'] && this.tags['basic-list'].dohandleDB(this.name)
+    }
+
+    this.updatemsg = (value) => {
+        this.tags["basic-msg"].refs['buttons'].classList.add('hide')
+        this.tags["operation-msg"].refs['buttons'].classList.add('hide')
+        this.tags['basic-msg'].updateList(value)
+        this.tags['operation-msg'].updateList(value)
+        if (this.credentials) {
+          this.tags['credentials-staffs'].updateList(value)
+        }
+    }
+
+    this.updateList = (value) => {
+      let self = this
+      let basicmsgBtn = this.tags["basic-msg"] && this.tags["basic-msg"].refs['buttons'].classList
+      let operationmsgBtn = this.tags["operation-msg"] && this.tags["operation-msg"].refs['buttons'].classList
+      if (basicmsgBtn && basicmsgBtn.contains('hide') && operationmsgBtn && operationmsgBtn.contains('hide')) {
+        this.updatemsg(value)
+        this.value = value
+      } else if (value != this.value) {
+        if (this.activePanel) {
+          this.activePanel.unmount(true)
+        }
+        this.activePanel = riot.mount('call-leave', {
+          name: 'updatemsg',
+          currentTag: self,
+          value: value
+        })[0]
+      }
+    }
+
+    this.hidelist = (evt) => {
+      if (this.tags['basic-list'].searchbar && this.tags['basic-list'].searchbar.callList) {
+        this.tags['basic-list'].searchbar.callList.unmount(true)
+      }
+      this.refs['importList'].classList.add('hide')
+    }
+
+    this.judge = (res, message, name) => {
+      let id = res.data.id
+      if (res.code === 0) {
+        message = true
+      } else {
+        if (xdata.metaStore.data[name].get(id)) {
+          message = true
+        } else {
+          message = false
+        }
+      }
+      return message
+    }
+
+    this.editDefault = (evt, self) => {
+      let target = evt.currentTarget
+      target.classList.add('hide')
+      const type = target.getAttribute('type')
+      if (type === 'SELECT' && !target.innerHTML) {
+        let name = target.getAttribute('name')
+        const selectInput = target.nextElementSibling
+        const select = selectInput.querySelector('.query-select')
+        const value = Number(select[0].value)
+        name = name === 'dept_id_ck' ? 'dept_id' : name
+        target.innerHTML = xdata.metaStore.getNameByID(name, value)
+      }
+      target.nextElementSibling.classList.remove('hide')
+    }
+
+    this.hideFill = (target, value, child_tag) => {
+      target.classList.add('hide')
+      target.previousElementSibling.classList.remove('hide')
+      let oldvalue = target.previousElementSibling.innerHTML
+      // if (name === 'power_alarm' || name === 'need_display') {
+      //   if (oldvalue == value && value == 0 || oldvalue != value) {
+      //     child_tag.refs['buttons'].classList.remove('hide')
+      //   }
+      // } else 
+      if (oldvalue != value && child_tag.opts.dataIs !== 'credentials-staffs') {
+        if(child_tag.opts.dataIs === 'basic-msg')  child_tag.refs['buttons'].classList.remove('hide')
+        if(child_tag.opts.dataIs === 'operation-msg')  this.tags['basic-msg'].refs['buttons'].classList.remove('hide')
+      } else if (oldvalue != value && child_tag.opts.dataIs === 'credentials-staffs') {
+        target.parentElement.parentElement.parentElement.querySelector('.btn-sure').classList.remove('hide')
+      }else {
+        this.tags['basic-msg'].refs['buttons'].classList.remove('hide')
+      }
+      target.previousElementSibling.innerHTML = value
+    }
+
+    this.registerGlobalEventHandlers = (name) => {
+      this.cmd = name
+      xbus.on('META-UPDATE-DB-RES', (res) => {
+        if (NAMEARR.includes(res.data.name)) {
+          let dlg_tips = null
+          if (res.code === 0) {
+            switch (res.data.op) {
+              case 'INSERT':
+              case 'UPDATE':
+                dlg_tips = res.msg.indexOf("pic = ''") === -1 ? '保存成功' : '删除成功'
+                break
+              case 'DELETE':
+                let selectAll = this.root.querySelector('#selectAll')
+                if (selectAll && selectAll.checked) selectAll.checked = false
+                dlg_tips = '删除成功'
+                let obj = xdata.metaStore.cardIndex && Array.from(xdata.metaStore.cardIndex.values()).filter(item => item[res.data.name + '_id'] == res.data.id)[0]
+                let cardID = obj && obj.card_id
+                cardID && xdata.metaStore.cardIndex.delete(cardID)
+                break
+            }
+          } else {
+            dlg_tips = res.msg
+          }
+          let msg = {
+            value: res.code === 0 ? 'success' : 'failure',
+            tip: dlg_tips
+          }
+          window.hintip.open(msg)
+        }
+      })
+
+      xbus.on('META-DATA-UPDATE', (res) => {
+        if (NAMEARR.includes(res.def.name)) {
+          this.updateList(this.value)
+          this.showTitle()
+          this.update()
+        }
+      })
+    }
+
+    this.close = () => {
+      this.refs.show_tips.classList.add('hide')
+      if (this.value) {
+        if (this.credentials) {
+          this.tags['credentials-staffs'].updateList(this.value)
+        }
+      }
+    }
+
+    this.showTitle = () => {
+      let cardAllStaff = this.staffcardAll('cardAll')
+      let cardEnableStaff = this.staffcardAll('cardEnable')
+      if (this.name === 'staff') {
+        this.title = xdata.depts ? '人员信息表' : `人员信息表（当前系统注册总人员数：${xdata.metaStore.data.staff && Array.from(xdata.metaStore.data.staff.values()).length}人，
+        当前发卡人数：${cardAllStaff}人，标识卡启用状态人数：${cardEnableStaff}人）`
+        this.credentials = true
+        this.stafforvehicle = true
+      } else {
+        this.title = xdata.depts ? '车辆信息表' : `车辆信息表（当前系统注册总车辆数：${xdata.metaStore.data.vehicle && Array.from(xdata.metaStore.data.vehicle.values()).length}辆）`
+        this.credentials = false
+        this.stafforvehicle = false
+      }
+    }
+
+    // 人员 车辆 点击导入图标 批量导入文字循环展示 减少html部分代码 2019-05-20 17:07 chenl
+    this.init = () => {
+      this.name = opts.name
+      this.showTitle()
+      
+      this.info = [
+        {value: 'staff_staff_extend', name:'staff_staff_extend', isShow: this.stafforvehicle && xdata.roleID !== 2, text: '员工信息批导入', cb: this.change},
+        {value: 'staff_extend', name:'staff_extend', isShow: this.stafforvehicle && xdata.roleID !== 2, text: '员工信息批修改', cb: this.change},
+        {value: 'csv', name:'staff', isShow: this.stafforvehicle, text: '员工信息批导出', cb: this.askFile},
+        {value: 'dat_credentials_staff', name:'dat_credentials_staff', isShow: this.stafforvehicle && xdata.roleID !== 2, text: '资格证信息', cb: this.change},
+        {value: 'csv', name:'credentials_staff', isShow: this.stafforvehicle, text: '资格证信息批导出', cb: this.askFile},
+        {value: 'vehicle_vehicle_extend', name:'vehicle_vehicle_extend', isShow: !this.stafforvehicle && xdata.roleID !== 2, text: '车辆信息批导入', cb: this.change},
+        {value: 'csv', name:'vehicle', isShow: !this.stafforvehicle, text: '车辆信息批导出', cb: this.askFile},
+      ]
+
+      this.update()
+    }
+
+    this.init()
+
+    this.on('unmount', () => {
+      this.root.classList.add('hide')
+      xbus.off('META-UPDATE-DB-RES META-DATA-UPDATE')
+    })
+  </script>
+</basic-message>

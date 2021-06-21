@@ -1,0 +1,70 @@
+@import '../../sass/defs'
+.oilwear-record
+    padding-top: 1.7rem
+    .queryTime
+        margin: 20px 0 0 10px
+        input,select
+            @include wh(11rem,40px)
+            border: 1px solid #ccc
+    .tooltips
+        @include wh(30%,20%)
+        @include absolute(60%,30%)
+        text-align: center
+        font-size: 14px
+        border-radius: 5px
+        line-height: 5rem
+        margin-left: -10%
+        background: #e3f2ff
+    p
+        span
+            margin-left: 1rem
+            font-size: 14px
+            float: left
+            cursor: pointer
+            &:hover,&.active
+                color: #009fff
+            &.printButton
+                margin-top: 5px
+        
+        box-sizing: border-box
+        width: 130%
+        @include font-color-pos(16px,$color-black,center)
+        @include line-height(32px,32px)
+    .date-time,.oil-number
+        width: 40px
+        padding-left: 0
+    td
+        height: 4.5rem
+        border: 1px solid $grip-color
+    th
+        padding-left: 0   
+
+    table
+        &:hover
+            background: $color-white
+        width: 140%
+        overflow-y: scroll
+        
+        thead
+            tr:hover
+                background: $body-sp
+            th:nth-child(4)
+                width: 4rem
+        
+        tr
+            &:hover
+                background: $color-white
+            .content
+                position: relative
+                span
+                    cursor: pointer
+                    width: 100%
+                    position: absolute
+                    height: 100%
+                    display: block
+                    z-index: 2
+                input
+                    width: 100%
+                    padding: 0
+                    text-align: center
+                    border: 0

@@ -1,0 +1,45 @@
+@import '../../sass/defs'
+
+.page-head
+  flex: 0 0 $head-height
+  background-image: $banner-blue-gradient
+  color: $content-bgcolor
+  @include align-middle-between
+
+  .user-bar
+    flex: 0 0 9rem
+    padding: 0 1rem
+    height: $head-height
+    display: flex
+    cursor: pointer
+    .icon
+      background-image: url('/img/icon.png')
+      background-position: -134px -232px
+    &:hover
+      background: $ctrl-bg
+      span
+        .icon
+          background-image: url('/img/icon.png')
+          background-position: -134px -252px
+        span
+          color: $active-bg
+    span
+      flex: auto
+      @include align-middle
+      .icon
+        fill: $color-white
+      span
+        @include justify-middle
+
+  .logo
+    padding: 0 1rem
+    @include align-middle
+
+    img
+      height: 1.8rem
+
+
+
+
+
+

@@ -1,0 +1,222 @@
+<alarm-list class="dlg-window hide alarm-list-panel animated">
+  <div data-is="dialog-head" classname="dlg-head-alarm" title="实时告警"></div>
+  <div class="alarm-btn" if={xdata.roleID === 1 && xdata.isCheck === 0}>
+    <button class="recover-alarm-btn" onclick={doRecoverAlarm}>恢复所有告警</button>
+    <button class="reset-alarm-btn" onclick={doResetAlarm}>复位选中告警</button>
+  </div>
+  
+  <div class="list-container" if={ alarms }>
+    <div data-is="alarm-list-class" if={whole} data={arrGlobal} data-title="全局告警" data-name="arrGlobal" data-obj="1"></div>
+    <div class="deviceAlarm">
+      <div data-is="alarm-list-class" if={devicecommit && [1, 7].includes(xdata.roleID)} data={arrDeviceCommit} data-title="通信异常" data-name="arrDeviceCommit" data-icon="icon-mange" data-obj={[4, 5, 6, 7, 8]} data-type={[6]}></div>
+      <div data-is="alarm-list-class" if={devicepower && [1, 7].includes(xdata.roleID)} data={arrDevicePower} data-title="供电/天线告警" data-name="arrDevicePower" data-icon="icon-mange" data-obj={[4, 5, 6, 7, 8]} data-type={[33, 39]}></div>
+      <div data-is="alarm-list-class" if={device} data={deviceArr} data-title="设备告警" data-name="deviceArr" data-icon="icon-mange" data-obj={[4, 5, 6, 7, 8]} data-type-not={[6, 33, 39]}></div>
+    </div>
+    <div data-is="alarm-list-class" if={area} data={arrArea} data-title="区域告警" data-name="arrArea" data-icon="icon-area-3" data-obj={[2]}></div>
+    <div data-is="alarm-list-class" if={section} data={arrSection} data-title="路段告警" data-name="arrSection" data-icon="icon-railway" data-obj={[3]}></div>
+    <div data-is="alarm-list-class" if={card} data={arrCard} data-title="标识卡告警" data-name="arrCard" data-icon="icon-name" data-obj={[9]} data-type-not={[32, 36]}></div>
+    <div data-is="alarm-list-class" if={stopcard} data={arrstopcard} data-title="人员长时间静止不动告警" data-name="arrstopcard" data-icon="icon-stop-staff" data-obj={[9]} data-type={[32]}></div>
+    <div data-is="alarm-list-class" if={credentials} data={credentialsArr} data-title="资格证告警" data-name="credentialsArr" data-icon="icon-newspaper"></div>
+    <div data-is="alarm-list-class" if={warnface} data={warnfaceArr} data-title="工作面预警" data-name="warnfaceArr" data-icon="icon-newspaper" data-obj={[10]}></div>
+    <div data-is="alarm-list-class" if={carzw} data={carzwArr} data-title="车辆追尾告警" data-name="carzwArr" data-icon="icon-newspaper" data-obj={[9]} data-type={[36]}></div>
+    <div class="bottom"></div>
+  </div>
+  <div data-is="blank-message" message="当前系统运行正常，没有告警。" class="blank-message" if={ !alarms }></div>
+  <script>
+    import Draggable from '../../js/utils/Draggable.js' // be global variable ?
+    import {compare} from '../../js/utils/utils.js'
+    import './alarm-list-class.html'
+
+    this.isShowing = false
+    this.gbTitle = null
+    this.arrDeviceR = null
+    this.alarmParent = opts.alarmRoot
+    const uncover = 1000
+    let self = this
+
+    this.isPC = window.isPC
+    let defaultMap = parseInt(xdata.metaStore.defaultMapID, 10)
+
+    this.getAlarmData = () => {
+      let data = null
+      let alarms = xdata.alarmStore.DistinguishMapAlarm.get(defaultMap)
+      data = alarms && Array.from(alarms.values()) ? Array.from(alarms.values()) : []
+      let cateAlarm = xdata.alarmStore.cateAlarm && Array.from(xdata.alarmStore.cateAlarm.values())
+      data = cateAlarm && cateAlarm.length > 0 ? data.concat(cateAlarm) : data
+      return data
+    }
+
+    this.on('mount', () => {
+      let dragHandle = this.root.querySelector('.dlg-head')
+      let dragTarget = this.root
+      this.resetAlarms = new Map()
+      Draggable(dragTarget, dragHandle)
+      this.updateList()
+    })
+    
+    xbus.on('ALARM-LIST-SHOW', () => {
+      self.show()
+    })
+
+    xbus.on('ALARM-LIST-CHANGED', (msg) => {
+      if (this.isShowing) {
+        this.updateList(msg)
+      }
+    })
+
+    this.updateList = (data) => {  
+      this.alarms = data || this.getAlarmData()
+      if (!this.alarms) {
+        return
+      }
+
+      this.splitData()
+      let childTags = this.tags['alarm-list-class']
+      if (childTags && childTags.length) {
+        for (let i = 0, len = childTags.length; i < len; i++) {
+          let childTag = childTags[i]
+          childTag.updateAlarmList()
+        }
+      } else if (childTags) {
+        childTags.updateAlarmList()
+      }
+      // this.update()
+
+      this.whole = this.alarms && this.global
+      this.update()
+    }
+
+    this.getNameByID = (id) => {
+      let obj = xdata.metaStore.getCardBindObjectInfo(id)
+      return obj && obj.name ? obj.name : id
+    }
+
+    // 数据分组
+    this.splitData = () => {
+      let alarm = this.alarms
+      let len = alarm && alarm.length
+      this.arrGlobal = []
+      this.arrArea = []
+      this.arrSection = []
+      this.arrDeviceCommit = []
+      this.arrDevicePower = []
+      this.deviceArr = []
+      this.arrCard = []
+      this.credentialsArr = []
+      this.warnfaceArr = []
+      this.arrstopcard = []
+      this.carzwArr = []
+      for (let i = 0; i < len; i++) {
+        switch (alarm[i].obj_type_id) {
+          case 1:
+            this.whole = true
+            this.arrGlobal.push(alarm[i])
+            this.arrGlobal = this.arrGlobal.sort(compare('cur_time', '', 'reverse'))
+            break
+          case 2:
+            this.area = true
+            this.arrArea.push(alarm[i])
+            this.arrArea = this.arrArea.sort(compare('cur_time', '', 'reverse'))
+            break
+          case 3:
+            this.section = true
+            this.arrSection.push(alarm[i])
+            this.arrSection = this.arrSection.sort(compare('cur_time', '', 'reverse'))
+            break
+          case 4:
+          case 5:
+          case 6:
+          case 7:
+          case 8:
+            if (alarm[i].type_id === 6) {
+              this.devicecommit = true
+              this.arrDeviceCommit.push(alarm[i])
+              this.arrDeviceCommit = this.arrDeviceCommit.sort(compare('cur_time', '', 'reverse'))
+            } else if (alarm[i].type_id === 33 || alarm[i].type_id === 39) {
+              this.devicepower = true
+              this.arrDevicePower.push(alarm[i])
+              this.arrDevicePower = this.arrDevicePower.sort(compare('cur_time', '', 'reverse'))
+            } else {
+              this.device = true
+              this.deviceArr.push(alarm[i])
+              this.deviceArr = this.deviceArr.sort(compare('cur_time', '', 'reverse'))
+            }
+            break
+          case 9:
+            if(alarm[i].type_id === 36){
+              this.carzw = true
+              this.carzwArr.push(alarm[i])
+            }else{
+              this.card = true
+              this.arrCard.push(alarm[i])
+              this.arrCard.sort(compare('type_id', '', 'reverse',compare('cur_time', '', 'reverse')))
+            }
+            break
+          case 10:
+            this.warnface = true
+            let alarmface = this.dealWarnData(alarm[i])
+            this.warnfaceArr.push(alarmface)
+            this.warnfaceArr.sort(compare('cur_time', '', 'reverse'))
+            if (alarm[i].type_id === 30) {
+              xbus.trigger('WARN-FACE-PERSON', {id: alarm[i].obj_id})// 触发掘进面人员安全预警
+            }
+            if (alarm[i].type_id === 28) {
+              xbus.trigger('WARN-FACE-LINE', {id: alarm[i].obj_id})
+            }
+            break
+          default:
+            this.credentials = true
+            this.credentialsArr.push(alarm[i])
+        }
+      }
+
+      if (this.warnfaceArr.length === 0) {
+        xbus.trigger('WARN-FACE-NORMAL')
+      }
+    }
+
+    this.dealWarnData = (data) => {
+      if (data.type_id === 30 || data.type_id === 28) {
+        data['faceName'] = xdata.metaStore.data.work_face.get(Number(data.obj_id)) && (xdata.metaStore.data.work_face.get(Number(data.obj_id)).name).slice(0, 5)
+      } else {
+        console.warn('please check config！')
+      }
+      return data
+    }
+
+    this.show = () => {
+      if (!this.isShowing) {
+        this.isShowing = true
+        this.updateList()
+        this.update()
+        let ele = this.root.classList
+        ele.remove('hide')
+        ele.remove('slideOutUp')
+        ele.add('slideInDown') 
+      }
+    }
+
+    this.doRecoverAlarm = (data) => {
+      data = data.target ? null : data
+      xbus.trigger('RECOVER-ALARM', {
+        cmd: 'recover_alarm',
+        data: data
+      })
+    }
+
+    this.doResetAlarm = () => {
+      if (this.resetAlarms.size <= 0) return
+      let msg = {
+        cmd: 'alarm_done',
+        data: Array.from(this.resetAlarms.values())
+      }
+      xbus.trigger('ALARM-DONE-REQ', msg)
+      this.resetAlarms.clear()
+    }
+
+    this.close = (evt) => {
+      this.isShowing = false
+      // this.unmount(true)
+    }
+  </script>
+</alarm-list>

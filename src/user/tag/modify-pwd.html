@@ -1,0 +1,106 @@
+<modify-pwd>
+  <div class="modify-body modify-form" if={ mode === 'REQUEST' }>
+    <div>
+      <label for="oldpwd">当前密码：</label>
+      <icon-input ref="oldpwd" idname="oldpwd" type="password" class="oldpwd" placeholder="请输入您当前的密码" icon="icon-down" classname="login-input"></icon-input>
+    </div>
+    <div>
+      <label for="newpwd">新密码：</label>
+      <icon-input ref="newpwd"  idname="newpwd" type="password" class="newpwd" placeholder="请输入新密码" icon="icon-down" classname="login-input"></icon-input>
+    </div>
+    <div>
+      <label for="newpwd2">重复新密码：</label>
+      <icon-input ref="newpwd2" idname="newpwd2" type="password" class="newpwd2" placeholder="请重复输入新密码" icon="icon-down" classname="login-input"></icon-input>
+    </div>
+    <div class="error-message {hint ? '' : 'node-hide'}">{ hint }</div>
+  </div>
+  <div class="modify-body modify-result" if={ mode === 'RESPONSE' }>
+    <span>{ resMessage }</span>
+  </div>
+  <div class="op-panel">
+    <button class="modify-button" onclick={ comfirm }>确定</button>
+  </div>
+
+
+  <script>
+    import { encrypt } from '../../js/utils/utils.js'
+    this.username = opts.username   // eslint-disable-line
+
+    this.mode = 'REQUEST'
+    this.hint = null  // hint message
+
+    this.pcFlag = window.isPC
+
+    xbus.on('USER-MODIFY-PWD-RES', (res) => {
+      this.mode = 'RESPONSE'
+
+      this.resCode = res.code
+      this.resMessage = res.code === 0 ? '您的密码已修改，将在下次登录时启用，请牢记。' : res.msg
+
+      this.update()
+    })
+
+    this.comfirm = () => {
+      if (this.mode === 'REQUEST') {
+        this.modifyPWD()
+      } else {
+        if (this.resCode === 0) {
+          this.parent.hide()
+        } else {
+          this.goback()
+        }
+      }
+    }
+
+    this.modifyPWD = () => {
+      this.hint = null
+      if (!this.checkIsMatch()) {
+        return
+      }
+
+      let oldpwd = this.refs.oldpwd.root.querySelector('#oldpwd').value
+      let newpwd = this.refs.newpwd.root.querySelector('#newpwd').value
+      oldpwd = encrypt(this.username, oldpwd)
+      newpwd = encrypt(this.username, newpwd)
+      if (this.username !== '' && newpwd !== '') {
+        xbus.trigger('USER', {  // UserService.js will take this message
+          cmd: 'MODIFY_PWD',
+          data: {
+            username: this.username,
+            oldpwd: oldpwd,
+            newpwd: newpwd
+          }
+        })
+      }
+    }
+
+    this.checkIsShort = (evt) => {
+      if (this.refs.newpwd.value) {
+        let newpwd = this.refs.newpwd.value.trim()
+        if (newpwd.length < 6) {
+          this.hint = '为了您的账号安全，请输入至少 6 位密码。'
+        }
+      }
+    }
+
+    this.checkIsMatch = () => {
+      let ret = false
+      if (this.refs.newpwd.root.querySelector('#newpwd').value && this.refs.newpwd2.root.querySelector('#newpwd2').value) {
+        let newpwd = this.refs.newpwd.root.querySelector('#newpwd').value.trim()
+        let newpwd2 = this.refs.newpwd2.root.querySelector('#newpwd2').value.trim()
+        ret = newpwd2 === newpwd
+        if (!ret) {
+          this.hint = '您两次输入的密码不匹配，请重新输入。'
+        }
+      } else {
+        this.hint = '请先输入您的新旧密码，再点 “确定”。'
+      }
+      return ret
+    }
+
+    this.goback = () => {
+      this.mode = 'REQUEST'
+      this.hint = null
+    }
+  </script>
+</modify-pwd>

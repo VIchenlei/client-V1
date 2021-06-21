@@ -1,0 +1,904 @@
+<configer-table>
+    <div class="configer_title" if={ hasdate }>
+        <span class="before">
+            <svg class="icon" >
+                <use xlink:href="/icons/icons.svg#icon-angle-double-left"></use>
+            </svg>
+            <span class="text" onclick={ preDay }>上一天</span>
+        </span>
+        <span class="dateShift">
+            <span class="intraday" title="回到今天" onclick={ gobackToday }>{ intra }</span>
+            <select id="selectShift" onchange={ selectShift } name="shiftThree">
+                <option class="shiftThree">三八制</option>
+                <option class="shiftFore">四六制</option>
+            </select>
+            <span class="printButton hint--bottom-left" aria-label="打印" name="printPDF" onclick={askFile}>
+				<svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-printer"></use></svg>
+			</span>
+        </span>
+        <span class="after" onclick={ nextDay }>
+            <span class="text">下一天</span>
+            <svg class="icon" >
+                <use xlink:href="/icons/icons.svg#icon-angle-double-right"></use>
+            </svg>
+        </span>
+    </div>
+    <table class="arrangeOrder" if={ hasdate } name={ titleName } data-value={isDriver}>
+        <thead>
+            <tr>
+                <th class="vehicleNumber">车辆</th>
+                <th class="monShift">早班</th>
+                <th class="midShift">中班</th>
+                <th class="nigShift">晚班</th>
+                <th class="graShift hide">夜班</th>
+            </tr>
+        </thead>
+        <tbody id="tbody">
+            <tr each={ cont in content } class="tbodyCont { cont.maintenance }" id={ 'number' + cont.name } type= { cont.maintenance }>
+                <td>{ cont.name }</td>
+                <td class="mor">
+                    <span class="morning" ondblclick={ createNode } id={ 'number' + cont.name + '1' }></span>
+                    <input class="hide" onkeyup={ enterForSearch }>
+                    <span class="morning-icon icon hide" name={ cont.vehicle_id }>
+                        <span class="morning-icon morShift" onclick={ saveDB } name={ cont.vehicle_id } type={ cont.name }>确定</span>
+                        <span class="morShift" onclick={ cancel }>取消</span>
+                    </span>
+                </td>
+                <td class="mid">
+                    <span  class="middle" ondblclick={ createNode } id={ 'number' + cont.name + '2' }></span>
+                    <input class="hide" onkeyup={ enterForSearch }>
+                    
+                    <span class="middle-icon icon hide" name={ cont.vehicle_id }>
+                        <span class="middle-icon morShift" onclick={ saveDB } name={ cont.vehicle_id } type={ cont.name }>确定</span>
+                        <span class="morShift" onclick={ cancel }>取消</span>
+                    </span>
+                </td>
+                <td class="nig">
+                    <span  class="night" ondblclick={ createNode } id={ 'number' + cont.name + '3' }></span>
+                    <input class="hide" onkeyup={ enterForSearch }>
+                    <span class="night-icon icon hide" name={ cont.vehicle_id }>
+                        <span class="night-icon morShift" onclick={ saveDB } name={ cont.vehicle_id } type={ cont.name }>确定</span>
+                        <span class="morShift" onclick={ cancel }>取消</span>
+                    </span>
+                </td>
+                <td class="gra hide">
+                    <span  class="grave" ondblclick={ createNode } id={ 'number' + cont.name + '7' }></span>
+                    <input class="hide" onkeyup={ enterForSearch }>
+                    <span class="grave-icon icon hide" name={ cont.vehicle_id }>
+                        <span class="grave-icon morShift" onclick={ saveDB } name={ cont.vehicle_id } type={ cont.name }>确定</span>
+                        <span class="morShift" onclick={ cancel }>取消</span>
+                    </span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <!--<div data-is="battery-table" if={ hasdate && msg.name !== 'driver' } batteryData={ battData }></div>-->
+    <ul class="deptDriverStaff hide">
+        <li  each={ staff in staffs } name={ staff.staff_id } dept-id={ staff.dept_id } card-name={ staff.card_name } spy={ staff.spy } onclick={ putInput }>
+            {staff.name} 
+        </li>
+    </ul>
+    <div class="waiting-panel" if={ show_tips }>
+        <!--<span class="close-message" onclick={ close } if={ cmdSuccess }>X</span>-->
+        <span class="close-message" onclick={ closeTips } if={ cmdFail }>X</span>
+        <span class="message">{ dlg_tips }</span>
+    </div>
+    <script>
+        // import {Pinyin} from '../../js/def/chinesePY.js'
+        import {compare, trim} from '../../js/utils/utils.js'
+      
+        this.tils = opts.tils
+        this.content = opts.content
+        this.names = opts.names
+        this.titleName = opts.titleName
+        this.hasdate = false
+        this.show_tips = false
+        this.detail = null
+        let titleName = null
+        let select = null
+        let option = null
+        this.timeDay = opts.timeDay
+        this.isDriver = opts.isDriver
+        let driver = null
+        let preTime = null
+        this.intra = opts.intra
+        let self = this
+        let currentIntraday = new Date()
+        let currentIntradayYear = currentIntraday.getFullYear()
+        let currentIntradayMonth = (currentIntraday.getMonth() + 1) < 10 ? '0' + (currentIntraday.getMonth() + 1) : currentIntraday.getMonth() + 1
+        let currentIntradayDate = currentIntraday.getDate()
+        let currentIntradayDay = currentIntradayYear + '-' + currentIntradayMonth + '-' + currentIntradayDate
+        let pre = null
+        this.staffs = opts.staffs
+        this.shiftTarrget = null
+        this.battData = opts.battData
+        this.root.classList.remove('hide')
+        
+        // 日期
+        this.intraday = (cur) => {
+          let now = new Date()
+          let year = now.getFullYear()
+          let month = null
+          let day = null
+          let weekDay = null
+          let pre = null
+          let week = [ '星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+          if (!cur) {
+            month = now.getMonth() + 1
+            day = now.getDate()
+            weekDay = week[now.getDay()]
+          } else {
+            month = cur.getMonth() + 1
+            day = cur.getDate()
+            weekDay = week[cur.getDay()]
+            if (month < 10) {
+              month = '0' + month
+            }
+            if (day < 10) {
+              day = '0' + day
+            }
+            preTime = year + '-' + month + '-' + day
+          }
+          this.intra = month + '月' + day + '日' + weekDay
+        }
+
+        // 排序
+        // this.compare = (name, type) => {
+        //   return function (o, p) {
+        //     var a, b
+        //     if (typeof o === 'object' && typeof p === 'object' && o && p) {
+        //       a = o[name]
+        //       b = p[name]
+        //       if (a === b) {
+        //         return 0
+        //       }
+        //       if (typeof a === typeof b) {
+        //         if (type) {
+        //           return a.localeCompare(b, 'zh-Hans-CN')
+        //         } else {
+        //           return a < b ? -1 : 1
+        //         }
+        //       }
+        //       return typeof a < typeof b ? -1 : 1
+        //     }
+        //   }
+        // }
+
+        this.empty = (evt) => {
+            // if(this.root.querySelector('.configer_title')){
+          let morning = this.root.querySelector('#tbody').querySelectorAll('.morning')
+          let middle = this.root.querySelector('#tbody').querySelectorAll('.middle')
+          let night = this.root.querySelector('#tbody').querySelectorAll('.night')
+          let grave = this.root.querySelector('#tbody').querySelectorAll('.grave')
+          for (let i = 0, len = morning.length; i < len; i++) {
+            morning[i].innerHTML = ' '
+          }
+        
+          for (let i = 0, len = middle.length; i < len; i++) {
+            middle[i].innerHTML = ' '
+          }
+
+          for (let i = 0, len = night.length; i < len; i++) {
+            night[i].innerHTML = ' '
+          }
+
+          for (let i = 0, len = grave.length; i < len; i++) {
+            grave[i].innerHTML = ' '
+          }
+            // }
+        }
+
+        this.checkTime = (time) => {
+          if (time < 10) {
+            time = '0' + time
+          }
+          return time
+        }
+
+        this.isShows = (evt) => {
+          let morning = this.root.querySelector('#tbody').querySelectorAll('.morning')
+          let middle = this.root.querySelector('#tbody').querySelectorAll('.middle')
+          let night = this.root.querySelector('#tbody').querySelectorAll('.night')
+          let grave = this.root.querySelector('#tbody').querySelectorAll('.grave')
+          for (let i = 0, len = morning.length; i < len; i++) {
+            morning[i].classList.remove('hide')
+          }
+
+          for (let i = 0, len = middle.length; i < len; i++) {
+            middle[i].classList.remove('hide')
+          }
+
+          for (let i = 0, len = night.length; i < len; i++) {
+            night[i].classList.remove('hide')
+          }
+
+          for (let i = 0, len = grave.length; i < len; i++) {
+            grave[i].classList.remove('hide')
+          }
+          let select = this.root.querySelectorAll('ul')
+          for (let i = 0, len = select.length; i < len; i++) {
+            select[i].classList.add('hide')
+          }
+          this.root.querySelector('#selectShift').classList.remove('hide')
+        }
+
+        this.gobackToday = (evt) => {
+          let target = evt.currentTarget
+          let now = new Date()
+          let year = now.getFullYear()
+          let month = this.checkTime(now.getMonth() + 1)
+          let day = this.checkTime(now.getDate())
+          let time = year + '-' + month + '-' + day
+          let week = [ '星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+          let weekDay = week[now.getDay()]
+          this.root.querySelector('.intraday').innerHTML = (now.getMonth() + 1) + '月' + now.getDate() + '日' + weekDay
+          let isShift = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftFore' ? 2 : 1
+          this.empty()
+          this.selectSql(time, isShift)
+            // 因补数据注释
+            // this.root.querySelector('#tbody').classList.remove('ready')
+        }
+
+        this.selectShift = (evt) => {
+          this.isShows()
+          let target = evt.currentTarget
+          let className = target.options[target.selectedIndex].getAttribute('class')
+          target.setAttribute('name', className)
+          let shiftNameTarget = target.getAttribute('name')
+          if (shiftNameTarget === 'shiftFore') {
+            this.root.querySelector('.graShift').classList.remove('hide')
+            let gra = this.root.querySelectorAll('.gra')
+            for (let i = 0, len = gra.length; i < len; i++) {
+              gra[i].classList.remove('hide')
+            }
+          } else {
+            this.root.querySelector('.graShift').classList.add('hide')
+            let gra = this.root.querySelectorAll('.gra')
+            for (let i = 0, len = gra.length; i < len; i++) {
+              gra[i].classList.add('hide')
+            }
+          }
+          let isShift = shiftNameTarget === 'shiftFore' ? 2 : 1
+          let currentTime = this.root.querySelector('.intraday').innerHTML
+          let year = new Date().getFullYear()
+          let month = currentTime.split('月')
+          let day = month[1].split('日')[0]
+          if (month[0] < 10) {
+            month[0] = '0' + month[0]
+          }
+          if (day < 0) {
+            day = '0' + day
+          }
+          let time = year + '-' + month[0] + '-' + day
+          this.selectSql(time, isShift)
+        }
+
+        // 位置
+        this.position = (target) => {
+          let deptDriverStaff = this.root.querySelector('.deptDriverStaff')
+          let x = target.parentElement.offsetLeft
+          let y = target.parentElement.offsetTop
+          let width = target.parentElement.offsetWidth
+          let height = target.parentElement.offsetHeight
+          let scroll_T = this.root.scrollTop
+          let top = document.documentElement.scrollTop
+          deptDriverStaff.style.width = width + 'px'
+          deptDriverStaff.style.left = x + 'px'
+          let rootHeight = document.body.clientHeight
+          let bottom = rootHeight - (y + height + top - scroll_T)
+          if (bottom < 255) {
+            deptDriverStaff.style.top = y + height + top - scroll_T - height - 204 + 'px'
+          } else {
+            deptDriverStaff.style.top = y + height + top - scroll_T + 'px'
+          }
+        }
+
+        this.importMsg = (evt) => {
+          if (!this.shiftTarrget) return
+          driver = this.shiftTarrget.innerHTML
+          let className = this.shiftTarrget.className
+          this.shiftTarrget.parentElement.querySelector('.icon').setAttribute('id', 'id')
+          this.shiftTarrget.parentElement.querySelector('input').setAttribute('id', 'input')
+          this.root.querySelector('.deptDriverStaff').classList.remove('hide')
+          this.shiftTarrget.classList.add('hide')
+          this.shiftTarrget.nextElementSibling.classList.remove('hide')
+          this.shiftTarrget.nextElementSibling.nextElementSibling.classList.remove('hide')
+          let trackListTags = this.root.querySelector('.deptDriverStaff').querySelectorAll('li')
+          this.position(this.shiftTarrget)
+          for (let i = 0; i < trackListTags.length; i++) {
+            trackListTags[i].style.display = 'block'
+          }
+        }
+
+        this.showTime = () => {
+          xbus.on('SERVER-DRIVER-TIME', (msg) => {
+            // console.log(msg)
+            if (msg.cmd === 'time') {
+              this.registerEventHandler(msg.data.now)
+            }
+          })
+        }
+
+        this.registerEventHandler = (currentTime) => {
+          if (!this.root.querySelector('.intraday')) return
+          let current = this.root.querySelector('.intraday').innerHTML
+          let year = new Date().getFullYear()
+          let intrMonth = current.split('月')
+          let intrDay = intrMonth[1].split('日')
+          let month = this.checkTime(intrMonth[0])
+          let day = this.checkTime(intrDay[0])
+          let curTime = year + '-' + month + '-' + day
+            // if(new Date(curTime).format('yyyy-MM-dd') === new Date(currentIntradayDay).format('yyyy-MM-dd')){
+            //     let shiftID = this.shiftTarrget.parentElement.getAttribute('class')
+            //     let time = currentTime
+            //     let shift = Array.from(xdata.metaStore.dataInArray.get('shift'))
+            //     let shiftType = this.root.querySelector('#selectShift').getAttribute('name')
+            //     if(shiftType === 'shiftThree'){
+            //         if(time >= shift[0].start_time && time <= shift[0].end_time){
+            //             this.importMsg()
+            //         }else if(time >= shift[1].start_time && time <= shift[1].end_time){
+            //             if(shiftID === 'mid' || shiftID === 'nig'){
+            //                 this.importMsg()
+            //             }
+            //         }else{
+            //             if(shiftID === 'nig'){
+            //                 this.importMsg()
+            //             }
+            //         }
+            //     }else if(shiftType === 'shiftFore'){
+            //         if(time >= shift[3].start_time && time <= shift[3].end_time){
+            //             this.importMsg()
+            //         }else if(time >= shift[4].start_time && time <= shift[4].end_time){
+            //             if(shiftID === 'mid' || shiftID === 'nig' || shiftID === 'gra'){
+            //                 this.importMsg()
+            //             }
+            //         }else if(time >= shift[5].start_time && time <= shift[5].end_time){
+            //             if(shiftID === 'nig' || shiftID === 'gra'){
+            //                 this.importMsg()
+            //             }
+            //         }else{
+            //             if(shiftID === 'gra'){
+            //                 this.importMsg()
+            //             }
+            //         }
+            //     }
+            // } else {
+            //     this.importMsg()
+            // }
+          this.importMsg()
+        }
+
+        // 创建节点
+        this.createNode = (event) => {
+          let target = event.currentTarget
+          let isRead = target.parentElement.parentElement.parentElement.getAttribute('class')
+          let isMaintenance = target.parentElement.parentElement.getAttribute('type')
+          let deptDriverStaff = this.root.querySelector('.deptDriverStaff')
+            // if(isRead !== 'ready'){// 因补数据注释
+          if (this.root.querySelector('#input')) {
+            let msg = {
+              value: 'notsave',
+              tip: '请先保存修改'
+            }
+            window.hintip.open(msg)
+          } else if (isMaintenance !== 'maintenance') {
+            this.shiftTarrget = target
+            xbus.trigger('SERVER-TIME')
+          }
+            // }
+        }
+
+        this.root.onmousewheel = function (event) {
+          if (this.querySelector('#input')) {
+            let target = this
+            if (target.scrollTop > 0) {
+              this.querySelector('.deptDriverStaff').classList.add('hide')
+            }
+          }
+        }
+
+        this.createName = (evt) => {
+          let staffDriverArr = []
+          if (Array.from(xdata.metaStore.dataInArray.get('staff_extend'))) {
+            let staffDriver = Array.from(xdata.metaStore.dataInArray.get('staff_extend')).filter(item => item.occupation_id === 5)
+            let len = staffDriver.length
+            for (let i = 0; i < len; i++) {
+              let driverStaff = staffDriver[i]
+              let staffID = driverStaff.staff_id
+              let staffDeptID = driverStaff.dept_id
+              let staffname = xdata.metaStore.data.staff.get(staffID) ? xdata.metaStore.data.staff.get(staffID).name : ''
+              let staffDeptName = xdata.metaStore.data.dept.get(staffDeptID) ? xdata.metaStore.data.dept.get(staffDeptID).name : ''
+              // let cpy = Pinyin.GetQP(staffname[0])
+              let msg = {
+                staff_id: staffID,
+                dept_id: staffDeptID,
+                card_name: staffDeptName + '-' + staffname,
+                name: staffname + '-' + staffDeptName
+              }
+              staffDriverArr.push(msg)
+            }
+            this.staffs = staffDriverArr.sort(compare('name', 'staff'))
+          }
+        }
+        this.createName()
+
+        this.putInput = (evt) => {
+          let target = evt.currentTarget
+          let input = this.root.querySelector('#input')
+          input.value = target.innerHTML
+          let staffId = target.getAttribute('name')
+          let deptId = target.getAttribute('dept-id')
+          input.setAttribute('staff-id', staffId)
+          input.setAttribute('dept-id', deptId)
+        }
+
+        // 获取option信息
+        this.appear = (event) => {
+          let target = event.currentTarget
+          let name = target.options[target.selectedIndex].getAttribute('name')
+          target.setAttribute('name', name)
+          target.parentElement.querySelector('.icon').classList.remove('hide')
+        }
+
+        this.setData = (data) => {
+            // console.log(data)
+          if (data) {
+            let morning = this.root.querySelector('#tbody').querySelectorAll('.morning')
+            let middle = this.root.querySelector('#tbody').querySelectorAll('.middle')
+            let night = this.root.querySelector('#tbody').querySelectorAll('.night')
+            let grave = this.root.querySelector('#tbody').querySelectorAll('.grave')
+            for (let i = 0, len = morning.length; i < len; i++) {
+              morning[i].innerHTML = ' '
+            }
+        
+            for (let i = 0, len = middle.length; i < len; i++) {
+              middle[i].innerHTML = ' '
+            }
+
+            for (let i = 0, len = night.length; i < len; i++) {
+              night[i].innerHTML = ' '
+            }
+
+            for (let i = 0, len = grave.length; i < len; i++) {
+              grave[i].innerHTML = ' '
+            }
+            if (data.length > 0 && data[0].driver_date) {
+              for (let i = 0, len = data.length; i < len; i++) {
+                if (data[i].name) {
+                            // console.log(this['number' + data[i].name + data[i].shift_id])
+                  this.root.querySelector('#number' + data[i].vn + data[i].shift_id).innerHTML = data[i].name + '-' + data[i].da
+                }
+              }
+            }
+          }
+        }
+
+        this.init = (msg, current) => {
+          this.def = msg.def
+          this.detail = msg.detail
+            // this.setData(this.detail)
+          if (!this.def) {
+            this.hasdata = false
+          }
+          this.hasdate = !!this.def
+
+          if (this.hasdate) {
+            this.intraday(current)
+            let year = new Date().getFullYear()
+            let curMonth = this.intra.split('月')
+            let curDay = curMonth[1].split('日')[0]
+            let time = year + '-' + curMonth[0] + '-' + curDay
+            let mainDay = new Date(time).format('yyyy-MM-dd')
+            this.isDriver = 'driver'
+            if (xdata.metaStore.dataInArray.get('vehicle')) {
+              let vehicle = Array.from(xdata.metaStore.dataInArray.get('vehicle')).sort(compare('name'))
+              if (xdata.metaStore.dataInArray.get('his_maintenance')) {
+                let maintenance = Array.from(xdata.metaStore.dataInArray.get('his_maintenance'))
+                let mainToday = maintenance.filter(item => new Date(item.maintenance_date).format('yyyy-MM-dd') === mainDay)
+                if (mainToday.length > 0) {
+                  for (let i = 0, len = vehicle.length; i < len; i++) {
+                    for (let j = 0, mLen = mainToday.length; j < mLen; j++) {
+                      if (vehicle[i].vehicle_id === mainToday[j].vehicle_id) {
+                        vehicle[i]['maintenance'] = 'maintenance'
+                      }
+                    }
+                  }
+                } else {
+                  for (let i = 0, len = vehicle.length; i < len; i++) {
+                    vehicle[i]['maintenance'] = ''
+                  }
+                }
+              }
+              this.content = vehicle
+            }
+          }
+          this.update()
+        }
+
+        this.init(opts)
+
+        this.on('mount', () => {
+          this.showTime()
+        })
+
+        this.setData = (data) => {
+            // console.log(data)
+          if (data) {
+            let morning = this.root.querySelector('#tbody').querySelectorAll('.morning')
+            let middle = this.root.querySelector('#tbody').querySelectorAll('.middle')
+            let night = this.root.querySelector('#tbody').querySelectorAll('.night')
+            let grave = this.root.querySelector('#tbody').querySelectorAll('.grave')
+            for (let i = 0, len = morning.length; i < len; i++) {
+              morning[i].innerHTML = ' '
+            }
+        
+            for (let i = 0, len = middle.length; i < len; i++) {
+              middle[i].innerHTML = ' '
+            }
+
+            for (let i = 0, len = night.length; i < len; i++) {
+              night[i].innerHTML = ' '
+            }
+
+            for (let i = 0, len = grave.length; i < len; i++) {
+              grave[i].innerHTML = ' '
+            }
+            if (data.length > 0 && data[0].driver_date) {
+              for (let i = 0, len = data.length; i < len; i++) {
+                if (data[i].name) {
+                            // console.log(this['number' + data[i].number + data[i].shift_id])
+                  this.root.querySelector('#number' + data[i].vn + data[i].shift_id).innerHTML = data[i].name + '-' + data[i].da
+                }
+              }
+            }
+          }
+        }
+
+        this.enterForSearch = (evt) => {
+          let keyCode = evt.keyCode
+          let target = evt.currentTarget
+          this.searchTheName(target)
+        }
+        this.searchTheName = (target) => {
+          let searchValue = target.value
+          let trackListTags = this.root.querySelector('.deptDriverStaff').querySelectorAll('li')
+          this.isCardExist = false
+          let regString = 'n*' + searchValue + 'n*'
+          let Reg = new RegExp(regString, 'i')
+          let countforCardExist = 0
+          for (let i = 0; i < trackListTags.length; i++) {
+            let cardName = trackListTags[i].getAttribute('card-name')
+            if (!Reg.test(cardName) || cardName === null) {
+              trackListTags[i].style.display = 'none'
+            } else {
+              trackListTags[i].style.display = 'block'
+              countforCardExist++
+            }
+          }
+        }
+
+        // 存数据库
+        this.saveDB = (event) => {
+          let target = event.currentTarget
+          this.target = target
+          let vehicleID = target.getAttribute('name')
+          let vehicleNum = target.getAttribute('type')
+          let shiftName = target.getAttribute('class').split(' ')[0]
+          let input = target.parentElement.parentElement.querySelector('#input')
+          let deptDriver = input.value
+          let curDriver = input.value.split('-')[0]
+          curDriver = trim(curDriver)
+          let staffID = input.getAttribute('staff-id')
+          let deptID = input.getAttribute('dept-id')
+          let isShift = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftFore' ? 2 : 1
+            // console.log(staffID)
+          let currentTime = this.root.querySelector('.intraday').innerHTML
+          let year = new Date().getFullYear()
+          let month = currentTime.split('月')
+          let day = month[1].split('日')[0]
+          if (month[0] < 10) {
+            month[0] = '0' + month[0]
+          }
+          if (day < 10) {
+            day = '0' + day
+          }
+          let time = year + '-' + month[0] + '-' + day
+          let shift = null
+          if (isShift === 1) {
+            switch (shiftName) {
+              case 'morning-icon':
+                shift = 1
+                break
+              case 'middle-icon':
+                shift = 2
+                break
+              case 'night-icon':
+                shift = 3
+                break
+            }
+          } else {
+            switch (shiftName) {
+              case 'morning-icon':
+                shift = 4
+                break
+              case 'middle-icon':
+                shift = 5
+                break
+              case 'night-icon':
+                shift = 6
+                break
+              case 'grave-icon':
+                shift = 7
+                break
+            }
+          }
+          let isInsert = (deptDriver !== driver && driver === ' ' && deptDriver !== '无' && deptDriver !== '') || (deptDriver !== driver && driver === '无' && deptDriver !== '无' && deptDriver !== '') || (deptDriver !== driver && driver === '' && deptDriver !== '无' && deptDriver !== '')
+          if (isInsert) {
+            let value = '"' + curDriver + '"' + ',' + staffID + ',' + deptID + ',' + '"' + time + '"' + ',' + vehicleID + ',' + '"' + vehicleNum + '"' + ',' + isShift + ',' + shift + ',' + '"' + xdata.userName + '"'
+            let sql = `INSERT into dat_driver_arrange (name,staff_id,dept_id,driver_date,vehicle_id,vehicle_number,shift_type_id,shift_id,user_id) VALUES(${value})`
+            console.log(sql)
+            let req = this.composeUpdateDBReq('INSERT', sql)
+            xbus.trigger('META-UPDATE-DB', {
+              req: req
+            })
+                // driver = deptDriver
+          } else if (deptDriver !== driver && deptDriver !== '无' && deptDriver !== '' && deptDriver !== ' ') {
+                // let value = '"' + curDriver + '"' + ',' + staffID + ',' + '"' + time + '"' + ',' + vehicleID + ',' + '"' + vehicleNum + '"' + ',' + isShift + ',' + shift
+            let value = 'name =' + '"' + curDriver + '"' + ',' + 'staff_id =' + staffID + ',' + 'dept_id =' + deptID + ',' + 'user_id =' + '"' + xdata.userName + '"'
+            let condition = 'vehicle_number =' + '"' + vehicleNum + '"' + ' and ' + 'driver_date =' + '"' + time + '"' + ' and ' + 'vehicle_id =' + vehicleID + ' and ' + 'shift_type_id =' + isShift + ' and ' + 'shift_id =' + shift
+            let sql = `UPDATE dat_driver_arrange set ${value} where ${condition}`
+            console.log(sql)
+            let req = this.composeUpdateDBReq('UPDATE', sql)
+            xbus.trigger('META-UPDATE-DB', {
+              req: req
+            })
+                // driver = deptDriver
+          } else if (deptDriver !== driver && (deptDriver === '无' || deptDriver === '' || deptDriver === ' ')) {
+                // let value = '"' + curDriver + '"' + ',' + staffID + ',' + '"' + time + '"' + ',' + vehicleID + ',' + '"' + vehicleNum + '"' + ',' + isShift + ',' + shift
+            let deleteDriver = driver.split('-')[0]
+            deleteDriver = trim(deleteDriver)
+            let value = ' name =' + '"' + deleteDriver + '"' + ' and ' + 'driver_date =' + '"' + time + '"' + ' and ' + 'vehicle_id =' + vehicleID + ' and ' + 'vehicle_number =' + '"' + vehicleNum + '"' + ' and ' + 'shift_type_id =' + isShift + ' and ' + 'shift_id =' + shift + ' and ' + 'user_id =' + '"' + xdata.userName + '"'
+            let sql = `DELETE from dat_driver_arrange where (${value})`
+            console.log(sql)
+            let req = this.composeUpdateDBReq('DELETE', sql)
+            xbus.trigger('META-UPDATE-DB', {
+              req: req
+            })
+          }
+          this.registerGlobalEventHandlers(this.target)
+        }
+
+        this.registerGlobalEventHandlers = (target) => {
+          xbus.on('META-UPDATE-DB-RES', (res) => {
+                // console.log(target)
+            if (res.code !== 0) {
+              this.dlg_tips = res.msg
+              this.show_tips = true
+              this.cmdFail = true
+              target.parentElement.parentElement.querySelector('#input').value = ' '
+              this.update()
+            } else {
+              let input = target.parentElement.parentElement.querySelector('input')
+              let deptDriver = input.value
+              driver = deptDriver
+                    // icon
+              target.parentElement.classList.add('hide')
+              target.parentElement.setAttribute('id', '')
+                    // ul
+              this.root.querySelector('.deptDriverStaff').classList.add('hide')
+                    // input
+              target.parentElement.parentElement.querySelector('input').classList.add('hide')
+                    // span
+              target.parentElement.parentElement.querySelector('span').classList.remove('hide')
+              target.parentElement.parentElement.querySelector('span').innerHTML = target.parentElement.parentElement.querySelector('input').value
+              target.parentElement.parentElement.querySelector('input').setAttribute('id', '')
+            }
+          })
+        }
+
+        this.unregisterGlobalEventHandlers = () => {
+          xbus.off('META-UPDATE-DB-RES')
+            // xbus.off('SERVER-DRIVER-TIME')
+        }
+
+        this.closeTips = (evt) => {
+          this.show_tips = false
+                // this.update()
+        }
+
+        this.cancel = (event) => {
+          let target = event.currentTarget
+          target.parentElement.parentElement.querySelector('input').classList.add('hide')
+          target.parentElement.parentElement.querySelector('span').classList.remove('hide')
+          target.parentElement.parentElement.querySelector('span').innerHTML = driver
+          target.parentElement.classList.add('hide')
+          target.parentElement.setAttribute('id', '')
+          this.root.querySelector('.deptDriverStaff').classList.add('hide')
+          target.parentElement.parentElement.querySelector('#input').setAttribute('id', '')
+        }
+
+        this.composeUpdateDBReq = (db_op, sqlstring) => {
+          return {
+            cmd: 'update', // update, CMD.META.UPDATE
+            data: {
+              op: db_op, // INSERT, UPDATE, DELETE
+              sql: sqlstring,
+              name: 'driver_arrange'
+            }
+          }
+        }
+
+        this.changeMsg = (evt) => {
+          let target = evt.currentTarget
+          let targetClass = target.className
+          this.switch(targetClass, target)
+        }
+
+        this.preDate = (current) => {
+          let year = new Date().getFullYear()
+          let curMonth = current.split('月')
+          let curDay = curMonth[1].split('日')[0]
+          let time = year + '-' + curMonth[0] + '-' + curDay
+          let pre = new Date(new Date(time).getTime() - 24 * 3600 * 1000)
+          let preYear = pre.getFullYear()
+          let preMonth = pre.getMonth() + 1
+          let preyDay = pre.getDate()
+          if (preMonth < 10) {
+            preMonth = '0' + preMonth
+          }
+          if (preyDay < 10) {
+            preyDay = '0' + preyDay
+          }
+        
+          preTime = preYear + '-' + preMonth + '-' + preyDay
+          this.root.querySelector('.intraday').innerHTML = preTime
+          return preTime
+        }
+
+        this.selectSql = (time, shift) => {
+          window.xhint.showLoading()
+          let sql = `select d.name da, dda.name,dda.driver_date,v.name vn,dda.shift_id from dat_driver_arrange dda,dat_vehicle v,dat_dept d where dda.vehicle_id=v.vehicle_id and dda.dept_id = d.dept_id and dda.driver_date='${time}' and dda.shift_type_id = ${shift}`
+          let message = {
+            cmd: 'query',
+            data: {
+              name: 'curDayDriverschedu',
+              sql: sql
+            }
+          }
+
+          xbus.trigger('REPT-FETCH-DATA', {
+            req: message,
+            def: {
+              name: 'curDayDriverschedu'
+            }
+          })
+        }
+
+        // let self = this
+        xbus.on('REPT-SHOW-RESULT', (ds) => {
+          if (ds.def.name === 'curDayDriverschedu') {
+            window.xhint.close()
+                // self.detail = ds
+            let msg = {
+              name: 'driver',
+              def: 'driver',
+              detail: ds.rows
+            }
+                // console.log(ds.rows)
+            self.init(msg, pre)
+            self.setData(msg.detail)
+            self.update()
+          }
+        })
+
+        // 上一天
+        this.preDay = (evt) => {
+          let selectIcon = this.root.querySelector('#id')
+          if (selectIcon) {
+            let msg = {
+              value: 'notsave',
+              tip: '请先保存修改'
+            }
+            window.hintip.open(msg)
+          } else {
+            this.unregisterGlobalEventHandlers()
+            this.isShows()
+            this.empty()
+            let curDay = this.root.querySelector('.intraday').innerHTML
+            let year = new Date().getFullYear()
+            let curMonth = curDay.split('月')
+            let curdate = curMonth[1].split('日')[0]
+            let time = year + '-' + curMonth[0] + '-' + curdate
+            pre = new Date(new Date(time).getTime() - 24 * 3600 * 1000)
+            let week = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+            let weekDay = week[pre.getDay()]
+        
+                // 获取上一天日期，并格式化
+            this.intraday(pre)
+                // 因补数据注释
+                // if(new Date(preTime) < new Date(currentIntradayDay)){
+                //     this.root.querySelector('#tbody').classList.add('ready')
+                // }else{
+                //     this.root.querySelector('#tbody').classList.remove('ready')
+                // }
+            let isShift = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftFore' ? 2 : 1
+            this.selectSql(preTime, isShift)
+            this.root.querySelector('.intraday').innerHTML = (pre.getMonth() + 1) + '月' + pre.getDate() + '日' + weekDay
+          }
+        }
+
+        // 下一天
+        this.nextDay = (evt) => {
+          let selectIcon = this.root.querySelector('#id')
+          if (selectIcon) {
+            let msg = {
+              value: 'notsave',
+              tip: '请先保存修改'
+            }
+            window.hintip.open(msg)
+          } else {
+            this.unregisterGlobalEventHandlers()
+            this.isShows()
+            this.empty()
+            let curDay = this.root.querySelector('.intraday').innerHTML
+            let year = new Date().getFullYear()
+            let curMonth = curDay.split('月')
+            let curdate = curMonth[1].split('日')[0]
+            let time = year + '-' + curMonth[0] + '-' + curdate
+            pre = new Date(new Date(time).getTime() + 24 * 3600 * 1000)
+            let week = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+            let weekDay = week[pre.getDay()]
+                // console.log(pre)
+            this.intraday(pre)
+                // 因补数据注释
+                // if(new Date(preTime) < new Date(currentIntradayDay)){
+                //     this.root.querySelector('#tbody').classList.add('ready')
+                // }else{
+                //     this.root.querySelector('#tbody').classList.remove('ready')
+                // }
+            let isShift = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftFore' ? 2 : 1
+            this.selectSql(preTime, isShift)
+
+            this.root.querySelector('.intraday').innerHTML = (pre.getMonth() + 1) + '月' + pre.getDate() + '日' + weekDay
+          }
+        }
+
+        this.askFile = (evt) => {
+          let opName = this.root.querySelector('.arrangeOrder').getAttribute('data-value')
+          let isThreeArr = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftThree' ? ['车牌号', '日期', '早班', '中班', '晚班'] : ['车牌号', '早班', '中班', '晚班', '夜班']
+          let type = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftThree' ? ['NUMBER', 'STRING', 'STRING', 'STRING', 'STRING'] : ['NUMBER', 'STRING', 'STRING', 'STRING', 'STRING']
+          let name = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftThree' ? ['number', 'date_format(driver_date,"%Y-%m-%d")', '"早"', '"中"', '"晚"'] : ['card', 'mor', 'mid', 'nig', 'gra']
+          let shift = this.root.querySelector('#selectShift').getAttribute('name') === 'shiftThree' ? 1 : 2
+
+          let title = opName === 'driver' ? '司机排班' : ''
+          let year = new Date().getFullYear()
+          let time = this.root.querySelector('.intraday').innerHTML
+          let cur = time.split('月')
+          let month = cur[0] < 10 ? '0' + cur[0] : cur[0]
+          let day = cur[1].split('日')[0] < 10 ? '0' + cur[1].split('日')[0] : cur[1].split('日')[0]
+          let pdfTime = year + '-' + month + '-' + day
+          let sqlString = `SELECT number,date_format(driver_date,"%Y-%m-%d"),MAX(CASE shift_id WHEN "1" THEN name ELSE " " END) AS "早",MAX(CASE shift_id WHEN "2" THEN name ELSE " " END) AS "中",MAX(CASE shift_id WHEN "3" THEN name ELSE " " END) AS "晚" FROM(SELECT s.name,v.name,IFNULL(shift_id,"total") shift_id,driver_date FROM dat_driver_arrange dda INNER JOIN dat_staff s ON dda.staff_id = s.staff_id INNER JOIN dat_vehicle v ON dda.vehicle_id = v.vehicle_id WHERE driver_date = "${pdfTime}" GROUP BY dda.vehicle_id, shift_id, driver_date WITH ROLLUP HAVING driver_date IS NOT NULL)tb2 GROUP BY tb2.name, tb2.driver_date WITH ROLLUP HAVING driver_date IS NOT NULL`
+          let reptTime = new Date().getTime()
+          let defNames = evt.currentTarget.getAttribute('')
+          let msg = {
+            cmd: 'file',
+            exprList: [],
+            fileType: 'printPDF',
+            labels: isThreeArr,
+            name: 'driver',
+            namesInShort: name,
+            title: title,
+            reptIndex: reptTime,
+            types: type,
+            sql: sqlString,
+            userName: xdata.userName
+          }
+          xbus.trigger('REPT-FETCH-FILE', msg)
+        }
+
+        this.on('unmount', () => {
+          this.unregisterGlobalEventHandlers()
+          this.root.classList.add('hide')
+        })
+    </script>
+</configer-table>

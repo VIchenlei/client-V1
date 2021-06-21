@@ -1,0 +1,46 @@
+@import '../../sass/defs'
+.staff-curve
+  width: 60rem
+  max-height: 35rem
+  overflow: hidden
+  // @include wh(60rem, 35rem)
+.staff-curve-print
+  max-height: none
+.curve-title
+  display: flex
+  justify-content: center
+  margin-top: 1rem
+  height: 2rem
+  .selectchoose
+    display: flex
+    position: relative
+    select
+      width: 5rem
+      background: $body-bg
+      border: 0
+    img
+      position: absolute
+      margin-top: 0.5rem
+      right: 0
+  .date
+    position: absolute
+    right: 0.5rem
+.charts-title
+  display: flex
+  height: 3rem
+  line-height: 3rem
+  justify-content: flex-end
+  padding: 0 1rem
+  span
+    display: flex
+  .print-button
+    justify-content: center
+    margin-left: 1rem
+  input
+    height: 3rem
+    margin: 0 .5rem
+.staff-curve-cont
+  overflow: auto
+  height: 30rem
+.staff-curve-cont-print
+  height: auto

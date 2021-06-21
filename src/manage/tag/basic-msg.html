@@ -1,0 +1,555 @@
+<basic-msg>
+    <div>
+      <!-- <p>详细信息
+          (<span class="red">※</span>为必填项)
+      </p> -->
+      <p class="cont-title">
+        <span>基本信息</span>
+        <span class="buttons hide" ref="buttons">
+          <b class="hint--bottom" name="btn-sure" onclick={ handleDB } aria-label="保存">
+            <img src="/img/store.png" alt="">
+            <!-- <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-store"></use></svg> -->
+          </b>
+          <b class="hint--bottom" name="btn-cancel" onclick={ handleDB } aria-label="重置">
+            <img src="/img/reset.png" alt="">
+            <!-- <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-reset"></use></svg> -->
+          </b>
+        </span>
+      </p>
+      <div class="content" ref="content" name="content">
+          <div class="basic-top">
+            <div class="basic-first-row">
+              <span each={ row in firstRows } name={ row.field_name } class={ !required.includes(row.field_name) ? 'unrequire' : '' }>
+                  <span class="labeltitle float-above" name={ row.field_name } if={ row.field_type !== 'FILE' }>{ row.field_label }
+                    <b class="red" if={ required.includes(row.field_name) }>※</b>
+                  </span>
+               
+                  <span class="defaultFill" name={ row.field_name } type={ row.field_type } onclick={ editDefault }>{ getInnerText(row) }</span>
+                  
+                  <icon-input idname={ row.field_name } ref={row.field_name} type="text" class="hide" placeholder="" icon="icon-down" if={ row.field_type !== 'SELECT' && row.field_type !== 'FILE' && row.field_type !== 'DATE'} classname="login-input" data-type={ row.field_type } blurName="checkInput" value={ row.field_value }></icon-input>
+                  <icon-input idname={ row.field_name } ref={row.field_name} type="date" class="x-date hide" placeholder="" icon="icon-down" if={ row.field_type === 'DATE' } classname="login-input" data-type={ row.field_type } blurName="checkInput" value={ row.field_value }></icon-input>
+                  <select-input idname={ row.field_name } class="hide { row.field_name }" name={ row.field_name } ref={row.field_name} if={ row.field_type=='SELECT' } data-type={ row.field_type } oldvalue={ row.field_value } data-value={row.field_value} onchange={ change } blurName="checkInput"></select-input>
+                  <p ref={ row.field_name + 'tips' } name={ row.field_name + 'tips' }></p>
+              </span>
+            </div>
+            <div each={ row in secondRows } name={ row.field_name } class="basic-second-row">
+                <span if={ row.field_type=='FILE' } class="picture">
+                  <img ref="imgpicture" name="imgpicture" src={ row.field_value ? '/resource/' + name + '/' + row.field_value : '/img/pic' + name + '.png' } alt="">
+                  <span if={ row.field_type=='FILE' } class="file-btn">
+                    <button class="xinput file-input" type="text" ref={ row.field_name } placeholder="上传图片" value={  row.field_value ? row.field_value : '/img/pic' + name + '.png' }  name={ row.field_name } data={ parent.data } onclick={ modifyFile } data-name="uploadPic">上传图片</button>
+                    <button class="xinput file-input" type="text" ref="{ row.field_name }_del" placeholder="删除图片" value={ row.field_value } name={ row.field_name } data={ parent.data } onclick={ modifyFile } data-name="deletePic">删除图片</button>
+                  </span>
+                </span>
+            </div>
+          </div>
+          <div class="basic-third-row hide" name="basic-third-row" ref="basic-third-row">
+            <span each={ row in thirdRows }  name={ row.field_name } class={ !required.includes(row.field_name) ? 'unrequire' : '' }>
+              <span class="labeltitle float-above" name={ row.field_name } if={ row.field_type !== 'FILE' }>{ row.field_label }
+                <b class="red" if={ required.includes(row.field_name) }>※</b>
+              </span>
+             
+              <span class="defaultFill" name={ row.field_name } type={ row.field_type } onclick={ editDefault }>{ getInnerText(row) }</span>
+
+              <icon-input idname={ row.field_name } ref={row.field_name} type="text" class="hide" placeholder="" icon="icon-down" if={ row.field_type !== 'SELECT' && row.field_type !== 'FILE' && row.field_type !== 'DATE'} classname="login-input" data-type={ row.field_type } blurName="checkInput" value={ row.field_value }></icon-input>
+              <icon-input idname={ row.field_name } ref={row.field_name} type="date" class="x-date hide" placeholder="" icon="icon-down" if={ row.field_type === 'DATE' } classname="login-input" data-type={ row.field_type } blurName="checkInput" value={ row.field_value }></icon-input>
+              <select-input idname={ row.field_name } class="hide { row.field_name }" name={ row.field_name } ref={row.field_name} if={ row.field_type=='SELECT' } data-type={ row.field_type } oldvalue={ row.field_value } data-value={row.field_value} onchange={ change } blurName="checkInput"></select-input>
+              <p ref={ row.field_name + 'tips' } name={ row.field_name + 'tips' }></p>
+          </div>
+          <div class="more" onclick={ showDown } if={name === 'staff'}>
+            <img class="angel-bouble hide" ref="angel-double-left" src="img/angle-double-left.png" alt="">
+            <i class="float-above">{showThird ? '收起' : '更多'}</i>
+            <img class="angel-bouble" ref="angel-double-right" src="img/angle-double-right.png" alt="">
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+        import '../../tags/meta-select.html'
+        import '../../tags/file-dialog.html'
+        import {getRows, trim, composeUpdateDBReq, formatTime, editDetail } from '../../js/utils/utils.js'
+        import {formatFieldValue} from '../../config/utils.js'
+        import { illegalInput, unIllegal } from '../js/illegalInput.js'
+        let self = this
+        // this.needAll = 'disNeedAll'
+        
+        // 简化 html部分代码  2019-05-20 9:36 chenl
+        this.getInnerText = (row) => { 
+          let type = row.field_type
+          let name = row.field_name
+          let value = row.field_value
+          if (type !== 'SELECT' && type !== 'DATE') {
+            return value
+          }else if(type === 'SELECT'){
+            return xdata.metaStore.getNameByID(name, value)
+          }else if(type === 'DATE'){
+            return formatTime(value,type)
+          }
+        }
+        this.on('mount', () => {
+          let name = opts.name
+          this.name = name
+          this.tableName = 'dat_' + name
+          this.def = xdata.metaStore.defs[name]
+          this.required = ['staff_id', 'name', 'sex_id', 'certification', 'vehicle_id']
+          this.rows = getRows(null, this.def)
+          this.divisionRows(this.rows)
+          this.registerGlobalEventHandlers()
+          this.update()
+        })
+
+        this.divisionRows = (rows) => {
+          if (this.name === 'staff') {
+            this.firstRows = rows.slice(0, 6)
+            this.secondRows = rows.slice(6, 7)
+            this.thirdRows = rows.slice(7)
+          } else if (this.name === 'vehicle') {
+            this.firstRows = rows.slice(0, 4)
+            this.secondRows = rows.slice(4, 5)
+            this.thirdRows = rows.slice(5)
+          }
+        }
+
+        this.showDown = () => {
+          let row = this.refs['basic-third-row']
+          this.showThird = !this.showThird
+          row.classList.toggle('hide')
+          this.refs['angel-double-left'].classList.toggle('hide')
+          this.refs['angel-double-right'].classList.toggle('hide')
+        }
+
+        this.editDefault = (evt) => {
+          this.parent.editDefault(evt, self)
+        }
+
+        this.checkInput = (evt) => {
+          let self = this
+          let target = evt.currentTarget
+          let checkNode = target.parentElement.parentElement
+          let inputname = checkNode.getAttribute('idname')
+          let type = checkNode.getAttribute('data-type')
+          let value = target.value
+          value = trim(value)
+          if (inputname === 'staff_id' || inputname === 'vehicle_id') {
+            if (!(/^[1-9]\d*$/g).test(value)) {
+              illegalInput(self, inputname, '请输入非0数字')
+            } else if (xdata.metaStore.data[this.name] && xdata.metaStore.data[this.name].get(parseInt(value, 10))) {
+              illegalInput(self, inputname, '已存在该编号')
+            } else {
+              unIllegal(self, checkNode, target.value, inputname)
+            }
+          } else if (this.name === 'staff' && inputname === 'name' ) {
+            let reg = (/^[0-9A-Za-z\u4e00-\u9fa5]{1,}$/g)
+            if (reg.test(value) || value === '') {
+              unIllegal(self, checkNode, value, inputname)
+            } else {
+              illegalInput(self, inputname, '请输入字母或汉字')
+            }
+          } else if (inputname === 'certification') {
+            let reg = /^[1-9]\d{5}[1-9]\d{3}((0\d)|(1[0-2]))(([0|1|2]\d)|3[0-1])((\d{4})|\d{3}[A-Za-z])$/
+            if (reg.test(value) || value === '') {
+              if (value) {
+                let staffs = xdata.metaStore.data.staff && Array.from(xdata.metaStore.data.staff.values())
+                if (staffs && staffs.some(item => trim(item.certification) === value)) {
+                  illegalInput(self, inputname, '身份证号重复')
+                } else {
+                  unIllegal(self, checkNode, value, inputname)
+                }
+              } else {
+                unIllegal(self, checkNode, value, inputname)
+              }
+            } else {
+              illegalInput(self, inputname, '请输入正确的身份证号')
+            }
+          } else if (inputname === 'height') {
+            let reg = (/^[1-2]\d{2}$/g)
+            if (reg.test(value) || value === '') {
+              unIllegal(self, checkNode, value, inputname)
+            } else {
+              illegalInput(self, inputname, '请输入正确身高，不能包含特殊字符')
+            }
+          } else if (inputname === 'weight') {
+            let reg = (/^[\d]{2,3}|[\d\.]{4,5}$/g)
+            if (reg.test(value) || value === '') {
+              unIllegal(self, checkNode, value, inputname)
+            } else {
+              illegalInput(self, inputname, '请输入正确体重')
+            }
+          } else if (inputname === 'blood') {
+            let reg = (/^[A|B|O|AB]{1,2}$/ig)
+            if (reg.test(value) || value === '') {
+              unIllegal(self, checkNode, value, inputname)
+            } else {
+              illegalInput(self, inputname, '请输入正确血型(A/B/O/AB)')
+            }
+          } else if (inputname === 'telephone' || inputname === 'relative_telephone') {
+            // let reg = /(^(([0\+]\d{2,3}-)?(0\d{2,3})-)(\d{7,8})(-(\d{3,}))?$)|(^0{0,1}1[3|4|5|6|7|8|9][0-9]{9}$)/
+            let reg = /(^([1-9]{1}[0-9]{6,7})$)|(^0{0,1}1[3|4|5|6|7|8|9][0-9]{9}$)/
+            if (reg.test(value) || value === '') {
+              unIllegal(self, checkNode, value, inputname)
+            } else {
+              // illegalInput(self, inputname, '请输入11位手机号或区号-座机号')
+              illegalInput(self, inputname, '请输入11位手机号或座机号')
+            }
+          } else if (type === 'NUMBER') {
+            if (parseInt(value, 10) || value === '' || parseInt(value, 10) === 0) {
+              unIllegal(self, checkNode, value === '' ? value :  parseInt(value, 10), inputname)
+            } else {
+              illegalInput(self, inputname, '请输入数字')
+            }
+          } else if (type === 'SELECT') {
+            if (!target[target.selectedIndex].value) {
+              illegalInput(self, inputname, '非法值，请重新输入')
+            } else {
+              unIllegal(self, checkNode, target[target.selectedIndex].innerHTML, inputname)
+            }
+          } else if(inputname === 'name'){
+            if(value && value.includes(' ')){
+              illegalInput(self, inputname, '输入不能包括空格')
+            }else{
+              unIllegal(self, checkNode, value, inputname)
+            }
+          }else {
+            value = value ? value : ''
+            this.parent.hideFill(checkNode, value, self)
+          }
+        }
+
+        this.change = (evt) => {
+          let target = evt.currentTarget
+          let name = target.getAttribute('name')
+          let select = target.childNodes[0].querySelector('.query-select')
+          target.setAttribute('value', select[select.selectedIndex].value)
+        }
+
+        this.registerGlobalEventHandlers = () => {
+          xbus.on('FILE-MODIFIED', (msg) => {
+            this.refs['pic'].setAttribute('value', '')         
+          })
+        }
+
+        this.doOperateDB = (evt) => {
+          let type = this.refs['content'].getAttribute('data-type')
+          if (type) {
+            this.doUpdate()
+          } else {
+            this.doInsert()
+          }
+          // this.parent.updateBasicList()
+        }
+
+        // this.dohandleDB = (name) => {
+        this.handleDB = (evt) => {
+          let name = evt.currentTarget.getAttribute('name')
+          let type = this.refs['content'].getAttribute('data-type')
+          let ident = this.name === 'staff' ? 's' : 'v'
+          switch (name) {
+            case 'btn-sure':
+              this.doinsertPopup()   
+              xdata.metaStore[`${ident}basicUpdate`] = true
+              break
+            case 'delete':
+              this.doDelete()
+              xdata.metaStore[`${ident}basicUpdate`] = true
+              break
+            case 'btn-cancel':
+              this.doReset()
+              this.parent.tags['operation-msg'] && this.parent.tags['operation-msg'].doReset()
+              //重置传null清空证件信息
+              this.parent.tags['credentials-staffs'] && this.parent.tags['credentials-staffs'].updateList(null) 
+              break
+          }
+          this.parent.registerGlobalEventHandlers(name)
+          // this.parent.updateBasicList()
+          this.refs.buttons.classList.add('hide')
+        }
+
+        // 判断是否显示特殊的call-leave
+        this.judgeShowSpecialMsg = () => {
+          let fieldValue = this.refs[`${this.name}_id`].root.querySelector('input').value
+          let keyvalue = fieldValue && parseInt(fieldValue, 10)
+          // let objs = xdata.metaStore.data[this.name]
+          // let obj = keyvalue && objs.get(keyvalue)
+          if (keyvalue && keyvalue !== this.key) return true
+          return false
+        }
+
+        /**
+         * @description: 人车信息修改保存弹出提示框
+         */
+        this.doinsertPopup = (evt) => { //弹窗提醒删除
+            let self = this
+            let isShowSpecialMsg = this.judgeShowSpecialMsg()
+            if (this.activePanel) this.activePanel.unmount(true)
+            this.activePanel = riot.mount('call-leave', { 
+                name: 'doinsert',
+                currentTag: self,
+                isShow: isShowSpecialMsg
+            })[0]
+        }
+
+        this.doInsert = (doType) => {
+          let keyvalue = this.refs[`${this.name}_id`].root.querySelector(`#${this.name}_id`).value
+          let isExitKeyvalue = xdata.metaStore.data[this.name] && xdata.metaStore.data[this.name].get(Number(keyvalue))
+          if (doType === 'doUpdate' || isExitKeyvalue) {
+            this.doUpdate(doType ? 'INSERT' : 'UPDATE')
+          } else {
+            let fields = ''
+            let values = ''
+            let detail = ''
+            this.keyValue = null
+            let msg = {
+              value: 'notsave',
+              tip: this.illegal ? '输入的内容存在非法值，请检查输入项！' : '请检查带*项是否输入完整！'
+            }
+            if (this.illegal) {
+              window.hintip.open(msg)
+              return
+            }
+            for (let i = 0, len = this.rows.length; i < len; i++) {
+              let row = this.rows[i]
+              let fieldName = this.rows[i].field_name
+              let fieldValue = null, textValue = null
+              if (this.rows[i].field_type === 'SELECT') {
+                fieldValue = this.root.querySelector('.' + fieldName).getAttribute('oldvalue')
+                let value = this.root.querySelector('.' + fieldName).getAttribute('value')
+                textValue = this.root.querySelector('.' + fieldName).previousElementSibling.innerText
+                if (!value) {
+                  value = this.root.querySelector('.' + fieldName).querySelector('select') && this.root.querySelector('.' + fieldName).querySelector('select').value
+                }
+                if (value && fieldValue !== value) {
+                  fieldValue = value
+                }
+                if (!fieldValue || !(/\d/ig).test(fieldValue)) {
+                  fieldValue = 0
+                }
+                if (this.required.includes(fieldName) && fieldValue !== 0 && !fieldValue) {
+                  window.hintip.open(msg)
+                  return
+                }
+              } else if (this.rows[i].field_type === 'FILE') {
+                fieldValue = this.refs[fieldName].getAttribute('value')
+                fieldValue = formatFieldValue(this.rows[i].field_type, fieldValue)
+                if (fieldValue.indexOf('pic') !== -1 || fieldValue === '' || fieldValue === 'undefined') {
+                  fieldValue = null
+                }
+              } else {
+                fieldValue = this.refs[fieldName].root.querySelector('#' + fieldName).value
+                if (this.required.includes(fieldName) && !fieldValue) {
+                  window.hintip.open(msg)
+                  return
+                }
+                fieldValue = fieldValue === null ? fieldValue : formatFieldValue(this.rows[i].field_type, fieldValue)
+                textValue = fieldValue
+              }
+
+              if (i === 0) {
+                this.keyValue = fieldValue
+              } else {
+                fields += ','
+                values += ','
+              }
+              detail = editDetail(fieldName, textValue, detail, this.name)
+              fields += fieldName
+              values += fieldValue
+            }
+            if (this.name === 'staff') {
+              fields += ',user_id'
+              values += `,'${xdata.userName}'`
+            }
+            this.sql = `REPLACE into ${this.tableName} (${fields}) VALUES(${values})`
+            this.detail = detail
+            // console.log(this.sql)
+            this.parent.tags["operation-msg"] && this.parent.tags["operation-msg"].doInsert('linkage')
+          }
+        }
+
+        this.insertSql = (optype) => {
+          if (!this.sql) return
+          let req = composeUpdateDBReq(optype || 'INSERT', opts.name, this.keyValue, this.sql)
+          req.data['detail'] = this.detail
+          req.data['user_id'] = xdata.userName
+          console.log(req,'req')
+          xbus.trigger('META-UPDATE-DB', {
+            req: req
+          })
+        }
+
+        this.doUpdate = (optype) => {
+          let sql = '', detail = ''
+          for (let i = 0, len = this.rows.length; i < len; i++) {
+            let field_name = this.rows[i].field_name
+            let inputValue = null, textValue = null
+            if (this.rows[i].field_type === 'SELECT') {
+              inputValue = this.refs[field_name].root.getAttribute('value') || this.refs[field_name].root.getAttribute('data-value')
+              textValue = this.refs[field_name].root.previousElementSibling.innerText
+              if (!inputValue || !inputValue.match(/\d/ig)) {
+                inputValue = 0
+              }
+            } else if (this.rows[i].field_type === 'FILE') {
+              inputValue = this.refs[field_name].getAttribute('value')
+              if (inputValue.indexOf('pic') !== -1 || inputValue === '' || inputValue === 'undefined') {
+                inputValue = null
+              }
+            } else {
+              inputValue = this.refs[field_name].root.querySelector('#' + field_name).value
+              textValue = inputValue
+            }
+            if (this.rows[i].field_value != inputValue) {
+              inputValue = inputValue === null ? inputValue : formatFieldValue(this.rows[i].field_type, inputValue)
+              if (sql != '') {
+                sql += ','
+              }
+              sql += `${field_name}=${inputValue}`
+              detail = editDetail(field_name, textValue, detail, this.name)
+            }
+          }
+          if (sql != '') {
+            this.keyValue = this.refs[`${this.name}_id`].root.querySelector('input').value
+            this.sql = `UPDATE ${this.tableName} set ${sql} where ${this.name + '_id'}=${this.key}`
+            console.log(this.sql)
+          }
+          this.detail = detail
+          this.parent.tags["operation-msg"] && this.parent.tags["operation-msg"].doUpdate('linkage', optype)
+        }
+
+        this.doDelete = (name) => {
+          let self = this
+          let keyname = opts.name + '_id'
+          // let keyvalue = this.refs[keyname].value
+          let sql = `DELETE from ${this.tableName} where ${keyname}=${name}`
+          let detail = editDetail(keyname, name, '', this.name)
+          let deletename = xdata.metaStore.data[this.name] && xdata.metaStore.data[this.name].get(name)
+          detail = editDetail('name', deletename && deletename.name, detail, this.name)
+          let req = composeUpdateDBReq('DELETE', opts.name, name, sql)
+          req.data['detail'] = detail
+          req.data['user_id'] = xdata.userName
+          req.username = xdata.userName
+          xbus.trigger('META-UPDATE-DB', {
+            req: req
+          })
+          this.rows = getRows(null, this.def)
+          this.update()
+        }
+
+        this.doReset = () => {
+          this.refs['content'].setAttribute('data-type', '')
+          this.rows = getRows(null, this.def)
+          this.divisionRows(this.rows)
+          this.update()
+        }
+
+        this.updateList = (value) => {
+          this.key = value
+          let msg = {
+            row: xdata.metaStore.data[this.name] && xdata.metaStore.data[this.name].get(value)
+          }
+          this.rows = getRows(msg, this.def)
+          this.divisionRows(this.rows)
+          this.refs['content'].setAttribute('data-type', 'update')
+          this.update()
+        }
+
+        this.modifyFileUpload = (evt) => {
+          let remoteFileName = evt.target.value
+          let fieldName = evt.target.getAttribute('name')
+          let fileNamePrefix = this.refs[this.name + '_id'].refs[this.name + '_id'].value // fileNamePrefix
+          let data = {
+            cmd: this.key ? 'UPDATE' : 'INSERT',
+            key: this.name === 'staff' ? 'staff_id' : 'vehicle_id',
+            maxid: fileNamePrefix,
+            name: this.name,
+            table: 'dat_' + this.name,
+            title: this.name === 'staff' ? '人员' : '车辆',
+            rows: this.rows
+          }
+          let msg = {
+            cmd: this.key ? 'UPDATE' : 'INSERT',
+            fieldName: fieldName,
+            fileType: this.name,
+            fileName: remoteFileName,
+            fileNamePrefix: fileNamePrefix,
+            data: data,
+            parentTag: self
+          }
+          console.log(msg);
+          this.showFileDialog(msg)
+        }
+
+        this.deleteMsg = (evt) => {
+          let row = evt.item.row
+          let value = row && row.field_value
+          let keyValue = this.rows[0].field_value
+          if (value) {
+            xbus.trigger('DELETE-PIC', {
+              cmd: 'delete-pic',
+              data: {
+                name: this.name,
+                pic: value,
+                keyValue: keyValue
+              }
+            })
+          }
+        }
+
+        this.modifyFileDelete = (evt) => {
+          let self = this
+          let row = evt.item.row
+          let value = row && row.field_value
+          let picvalue = this.refs['pic'].getAttribute('value')
+          if (!value && !picvalue) {
+            let msg = {
+              value: 'notsave',
+              tip: '该人员没有照片！'
+            }
+            window.hintip.open(msg)
+            return
+          } 
+          if (value) {
+            if (this.callLeave) {
+              this.callLeave.unmount(true)
+            }
+            this.callLeave = riot.mount('call-leave', {
+              name: 'dodelete',
+              currentTag: self,
+              target: evt
+            })[0]
+          } else {
+            this.refs['pic'].setAttribute('value', '')
+            this.refs['imgpicture'] && this.refs['imgpicture'].setAttribute('src', '/img/pic' + this.name + '.png')
+          }
+        }
+
+        this.modifyFile = (evt) => {
+          evt.stopPropagation()
+          let modifyType = evt.target.getAttribute('data-name')
+          if (modifyType === 'uploadPic') {
+            this.modifyFileUpload(evt)
+          } else {
+            this.modifyFileDelete(evt)
+          }
+        }
+
+        this.showFileDialog = (msg) => {
+          if (this.fileDialog) {
+            this.fileDialog.unmount(true)
+          }
+
+          this.fileDialog = riot.mount('file-dialog', msg)[0]
+        }
+
+        this.updateIMG = (source) => {
+            // this.refs["imgpicture"].setAttribute('src', '/resource/' + source)
+          if (source !== 'pic') {
+            this.refs['imgpicture'] && this.refs['imgpicture'].setAttribute('src', '../resource/' + this.name + '/' + source)
+          } else {
+            this.refs['imgpicture'] && this.refs['imgpicture'].setAttribute('src', '/img/pic' + this.name + '.png')
+          }
+          this.refs['pic'] && this.refs['pic'].setAttribute('value', source)
+          this.refs['buttons'] && this.refs['buttons'].classList.remove('hide')
+        }
+
+        this.on('unmount', () => {
+          xbus.off('FILE-MODIFIED')
+        })
+    </script>
+</basic-msg>

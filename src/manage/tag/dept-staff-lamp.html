@@ -1,0 +1,137 @@
+<dept-staff-lamp>
+  <span class="seek-staff">
+    <span class="identify-staff2 search-bar"></span>
+    <span onclick={ askFile } name="csv" class="hint--bottom-left icon" aria-label="批量导出">
+      <img class='pointImg' src="/img/export.png" alt="">
+    </span>
+  </span>
+  
+  <table>
+    <thead>
+      <tr>
+        <th each={label in labels}>{label}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr each={row in rows}>
+        <td each={name in names}>{getName(row[name], name)}</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="pagination" data-is="pagination" totalpage={totalPage} pageindex={pageIndex} tablename={name} if={totalPage>1}></div>
+  <div data-is="blank-message" message="当前数据库中没有相关记录！请查证后再试。" class="blank-message" if={ !hasdata }></div>
+  <script>
+    import {manages} from '../../js/def/manage_def.js'
+    import {getSearchData} from '../../js/utils/utils.js'
+    this.root.classList.remove('hide')
+    let typeDef = null, dataSet = null, self = this
+
+    this.getName = (value, name) => {
+      if (name === 'dept_id') return xdata.metaStore.getNameByID('dept_id', value)
+      return value
+    }
+
+    this.getList = (result) => {
+      let staffs = xdata.metaStore.staffs && Array.from(xdata.metaStore.staffs.values())
+      staffs = staffs && staffs.filter(staff => {
+        let cardID = staff.card_id
+        let deptid = staff.dept_id
+        if ((result && deptid === result) || !result) {
+          return xdata.metaStore.needDisplay(cardID) 
+        } 
+      })
+      return staffs
+    }
+
+    this.getResult = (result) => {
+      let desc = dataSet.desc
+      if (result.length > 1) {
+        this.root.querySelector('#searchinput').value = ''
+        this.deptID = null
+      } else if (result.length === 1) {
+        this.root.querySelector('#searchinput').value = result[0][desc]
+        this.deptID = result[0].dept_id
+      }
+      
+      this.lists = this.getList(this.deptID)
+      this.total = this.lists && this.lists.length
+      this.rows = this.total && this.lists.slice(0, PAGE_SIZE)
+      this.hasdata = !!this.total
+      this.pageIndex = 0
+      this.initPagination()
+      // console.log(result)
+    }
+
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+      this.pageIndex = msg.pageIndex
+      this.start = this.pageIndex * PAGE_SIZE
+      this.end = this.start + PAGE_SIZE
+      this.rows = this.lists.slice(this.start, this.end)
+      window.xhint.close()
+      this.update()
+    })
+
+    this.initPagination = () => {
+      this.totalPage = Math.ceil(this.total / PAGE_SIZE)
+      this.pageIndex = this.pageIndex ? this.pageIndex : 0
+      this.update()
+    }
+
+    this.init = () => {
+      this.def = manages['staff_lamp']
+      this.name = this.def.name
+      this.fields = this.def.fields
+      this.labels = this.fields.labels
+      this.names = this.fields.names
+      this.lists = this.getList()
+      this.total = this.lists && this.lists.length
+      this.rows = this.total && this.lists.slice(0, PAGE_SIZE)
+      let results = getSearchData('', 'dept', this.rows, this.getResult)
+      typeDef = results.typeDef
+      dataSet = results.dataSet
+      this.hasdata = !!this.total
+      this.initPagination()
+    }
+    this.init()
+
+    this.on('mount', () => {
+      this.fuzz = riot.mount('span.identify-staff2', 'fuzzy-search2', { typeDef: typeDef, dataSet: dataSet, searchIcon: true})[0]
+    })
+
+    this.getAskFileSql = (def) => {
+      let names = def.fields.names
+      let fstring = names.join(',')
+      let keyIndex = def.fields.names[def.keyIndex]
+      let condition = this.deptID ? `and dept_id = ${this.deptID}` : ''
+      let sql = `select ds.staff_id, name, dept_id, lampNo from dat_staff ds, dat_staff_extend dse where ds.staff_id = dse.staff_id ${condition} order by ${keyIndex};`
+      return sql
+    }
+
+    this.askFile = (evt) => {
+      window.xhint.close()
+      window.xhint.showLoading()
+      let opName = evt.currentTarget.getAttribute('name')
+      let sqlString = this.getAskFileSql(this.def)
+      let name = this.name
+      let reptTime = new Date().getTime()
+      let msg = {
+        cmd: 'file',
+        exprList: [],
+		    name: name,
+		    labels: this.def.fields.labels,
+		    title: this.def.label,
+		    namesInShort: this.def.fields.names,
+		    types: this.def.fields.types,
+		    fileType: opName,
+        reptIndex: reptTime,
+        sql: sqlString,
+        userName: xdata.userName
+      }
+		  xbus.trigger('REPT-FETCH-FILE', msg)
+    }
+
+    this.on('unmount', () => {
+      this.root.classList.add('hide')
+    })
+  </script>
+</dept-staff-lamp>

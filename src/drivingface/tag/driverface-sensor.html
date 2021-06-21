@@ -1,0 +1,157 @@
+<driverface-sensor>
+    <div class="sensor">
+      <p each={ img in imgs } class={img.name} type={img.source} style="top: {img.top}px;left: {img.left}px; right: {img.right}px;" data-top={img.top} data-right={img.right}>
+        <span if={img.datatype === 'NUMBER'}>{img.source + img.unit}</span>
+        <img class={img.name + 'img'} src={img.src} alt="" data-type={img.name} data-source={img.data} ref={img.name}>
+      </p>
+    </div>
+    <script>
+        import { sensor, airImg } from '../../js/def/sensor_def.js'
+        import { workfaceGas } from '../../js/def/gas_pos_def.js'
+        const ZAIGAS = 'jizaigas'
+        this.judgeSensorImg = (workfaceSensor) => {
+          let type = workfaceSensor.sensor_id
+          let defaultImg = '/img/sensor.png'
+          let defaultName = 'gas'
+          if (type) {
+            defaultImg = sensor[type] && sensor[type].img
+            defaultName = sensor[type] && sensor[type].name
+          }
+          return {defaultImg, defaultName}
+        }
+
+        this.judgePos = (workfaceSensor, basicCoord) => {
+          let type = Number(workfaceSensor.sensor_id)
+          let left, right, top
+          switch (type) {
+            case 1: // 工作面甲烷传感器
+              // left = 5 * this.scale * this.measuringScale - 300
+              // break
+            case 3: // 主风筒
+              left = 5 * this.scale * this.measuringScale - 300
+              break
+            case 4: // 副风筒
+              left = 10 * this.scale * this.measuringScale - 300
+              break
+            case 5: // 回风流瓦斯传感器
+            case 6: // 回风流CO传感器
+            case 7: // 回风流温度传感器
+              right = 10 * this.scale * this.measuringScale
+              break
+            default:
+              let x = Math.abs(workfaceSensor.x)
+              let y = Math.abs(workfaceSensor.y)
+              let charX = Math.abs(x - basicCoord[0])
+              let charY = Math.abs(y - basicCoord[1])
+              top = charX * this.measuringScale * this.scale - 48 / 2
+              right = charY * this.scale * this.measuringScale + this.rightLength - 48 / 2
+              break
+          }
+          return {left, right, top}
+        }
+
+        this.judgeData = (workfaceSensor) => {
+          let datasource = workfaceSensor.data_source
+          let envirsource = xdata.environmentalStore.environmentalData && xdata.environmentalStore.environmentalData.get(datasource)
+          let datatype = workfaceGas[datasource] && workfaceGas[datasource].datatype
+          let unit = workfaceGas[datasource] && workfaceGas[datasource].unit
+          let source = 0
+          if (envirsource) {
+            source = envirsource[1]
+          }
+          return {source, datatype, unit}
+        }
+
+        this.sensorPosition = (basicCoord) => {
+          let driverfaceID = this.parent.parent.opts.id
+          let workfaceSensors = xdata.metaStore.data.workface_sensor && Array.from(xdata.metaStore.data.workface_sensor.values()).filter(item => item.drivingface_id === driverfaceID)
+
+          this.measuringScale = this.parent.measuringScale // 屏幕比例
+          this.rightLength = this.parent.rightLength // 巷道口20米 * 屏幕比例 + 伸缩层20px
+          this.scale = this.parent.scale // 地图比例
+
+          let imgs = []
+          if (workfaceSensors.length > 0) {
+            for (let i = 0; i < workfaceSensors.length; i++) {
+              let workfaceSensor = workfaceSensors[i]
+              if (workfaceSensor.sensor_id !== 8 && workfaceSensor.sensor_id !== 9) {
+                if (basicCoord) {
+                  let imgSrc = this.judgeSensorImg(workfaceSensor) // 判断显示图片
+                  let pos = this.judgePos(workfaceSensor, basicCoord) // 判断显示位置
+                  let sensorDate = this.judgeData(workfaceSensor) // 判断显示数据
+                  let msg = {
+                    src: imgSrc.defaultImg,
+                    top: pos.top,
+                    right: pos.right,
+                    left: pos.left,
+                    data: workfaceSensor.data_source,
+                    name: imgSrc.defaultName,
+                    source: sensorDate.source,
+                    datatype: sensorDate.datatype,
+                    unit: sensorDate.unit
+                  }
+                  imgs.push(msg)
+                }
+              }
+            }
+          }
+          this.imgs = imgs
+          this.update()
+        }
+
+        this.animate = (jizaiImg, x, y, vehicleLength) => {
+          let top = Number(jizaiImg.getAttribute('data-top'))
+          let right = Number(jizaiImg.getAttribute('data-right'))
+          if (top !== x || right !== y) {
+            jizaiImg.style['transition'] = 'all 2s linear'
+            // jizaiImg.style.top = x + 48 + 'px'
+            jizaiImg.style.right = y + this.rightLength - vehicleLength / 2 + 'px'
+          }
+        }
+
+        this.updateJIZAIgas = (x, y, rightLength, vehicleLength, needMove) => {
+          let jizaiImg = this.root.querySelector('.' + ZAIGAS)
+          if (jizaiImg) {
+            if (needMove) {
+              this.animate(jizaiImg, x, y, vehicleLength)
+            } else {
+              jizaiImg.style = `right: ${y + this.rightLength - vehicleLength / 2}px;`
+            }
+            // jizaiImg.style = `right: ${y + this.rightLength + vehicleLength / 2}px;`
+            // this.update()
+          }
+        }
+
+        xbus.on('ENVIRONMENTAL-DATA-UPDATE', () => {
+          let datasources = Array.from(xdata.environmentalStore.environmentalData.values())
+          for (let i = 0; i < datasources.length; i++) {
+            let datasource = datasources[i]
+            let datanum = datasource[0]
+            let name = workfaceGas[datanum] && workfaceGas[datanum].spyname
+            if (name) {
+              let changenode = this.root.querySelector('.' + name)
+              if (changenode) {
+                let changedata = Number(datasource[1])
+                let sensordata = Number(changenode.getAttribute('type'))
+                let type = workfaceGas[datanum].datatype
+                let unit = workfaceGas[datanum].unit
+                if (changedata !== sensordata) {
+                  if (type === 'NUMBER') {
+                    changenode.firstElementChild.innerHTML = changedata + unit
+                  } else if (type === 'TURNOFF') {
+                    if (changedata === 0) {
+                      changenode.lastElementChild.src = airImg['move'].img
+                    } else if (changedata === 1) {
+                      changenode.lastElementChild.src = airImg['stop'].img
+                    }
+                  }
+                  changenode.setAttribute('type', changedata)
+                }
+              }
+            }
+          }
+          this.parent.tags['driveface-vehicle'] && this.parent.tags['driveface-vehicle'].vehicleBeltState()
+          this.update()
+        })
+    </script>
+</driverface-sensor>

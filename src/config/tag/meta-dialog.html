@@ -1,0 +1,952 @@
+<!--
+message 结构
+message = {
+  cmd : 'INSERT / UPDATE / DELETE',
+  topicName : topicName, // such as dept, map, etc.
+  tableName : tableName,
+  tableTitle : tableTitle,
+  tableKeyName : key_field_name,
+	rows : [{
+    name : field_name,
+    value : field_value,
+    type : field_type,
+    label : field_label,
+  }, {}, ...]
+}
+-->
+
+<meta-dialog>
+  <div class="dlg-bg animated" show={isShow}>
+    <div name="meta_dialog" ref="meta_dialog" class="dlg-window meta-dialog animated">
+      <div name="meta_title" ref="meta_title" class="dlg-head">
+        <span class="dlg-title">
+          <grip type="grip-horizontal"></grip>{ tableTitle } 
+        </span>
+      </div>
+      <div class="dlg-body" if={ !show_tips }>
+        <div data-is="dialog-table" class="dialog-table content-panel" data-leave={ leaveInput } data={ data } if={tagName !== 'check-tree'}></div>
+        <div data-is="check-tree" class="dialog-table content-panel" data={ data } if={tagName === 'check-tree'}></div> 
+        <ul class="showDetails hide">
+          <li each={ item in items } onclick={ pitchOn } card-name={ item.name } li-id={ this.isStaff ? item.staff_id : item.vehicle_id } dept-id={ item.dept_id }>{ item.name }</li>
+        </ul>
+      </div>      
+      <div class="dlg-foot" if={ !show_tips }>
+        <button op-name="save-update" class="btn-sure" onclick={ save }>{cmd == 'DELETE' ? '删除' : '保存'}</button>
+        <button op-name="cancel-update" class="btn-cancel" onclick={ close }>取消</button>
+      </div>
+    </div>   
+  </div>
+
+  <script>
+    import './dialog-table.html'
+    import './check-tree.html'
+    import {composeUpdateDBReq, trim, formatTime, show, fontDataChange} from '../../js/utils/utils.js'
+    import {metaUpdateRes, formatFieldValue, testUnenableNullData, testForm, isReadonly, isDisabled, getLandIdx, checkDate } from '../utils.js'
+    this.show_tips = false
+    this.isShow = true
+    // 特殊的字段类型
+    this.specialTypes = ['FILE', 'SELECT', 'DATETIME', 'DATE', 'TIME', 'INPUT']
+    let timeName = ['charge_date', 'use_date', 'enter_time', 'date_time', 'start_time', 'plan_time', 'leave_time', 'oper_time']
+    let msg = opts.message // eslint-disable-line
+    if(msg.hasOwnProperty('currentTag')){      
+      this.currentTag = msg.currentTag
+    }
+    let self = this
+    this.data = msg
+    this.fromPage = ''
+    this.data.from = 'meta'
+    this.cmd = msg.cmd
+    this.topicName = msg.name
+    this.tableName = msg.table
+    this.tagName = msg['tag-name']
+    this.input = false
+    this.tableTitle = msg.title
+    this.tableKeyName = msg.key
+    this.rows = msg.rows
+    this.maxid = msg.maxid
+    this.cmdSuccess = false
+    this.cmdFail = false
+    this.cardValue = null
+    this.position = opts.position // eslint-disable-line
+    this.showName = opts.showName // eslint-disable-line
+    this.items = opts.items // eslint-disable-line
+    this.modified = false // use to indicate which the record be modified or not.
+    this.dss = window.sessionStorage.getItem('selected')
+    if(msg.hasOwnProperty('fromPage')){
+       this.fromPage = msg.fromPage
+    }
+    let basicmsg = ['dat_dept', 'dat_group', 'dat_worktype', 'dat_occupation', 'dat_shift_type', 'dat_shift', 'dat_occupation_level', 'dat_vehicle_type']
+    const KEYNUM=['dat_drivingface_vehicle']
+    let isMustFill = ['dat_occupation','dat_drivingface_warning_point','dat_drivingface_vehicle']
+    this.pitchOn = (evt) => {
+      let target = evt.currentTarget
+      let input = this.root.querySelector('.pitchON')
+      input.value = target.innerHTML
+      let id = target.getAttribute('li-id')
+      let deptID = target.getAttribute('dept-id')
+      input.setAttribute('data-value', id)
+      input.setAttribute('dept-value', deptID)
+      let details = this.root.querySelector('.showDetails')
+      details.classList.add('hide')
+      input.setAttribute('class', '')
+    }
+
+    this.on('META-DIALOG-SHOW', (msg) => {
+      this.initDialog(msg)
+      this.update()
+      show(this.root)
+    })
+
+    this.on('mount', () => {
+      show(this.root)
+      window.setDraggable({
+        target: this.refs.meta_dialog,
+        handle: this.refs.meta_title
+      })
+      this.registerGlobalEventHandlers()
+      if (this.refs['md5']) {
+        this.refs['md5'].readOnly = true
+      }
+    })
+    
+    // 每次打开一个 dialog 时，
+    // 会先 unmount 前一次的 dialog，这里会注销对应的全局事件（xbus）
+    this.on('unmount', () => {
+      this.unregisterGlobalEventHandlers()
+    })
+
+    this.registerGlobalEventHandlers = () => {
+      xbus.on('META-UPDATE-DB-RES', (res) => {
+        let topicName = this.topicName === 'shift_setting' ? 'setting' : this.topicName
+        let cmd = res.data.op
+        let updateRes = metaUpdateRes(res, topicName, cmd)
+        if (updateRes) {
+          if (res.data.name === 'landmark') {
+            this.drawlandmark(res, this._fields, this._values)       
+          } else if (res.data.name === 'goaf') {
+            this.drawGoaf(res)
+          }
+          if (res.data.name === 'rt_person_forbid_down_mine' || res.data.name === 'his_patrol_data'){
+            this.currentTag.accurateSearch()
+          }
+          res.data.name !== 'rt_person_forbid_down_mine' && this.close()
+        }
+        this.update()        
+        window.setDraggable({
+          target: this.refs.meta_dialog,
+          handle: this.refs.meta_title
+        }) 
+      })
+
+      this.drawGoaf = (res) => {
+        if (res.data.op === 'DELETE') {
+          xbus.trigger('DELETE-GOAF-ON-MAP', res.data.id)
+        } else {
+          if (!this._fields || !this._values) return
+          let fields = this._fields.split(',')
+          let values = this._values.split(',')
+          let goafID = values[0], name = values[1], path = values[2], needDisplay = values[3]
+          let msg = {
+            goaf_id: goafID,
+            name: name,
+            path: path,
+            need_display: needDisplay
+          }
+          xbus.trigger('GRAW-GOAF-ON-MAP', msg)
+        }
+      }
+
+      this.drawlandmark = (res, fields, values) => {
+        if (!fields || !values) return
+        let _fields = fields.toString().split(',')
+        let _values = values.toString().split(',')
+        let landmarkID = _values[getLandIdx(_fields, 'landmark_id')]
+        let name = _values[getLandIdx(_fields, 'name')]
+        let x = _values[getLandIdx(_fields, 'x')]
+        let y = _values[getLandIdx(_fields, 'y')]
+        let msg = {
+          res: res,
+          landmarkID: landmarkID,
+          name: name,
+          x: x,
+          y: y
+        }
+        xbus.trigger('DRAW-MAP-LANDMARK', msg)
+      }
+
+      xbus.on('FILE-MODIFIED', (msg) => {
+        // debugger
+        if (this.refs[msg.fieldName]) {
+          this.refs[msg.fieldName].value = msg.fileName
+          if (this.refs['md5']) {
+            this.refs['md5'].value = msg.fileMD5
+          }
+          this.modified = true
+        }
+      })
+    }
+
+    this.unregisterGlobalEventHandlers = () => {
+      xbus.off('META-UPDATE-DB-RES FILE-MODIFIED')
+    }
+
+    this.initDialog = (msg) => {
+      this.show_tips = false
+      this.data = msg
+      this.cmd = msg.cmd
+      this.topicName = msg.name
+      this.tableName = msg.table
+      this.tableTitle = msg.title
+      this.tableKeyName = msg.key
+      this.rows = msg.rows
+      this.maxid = msg.maxid
+      this.modified = false // use to indicate which the record be modified or not.
+    }
+
+    this.save = (evt) => {
+      // if (this.timeError === true) return
+      if (this.cmd === 'INSERT') this.doInsert()
+      if (this.cmd === 'UPDATE') this.doUpdate()
+      if (this.cmd === 'DELETE') this.doDelete()
+      if (this.tableName === 'dat_lights_group') {
+        let ID = this.rows.filter(item => item.field_name === 'lights_group_id')
+        let msg = {
+          cmd: 'light_group',
+          data: {
+            name: 'light_group',
+            id: ID[0] && ID[0].field_value,
+            op_type: this.cmd 
+          }
+        }
+        xbus.trigger('DRIVINGFACE-REQ-DATA', msg)
+      }
+    }
+
+    let timeRelation = ['dat_vehicle_state','rt_person_forbid_down_mine','dat_patrol_task','his_patrol_data']//判断开始时间、结束时间表
+    this.judgeTimeIsover = () => {
+      if (!timeRelation.includes(this.tableName)) {
+        return false
+      }
+      let start_time = null
+      let end_time = null
+      if(this.tableName === 'his_patrol_data'){
+        start_time = this.tags['dialog-table'].refs.enter_time.root.querySelector('input').value
+        end_time = this.tags['dialog-table'].refs.leave_time.root.querySelector('input').value
+      } else {
+        start_time = this.tags['dialog-table'].refs.start_time.root.querySelector('input').value
+        // end_time = this.tags['dialog-table'].refs.end_time.root.querySelector('input').value
+      }
+      if (start_time && end_time) {
+        if (new Date(start_time) - new Date(end_time) >= 0) {
+          testUnenableNullData('开始时间不能大于等于结束时间')
+          return true
+        } else {
+          return false
+        }
+      } else {
+        return false
+      }
+    }
+
+    this.getValue = (i, type) => {
+      let fieldName = this.rows[i].field_name
+      let field_type = this.rows[i].field_type
+      let ele = this.tags['dialog-table'].refs[fieldName].root.querySelector('input')
+      let value = ele && ele.value
+      if (field_type === 'SELECT') {
+        if (type === 'insert') {
+          value = this.root.querySelector('.' + fieldName+ ' select').getAttribute('value')
+          value = this.root.querySelector('.' + fieldName+ ' select').value
+          if (!value || !value.match(/\d/ig)) {
+            value = 0
+          }
+        } else {
+          value = this.tags['dialog-table'].refs[fieldName].root.querySelector('select').value
+        }
+      } 
+      if(this.tags['dialog-table'].refs[fieldName].tips && !value && value !== 0){
+        //如果是必填字段但是没有值时
+        return testUnenableNullData()
+      }
+      value = formatFieldValue(field_type, value)
+      return value
+    }
+
+    this.insertWorkfaceScheduling = (ctype) => {
+      let startTime = this.getValue(3)
+      let stime = new Date(startTime).getTime()
+      let time = new Date(new Date(startTime).getTime()).format('yyyy-MM')
+      startTime = Number(new Date(new Date(startTime).getTime()).format('d'))
+      let endTime = ctype === 'insert' ? this.getValue(4) : this.getValue(3)
+      let etime = new Date(endTime).getTime
+      endTime = Number(new Date(new Date(endTime).getTime()).format('d'))
+      let ttime = `${new Date(new Date().getTime()).format('yyyy-MM-dd')} 00:00:00`
+      ttime = new Date(ttime).getTime()
+      if (stime < ttime || etime < ttime) {
+        testUnenableNullData('不能操作今天之前的数据')
+        return
+      }
+      let workfaceID = this.getValue(0, ctype)
+      let type = this.rows[0].field_name
+      type = type.includes('coalface') ? 1 : 2
+      let scheduleNumName = type === 1 ? 'schedule_mine_times' : 'schedule_tunnelling_times'
+      let scheduleTime = this.getValue(1)
+      let scheduleNum = this.getValue(2)
+      let values = ''
+      for (let i = startTime; i <= endTime; i++) {
+        let t = `${time}-${i}`
+        if (i === startTime) {
+          values = `(${workfaceID}, ${scheduleTime}, ${scheduleNum}, '${t}')`
+        } else {
+          values += `,(${workfaceID}, ${scheduleTime}, ${scheduleNum}, '${t}')`
+        }
+      }
+      let sql = `REPLACE INTO dat_workface_scheduling (workface_id, schedule_startup_time, ${scheduleNumName}, schedule_date) VALUES ${values}`
+      //console.log(sql)
+      let req = composeUpdateDBReq('INSERT', this.topicName, '', sql)
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+    }
+
+    this.doInsert = () => {
+      let fields = ''
+      let values = ''
+      let keyValue = null
+      if(testForm('保存失败，请核对正确保存！',this.root)) return 
+      if(this.judgeTimeIsover()) return
+      if (this.tableName === 'dat_workface_scheduling') {
+        this.insertWorkfaceScheduling('insert')
+        return
+      }
+      let notifyShaffId = ''
+      let opType = 'INSERT'
+      for (let i = 0; i < this.tags['dialog-table'].rows.length; i++) {
+        let fieldName = this.tags['dialog-table'].rows[i].field_name
+        let fieldValue = null
+        let eleFieldName = this.tags['dialog-table'].refs[fieldName]
+        let fieldType = this.tags['dialog-table'].rows[i].field_type
+        if (!eleFieldName) continue
+        let ele = this.tags['dialog-table'].refs[fieldName].root.querySelector('input')
+        let value = ele && ele.value
+        if(value) value = trim(value)
+        if (['lastUpdate', 'charge_date', 'use_date', 'enter_time', 'date_time', 'start_time', 'plan_time', 'leave_time', 'end_time'].includes(fieldName) && !value) {
+          fieldValue = `'${new Date().format('yyyy-MM-dd hh:mm:ss')}'`
+        } else if (this.tableName === 'dat_mechanized_group' && fieldName === 'time' && value === '') {
+          fieldValue = '"' + new Date().format('hh:mm:ss') + '"'
+        } else if (this.tableName === 'dat_mechanized_render' && fieldName === 'time' && value === '') {
+          fieldValue = '"' + new Date().format('yyyy-MM-dd hh:mm:ss') + '"'
+        } else if (this.tableName === 'dat_drivingface_render' && fieldName === 'time' && value === '') {
+          fieldValue = '"' + new Date().format('yyyy-MM-dd') + '"'
+        } else if (fieldName === 'geom' && value === '') {
+          fieldValue = null
+        } else if (fieldName === 'staff_id' && fieldType === 'NUMBER') {
+          fieldValue = Number(ele.getAttribute('data-type'))
+        } else if (fieldName === 'route_planning') {
+          fieldValue = ele.getValue()
+        } else if (fieldName === 'over_speed_vehicle' || fieldName === 'angle' && value === '') {
+          fieldValue = 0
+        } else if (fieldName === 'real_startup_time' || fieldName === 'detail_value') {
+          fieldValue = value
+          fieldValue = formatFieldValue(fieldType, fieldValue)
+          if (fieldValue === 0) {
+            let title = fieldName === 'real_startup_time' ? '实际开机时长' : '实际值'
+            testUnenableNullData(`${title}值不能为空，请修改开始时间或结束时间`)
+            return
+          }
+        } else {
+          if (fieldType === 'SELECT') {
+            if (this.tableName === 'his_regular_cycle_detail' || this.tableName === 'his_startup_detail') {
+              fieldValue = this.tags['dialog-table'].refs[fieldName].root.querySelector('select').value
+            } else {
+              fieldValue = this.tags['dialog-table'].root.querySelector('.' + fieldName+ ' select').getAttribute('value')
+              fieldValue = this.tags['dialog-table'].root.querySelector('.' + fieldName+ ' select').value
+              if (!fieldValue || !fieldValue.match(/\d/ig) && this.tableName !== 'dat_coalface_vehicle' && fieldName !== 'stat') {
+                fieldValue = 0
+              } else if (this.tableName === 'dat_coalface_vehicle' && fieldName === 'stat') {
+                fieldValue = `'${fieldValue}'`
+              }
+            }
+          } else {
+            fieldValue = value
+            if (!checkDate(fieldType, fieldName, fieldValue)) {
+              let tips = '请输入正确的时间！'
+              return testUnenableNullData(tips)
+            }
+            fieldValue = fieldName === 'card_id' ? value : formatFieldValue(fieldType, fieldValue)
+          }
+        }
+        if(fieldName === 'y'){
+          fieldValue = -Number(fieldValue)
+        }
+        if (['bpoint', 'epoint'].includes(fieldName)) {
+          fieldValue = fieldValue.replace(/^\"|\"$/g,'')
+          fieldValue = `"${Number(fieldValue.split(',')[0]).toFixed(2)},${-Number(fieldValue.split(',')[1])}"`
+        }
+        if (this.tableName === 'rt_person_forbid_down_mine') {                  
+          if(fieldName === 'name' || fieldName === 'dept_id' || fieldName === 'id'){            
+            continue
+          }  
+          if (fieldName === 'oper_time') {
+            fieldValue = `'${new Date().format('yyyy-MM-dd hh:mm:ss')}'`
+          }
+          if (fieldName === 'oper_user') {
+            fieldValue = `'${xdata.userName}'`
+          }
+          if (fieldName === 'staff_id') {
+            notifyShaffId = fieldValue
+          }
+        }
+        //当fieldValue为""时，也提示‘请把必填字段填写完整’ 2019-05-50 lmj
+        if(this.tags['dialog-table'].refs[fieldName].tips && fieldValue !== 0 && !fieldValue ){//如果是必填字段但是没有值时
+          return testUnenableNullData()
+        } else if (this.tags['dialog-table'].refs[fieldName].tips && fieldValue !== 0 && fieldValue === '""'){
+          return testUnenableNullData()
+        } else if(isMustFill.includes(this.tableName) && this.tags['dialog-table'].refs[fieldName].tips && fieldValue===0 ){//fieldValue === "''"与!fieldValue冲突
+          return testUnenableNullData()
+        }
+        if (this.tableName !== 'dat_battery' || i !== 0) {
+          if (i === 0) {
+            keyValue = fieldValue
+            if (this.tableName === 'dat_card') {
+              if (xdata.metaStore.data.card.get(`00${keyValue}`)) {
+                let msg = {
+                  value: 'nochange',
+                  tip: `该卡已注册`
+                }
+                window.hintip.open(msg)
+                return
+              } 
+            }
+          } else if (this.tableName === 'his_leader_arrange') {
+            if (i !== 1) {
+              fields += ','
+              values += ','
+            } else {
+              continue
+            }
+          } else if (this.tableName === 'dat_battery') {
+            if (i !== 1) {
+              fields += ','
+              values += ','
+            }
+          } else {
+            fields += ','
+            values += ','
+          }
+          fields += fieldName
+          values += fieldValue
+        }
+        if ((this.tableName === 'dat_battery' || this.tableName === 'dat_area_persons_dynamic_thre') && i === 1) {
+          keyValue = fieldValue
+        }  
+        if (this.tableName === 'dat_card' && fieldName === 'state_id') {
+          if (parseInt(fieldValue, 10) === 1) opType = 'DELETE'
+        }
+      }
+      if (this.tableName === 'dat_area_persons_dynamic_thre') {
+        let starttime = this.tags['dialog-table'].refs['start_time'].root.querySelector('input').value
+        let endtime = this.tags['dialog-table'].refs['end_time'].root.querySelector('input').value
+        let ymd = new Date().format('yyyy-MM-dd')
+        if (new Date(`${ymd} ${endtime}`).getTime() <= new Date(`${ymd} ${starttime}`).getTime()) return testUnenableNullData('开始时间不能小于等于结束时间')
+      }
+      if (this.tableName === 'rt_person_forbid_down_mine') {
+        let starttime = this.tags['dialog-table'].refs['start_time'].root.querySelector('input').value
+        let endYear = new Date().getFullYear() + 1
+        let endtime = `${endYear}-${new Date().format('MM-dd hh:mm:ss')}`
+        fields += `,end_time,oper_time,oper_user`
+        values += `,'${endtime}','${new Date().format('yyyy-MM-dd hh:mm:ss')}','${xdata.userName}'`
+      }
+      if (/^dat_/.test(this.tableName)) {
+        let table = this.tableName.slice(4)
+        let rows = xdata.metaStore.data[table]
+        if (rows && rows.get(keyValue)) {
+          let msg = {
+            value: 'nochange',
+            tip: `该信息已被注册！`
+          }
+          window.hintip.open(msg)
+          return
+        }
+      }
+      if (this.tableName === 'his_leader_arrange') {
+        fields += ',user_id'
+        values += ',"' + xdata.userName + '"'
+      }
+      if (this.tableName === 'his_startup_detail') {
+        fields += ',proc_tag'
+        values += ',1'
+      }
+      this._values = values
+      this._fields = fields
+      let sql = `INSERT into ${this.tableName} (${fields}) VALUES(${values})`
+      // console.log(sql)
+      this.metaUpdate(opType, keyValue, sql, null, notifyShaffId)
+    }
+
+    // 更新分站表
+    this.doUpdateAreaReader = (readers, sUnorigins) => {
+      let keyId = this.rows[0].field_value
+      let readerSql = {}
+      readers.forEach(reader => {
+        readerSql[reader] = `UPDATE dat_reader set area_id = ${keyId} where reader_id = ${Number(reader)};`
+      })
+      sUnorigins && sUnorigins.forEach(unreader => {
+        readerSql[unreader] = `UPDATE dat_reader set area_id = -${Number(unreader)} where reader_id = ${Number(unreader)};`
+      })
+      let keyValue = readers.concat(sUnorigins).join(',')
+      this.metaUpdate('UPDATE', keyValue, readerSql)
+    }
+
+    this.updateAreaReader = () => {
+      let checkTree = this.tags['check-tree']
+      if (!checkTree) return
+      let oldOrigins = checkTree.oldOrigins
+      let newOrigins = checkTree.origins
+      let sUnorigins = checkTree.sUnorigins
+      if (oldOrigins.length !== newOrigins.length) {
+        this.doUpdateAreaReader(newOrigins, sUnorigins)
+      } else {
+        if (oldOrigins.sort().toString() === newOrigins.sort().toString()) {
+          testUnenableNullData('数据没有修改，请确认后再提交！')
+        } else {
+          this.doUpdateAreaReader(newOrigins, sUnorigins)
+        }
+      }
+    }
+
+    this.updateLocalStorage = () => {
+      let fontDataStore = JSON.parse(window.localStorage.getItem('fontDataNumber'))
+      let optName = ''
+      if(this.tableName === 'font_size') optName = 'fontSize'
+      if(this.tableName === 'number_bars') optName = 'dataNumber'
+      let optNameNumber = this.tags['dialog-table'].refs[optName].root.querySelector('input').value
+      fontDataStore[0][optName] = Number(optNameNumber)
+      window.localStorage.setItem('fontDataNumber', JSON.stringify(fontDataStore))
+      xbus.trigger('META-SWITCH-MENU', {
+        menuname: this.tableName,
+        msg: null
+      })
+      fontDataChange('update')
+      this.close()
+    }
+    
+    this.doUpdate = () => {
+      if(testForm('更新失败，请核对正确保存！',this.root)) return 
+      if (this.tableName === 'font_size' || this.tableName === 'number_bars') {        
+        return this.updateLocalStorage()
+      }
+      if(this.judgeTimeIsover()) return
+      let sql = ''
+      let fields = ''
+      let values = ''
+      let opType = 'UPDATE'
+      // 工作面计划
+      if (this.tableName === 'dat_workface_scheduling') {
+        return this.insertWorkfaceScheduling('update')
+      }
+      // 分站所属区域，特殊处理
+      if (this.data.name === 'area_reader') {
+        return this.updateAreaReader()
+      }
+      // 正规、开机率配置
+      if (this.tableName === 'his_regular_cycle_detail' || this.tableName === 'his_startup_detail') {
+        return this.doInsert()
+      } 
+      let notifyShaffId = ''
+      let notifyId = ''
+      let state = 0
+      for (let i = 0; i < this.tags['dialog-table'].rows.length; i++) {
+        let fieldName = this.tags['dialog-table'].rows[i].field_name
+        let inputValue = null
+        let eleFieldName = this.tags['dialog-table'].refs[fieldName]
+        let fieldType = this.tags['dialog-table'].rows[i].field_type
+        if (!eleFieldName) continue
+        let ele = this.tags['dialog-table'].refs[fieldName].root.querySelector('input')
+        let value = ele && ele.value
+        if(value) value = trim(value)
+        if (timeName.includes(fieldName) && this.tags['dialog-table'].refs[fieldName].value === '') {
+          inputValue = new Date().format('yyyy-MM-dd hh:mm:ss')
+        } else if (fieldType === 'SELECT') {
+          inputValue = this.tags['dialog-table'].refs[fieldName].root.querySelector('select').value
+        } else if (fieldName === 'staff_id' && fieldType === 'NUMBER') {
+          //领导排班修改时不更改姓名只更改其他，获取不到data-type，得查data-oldvalue
+          if(!ele.getAttribute('data-type') && (this.tableName === 'his_leader_arrange' || this.tableName === 'rt_person_forbid_down_mine')){            
+            inputValue = Number(ele.parentNode.parentNode.parentNode.getAttribute('data-oldvalue'))
+          } else {
+            inputValue = Number(ele.getAttribute('data-type'))
+          }
+        } else {
+          inputValue = value
+        }
+        if (!checkDate(fieldType, fieldName, inputValue)) {
+          let tips = '请输入正确的时间！'
+          return testUnenableNullData(tips)
+        }
+        if(this.tableName === 'rt_person_forbid_down_mine'){          
+          // if(fieldName === 'staff_id'){//已下井不能新增进入
+          //   if(!this.downWellCondition(inputValue)) return         
+          // }
+          if(fieldName === 'name' || fieldName === 'dept_id'){            
+            continue
+          }           
+          if (fieldName === 'oper_user') inputValue = xdata.userName
+          if (fieldName === 'id') notifyId = inputValue
+          if (fieldName === 'staff_id') notifyShaffId = inputValue
+        }
+        if (this.tableName === 'dat_landmark') {
+          if (i !== 0){
+            fields += ','
+            values += ','
+          }
+          fields += fieldName
+          values += inputValue
+        }
+        //如果是必填字段但是没有值时
+        if(this.tags['dialog-table'].refs[fieldName].tips && !inputValue && inputValue !== 0) return testUnenableNullData()
+
+        if(this.tableName === 'dat_shift'){    
+          this.shiftRetrun = false      
+          this.leaveInput(this.tags['dialog-table'].refs['min_minutes'].root.querySelector('input'),this.tags['dialog-table'].refs['min_minutes'].root.querySelector('input').value)
+          if (this.shiftRetrun) return
+        }
+        if (this.tableName === 'dat_area_persons_dynamic_thre') {
+          let starttime = this.tags['dialog-table'].refs['start_time'].root.querySelector('input').value
+          let endtime = this.tags['dialog-table'].refs['end_time'].root.querySelector('input').value
+          let ymd = new Date().format('yyyy-MM-dd')
+          if (new Date(`${ymd} ${endtime}`).getTime() <= new Date(`${ymd} ${starttime}`).getTime()) return testUnenableNullData('开始时间不能小于等于结束时间')
+        }
+        if (['bpoint', 'epoint'].includes(fieldName)) {
+          inputValue = `${inputValue.split(',')[0]},${-Number(inputValue.split(',')[1])}`
+        }
+        if (this.tags['dialog-table'].rows[i].field_value != inputValue) {
+          if(fieldName === 'y') inputValue = -Number(inputValue)
+          if (['bpoint', 'epoint'].includes(fieldName)) {
+            inputValue = `${Number(inputValue.split(',')[0]).toFixed(2)},${-Number(inputValue.split(',')[1])}`
+          }
+          let formatFieldType = fieldName === 'staff_id' && fieldType === 'STRING' ? 'NUMBER' : this.rows[i].field_type
+          inputValue = fieldName === 'card_id' ? inputValue : formatFieldValue(formatFieldType, inputValue)
+          if (sql !== '' && sql.substr(-1) !== ',') {
+            sql += ','
+          }
+          if (this.tableName === 'his_leader_arrange' && fieldName === 'shift_type_id') {
+            continue
+          } else {
+            if (['dat_reader', 'dat_drivingface_vehicle', 'dat_coalface_vehicle'].includes(this.tableName)) {
+              if (['state', 'need_power_alarm'].includes(fieldName)) state = 1
+            }
+            sql += `${fieldName}=${inputValue}`
+          }
+        }
+        if (this.tableName === 'dat_card' && fieldName === 'state_id') {
+          if (parseInt(inputValue, 10) === 1) opType = 'DELETE'
+          if (parseInt(inputValue, 10) === 0) opType = 'INSERT'
+        }
+      } 
+      if(this.tableName === 'dat_landmark'){
+        this._values = values
+        this._fields = fields
+      }
+      let isGoafId = ! xdata.metaStore.data.goaf.get(this.maxid) ? false : true
+      if(this.tableName === 'dat_goaf' && isGoafId){
+        sql = sql ? sql + ',' : sql
+        for (let i = 0; i < this.tags['dialog-table'].rows.length; i++) {
+          if (this.tags['dialog-table'].rows[i].field_name === 'path' && sql.indexOf('path') < 0) {
+            sql += `${this.tags['dialog-table'].rows[i].field_name}='${this.tags['dialog-table'].rows[i].field_value}'`
+          }
+        }
+      }
+      if (sql !== '') {
+        let ele = this.tags['dialog-table'].refs[this.tableKeyName].root.querySelector('input')
+        let keyValue = ele && ele.value
+        keyValue = keyValue ? keyValue : this.tags['dialog-table'].refs[this.tableKeyName].opts.riotValue
+        if (this.tableName === 'dat_card' && this.tableKeyName === 'card_id') {
+          keyValue = this.tags['dialog-table'].refs[this.tableKeyName].root.getAttribute('data-oldvalue')
+        } else if (!keyValue && keyValue !== 0) {
+          keyValue = this.tags['dialog-table'].refs[this.tableKeyName].value
+        }
+        if (this.tableName === 'dat_user') {
+          keyValue = '"' + keyValue + '"'
+        }
+        if (this.tableName === 'his_checkparts_data') {
+          sql = `UPDATE ${this.tableName} set ${sql}  where ${this.tableKeyName}=${keyValue} and ${this.rows[1].field_name} = ${this.rows[1].field_value} and ${this.rows[2].field_name} = ${'"' + this.rows[2].field_value + '"'}`
+        } else if (this.tableName === 'his_leader_arrange') {
+          sql = `UPDATE ${this.tableName} set ${sql} where ${this.tableKeyName}='${this.rows[0].field_value}' and ${this.rows[2].field_name} = ${this.rows[2].field_value} and ${this.rows[3].field_name} = ${this.rows[3].field_value}`
+        } else if (this.tableName === 'dat_reader_path_tof_n'){
+          sql = `UPDATE ${this.tableName} set ${sql} where ${this.tableKeyName}=${this.rows[0].field_value} and ${this.rows[1].field_name} = ${this.rows[1].field_value}`
+        } else {
+          sql = `UPDATE ${this.tableName} set ${sql} where ${this.tableKeyName}=${keyValue}`
+        } 
+        console.log(sql)
+
+        if (this.tableName === 'dat_area_persons_dynamic_thre') {
+          keyValue = this.tags['dialog-table'].refs['area_id'].root.querySelector('select').value
+        }
+
+        this.metaUpdate(opType, keyValue, sql, notifyId, notifyShaffId, state)
+      } else if (this.modified) {
+        // xbus.trigger('META-DIALOG-CLOSE')
+        this.close()
+      } else {
+        testUnenableNullData('数据没有修改，请确认后再提交！')
+        this.update()
+      }
+    }
+
+    this.downWellCondition = (downWellValue) => {
+      let manDownWellCards = Array.from(xdata.metaStore.data.staff_extend.values())
+      let manDownWellCard = manDownWellCards.filter(item => item.staff_id === Number(downWellValue))[0]
+      let manDownWellArr = Array.from(xdata.cardStore.scards.values())
+      let manDownWell = manDownWellArr.filter(item => item[0] == manDownWellCard.card_id)
+      if(manDownWell.length > 0){
+        testUnenableNullData('已经下井的人员不能添加')
+        return false
+      } else {
+        return true
+      }
+    }
+    
+    this.judgebasicmsg = (keyValue) => {
+      let key = this.tableName.slice(4) + '_id'
+      let staffs = xdata.metaStore.data.staff && Array.from(xdata.metaStore.data.staff.values())
+      let staffextend = xdata.metaStore.data.staff_extend && Array.from(xdata.metaStore.data.staff_extend.values())
+      let vehicles = xdata.metaStore.data.vehicle && Array.from(xdata.metaStore.data.vehicle.values())
+      let vehiclextend = xdata.metaStore.data.vehicle_extend && Array.from(xdata.metaStore.data.vehicle_extend.values())
+      let deleteBasicStaff = staffs && staffs.filter(item => item[key] === keyValue)
+      if (deleteBasicStaff.length > 0) {
+        return true
+      } else {
+        let deleteBasicVehicle = vehicles && vehicles.filter(item => item[key] === keyValue)
+        if (deleteBasicVehicle.length > 0) {
+          return true
+        } else {
+          let deleteBasicStaffExtend = staffextend && staffextend.filter(item => item[key] === keyValue)
+          if (deleteBasicStaffExtend.length > 0) {
+            return true
+          } else {
+            let deleteBasicVehicleExtend = vehiclextend && vehiclextend.filter(item => item[key] === keyValue)
+            if (deleteBasicVehicleExtend.length > 0) {
+              return true
+            } else {
+              return false
+            }
+          }
+        }
+      }
+    }
+
+    this.doDelete = () => {
+      let key = this.tableName === 'dat_area_persons_dynamic_thre' ? 'area_id' : this.tableKeyName  
+      let keyValue = this.tags['dialog-table'].refs[key].opts.dataOldvalue
+      if (!keyValue && keyValue !== 0) keyValue = this.tags['dialog-table'].refs[key].value
+      if (basicmsg.includes(this.tableName)) {
+        let isBound = this.judgebasicmsg(keyValue)
+        if (isBound) {
+          testUnenableNullData('请先将该名目下绑定的人员或车辆解绑，再删除！')
+          return
+        }
+      }
+      this.deletePopup(this.tableName)
+      return
+    }
+
+    this.deletePopup = (evt) => { //弹窗提醒删除
+      let self = this
+      if (this.activePanel) this.activePanel.unmount(true)
+      this.activePanel = riot.mount('call-leave', { 
+        name: 'dodelete',
+        currentTag: self
+      })[0]
+    }
+
+    this.deleteMsg = (target) => {
+        if (this.tableName === 'dat_landmark') {
+          let fields = ''
+          let values = ''
+          for (let i = 0; i < this.tags['dialog-table'].rows.length; i++) {
+              let fieldName = this.tags['dialog-table'].rows[i].field_name
+              let fieldValue = null
+              let fieldType = this.tags['dialog-table'].rows[i].field_type
+              let ele = this.tags['dialog-table'].refs[fieldName].root.querySelector('input')
+              let value = ele && ele.value
+              if (value) value = trim(value)
+              if (fieldType === 'SELECT') {
+                  fieldValue = this.tags['dialog-table'].refs[fieldName].root.querySelector('select').value
+              } else {
+                  fieldValue = value
+              } 
+              if (i !== 0) {
+                  fields += ','
+                  values += ','
+              }
+              fields += fieldName
+              values += fieldValue
+          }
+          this._values = values
+          this._fields = fields
+      }
+      
+      let keyValue = this.tags['dialog-table'].refs[this.tableKeyName].opts.dataOldvalue
+      if (!keyValue && keyValue !== 0) keyValue = this.tags['dialog-table'].refs[this.tableKeyName].value
+      let sql = null
+      if (this.tableName === 'dat_user') keyValue = '"' + keyValue + '"'
+      let startTime = null
+      let endTime = null
+      if (this.tableName === 'dat_vehicle_state' || this.tableName === 'dat_vehicle_drive') {
+        startTime = formatTime(this.rows[1].field_value,this.rows[1].field_type)
+        endTime = formatTime(this.rows[2].field_value,this.rows[2].field_type)        
+      }
+      if (this.tableName === 'his_checkparts_data') {
+        sql = `DELETE from ${this.tableName}  where ${this.tableKeyName}=${keyValue} and ${this.rows[1].field_name} = ${this.rows[1].field_value} and ${this.rows[2].field_name} = ${'"' + this.rows[2].field_value + '"'}`
+      } else if (this.tableName === 'dat_battery_vehicle') {
+        sql = `DELETE from ${this.tableName} where staff_id=${this.rows[1].field_value} and battery_id = ${this.rows[2].field_value} and use_date = '${new Date(this.rows[3].field_value).format('yyyy-MM-dd hh:mm:ss')}'`
+      } else if (this.tableName === 'dat_vehicle_state') {
+        sql = `DELETE from ${this.tableName} where vehicle_id=${this.rows[0].field_value} and start_time='${startTime}' and end_time='${endTime}'`
+      } else if (this.tableName === 'dat_vehicle_drive') {
+        sql = `DELETE from ${this.tableName} where vehicle_id=${this.rows[0].field_value} and leave_time='${startTime}' and enter_time='${endTime}' and shift_id=${this.rows[3].field_value} and staff_id=${this.rows[4].field_value}`
+      } else if (this.tableName === 'dat_drivingface_vehicle' || this.tableName === 'dat_mechanized_vehicle') {
+        sql = `DELETE from ${this.tableName} where vehicle_id=${this.rows[1].field_value} and ${this.tableKeyName}=${keyValue}`
+      } else if (this.tableName === 'dat_drivingface_render' || this.tableName === 'dat_mechanized_render') {
+        sql = `DELETE from ${this.tableName} where reader_id=${this.rows[1].field_value} and ${this.tableKeyName}=${keyValue}`
+      } else if (this.tableName === 'his_leader_arrange') {
+        sql = `DELETE from ${this.tableName} where ${this.tableKeyName}='${keyValue}' and shift_id=${this.rows[2].field_value} and staff_id=${this.rows[3].field_value}`
+      } else if (this.tableName === 'dat_reader_path_tof_n'){
+        sql = `DELETE from ${this.tableName} where ${this.tableKeyName}=${keyValue} and ${this.rows[1].field_name} = ${this.rows[1].field_value}`
+      } else if (this.tableName === 'dat_reader') {
+        sql = `delete dat_reader,dat_antenna,dat_reader_path_tof_n from dat_reader left join dat_antenna on dat_reader.reader_id = dat_antenna.reader_id left join dat_reader_path_tof_n on dat_reader.reader_id = dat_reader_path_tof_n.reader_id where dat_reader.reader_id = ${keyValue};`
+      } else if (this.tableName === 'rt_person_forbid_down_mine') {
+        sql = `UPDATE rt_person_forbid_down_mine set status = 0 where ${this.tableKeyName}=${keyValue}`
+      } else {
+        sql = `DELETE from ${this.tableName} where ${this.tableKeyName}=${keyValue}`
+      }
+      if(this.tableName === 'rt_person_forbid_down_mine'){
+        let notifyId = this.rows[0].field_value
+        let notifyShaffId = this.rows[1].field_value
+        this.metaUpdate('DELETE', keyValue, sql, notifyId, notifyShaffId)
+      } else {     
+        keyValue = this.tableName === 'dat_area_persons_dynamic_thre' ? this.tags['dialog-table'].refs['area_id'].opts.dataOldvalue  : keyValue   
+        this.metaUpdate('DELETE', keyValue, sql)
+      }
+    }
+
+    this.close = (evt) => {
+      if (this.tableName === 'dat_goaf' && evt) {
+        xbus.trigger('GOAF-INIT', {goaf: this.rows[0].field_value})
+      }
+      this.unmount(true)
+    }
+
+    // 如果是名称（name）字段，则为 简称(spell)字段 自动填充拼音简称
+    this.leaveInput = (event, value) => {
+      let target = event.target
+      if (this.tableName === 'his_regular_cycle_detail' || this.tableName === 'his_startup_detail') {
+        this.leaveInputTime(event, value)
+        return
+      }
+      let targetTag = target ? target.nodeName.toLowerCase() : ''
+      if (targetTag === 'input' && target.getAttribute('name') === 'name') {
+        let pyInput = target.parentElement.parentElement.parentElement.querySelector('[name=spell]') // TODO:
+        if (pyInput) {
+          pyInput.value = xdata.spell.makePy(target.value.trim())
+        }
+      }
+      if (this.tableName === 'dat_card') {
+        let label = this.root.querySelectorAll('.xinput')
+        let length = label.length
+        if (value.length > 10 || value === '0') {
+          this.tags['dialog-table'].refs.ident.info = this.limitCard(value)
+          this.update()
+        }
+        let card = target.value.padStart(10, 0)
+        this.cardValue = this.tags['dialog-table'].refs.card_type_id.root.querySelector('select').value
+        let cardID = this.cardValue.padStart(3,0) + card
+        this.tags['dialog-table'].refs['card_id'].root.querySelector('input').value = cardID
+      }
+      if (this.tableName === 'dat_shift') {
+        this.root.querySelector('.btn-sure').disabled = false
+        let startTime = this.tags['dialog-table'].refs.start_time.root.querySelector('input').value
+        let endTime = this.tags['dialog-table'].refs.end_time.root.querySelector('input').value
+        let offset = this.tags['dialog-table'].refs.offset.root.querySelector('input').value
+        let minTime = this.tags['dialog-table'].refs.min_minutes.root.querySelector('input').value
+        let timeDiff = 0
+        if (offset == 0) {
+          timeDiff = new Date(`${new Date().format('yyyy-MM-dd')} ${endTime}:00`).getTime() - new Date(`${new Date().format('yyyy-MM-dd')} ${startTime}:00`).getTime()
+        } else {
+          timeDiff = (new Date(`${new Date().format('yyyy-MM-dd')} 24:00:00`).getTime() - new Date(`${new Date().format('yyyy-MM-dd')} ${startTime}:00`).getTime()) + (new Date(`${new Date().format('yyyy-MM-dd')} ${endTime}:00`).getTime() - new Date(`${new Date().format('yyyy-MM-dd')} 00:00:00`).getTime())
+        }
+        if ((value * 60 * 60 * 1000) > timeDiff) {
+          this.shiftRetrun = true
+          this.root.querySelector('.btn-sure').disabled = true
+          return window.hintip.open({
+            value: 'nochange',
+            tip: '最小下井时长不能小于结束时间和开始时间的时间差'
+          })
+        }
+      }
+      event.preventUpdate = true
+    }
+
+    this.leaveInputTime = (evt, value) => {
+      let target = evt.currentTarget
+      let times = this.root.querySelectorAll('.datetime-input')
+      let stime = times[0].querySelector('input').value
+      let ltime = times[1].querySelector('input').value
+      if (!stime || new Date(ltime).getTime() < new Date(stime).getTime()) {
+        let msg = {
+          value: 'nochange',
+          tip: !stime ? '请输入时间' : '开始时间不能小于结束时间'
+        }
+        window.hintip.open(msg)
+        return
+      }
+      let ctime = new Date(ltime).getTime() - new Date(stime).getTime()
+      let h = 60 * 60 * 1000
+      let hvalue = (ctime / h).toFixed(1)
+      let label = this.root.querySelectorAll('.xinput')
+      let length = label.length
+      label[length - 2].querySelector('input').value = hvalue
+    }
+
+    this.metaUpdate = (cmd, value, sql, notifyId, notifyShaffId, state) => {
+      let topicName = this.topicName === 'shift_setting' ? 'setting' : this.topicName
+      let req = composeUpdateDBReq(cmd, topicName, value, sql)
+      if(!!notifyShaffId){
+        req.data['notify'] = notifyId ? `${notifyId};${notifyShaffId}`: `${notifyShaffId}`
+      }
+      req['state'] = state
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+      if (this.tableName === 'his_checkparts_data') {
+        setTimeout(function () {
+          xbus.trigger('META-SWITCH-MENU', {
+            menuname: 'his_checkparts_data'
+          })
+        }, 100)
+      }
+    }
+
+    this.limitCard = (value) => {
+      let tip = ''
+      if (value.length > 10) return tip = '卡号超出限制'
+      if (value === '0') return tip = '卡号不能为0'
+      return tip
+    }
+
+    this.updateData = (rows) => {
+      this.isShow = true
+      this.data.rows = rows
+      this.update()
+      this.tags['dialog-table'] && this.tags['dialog-table'].update() 
+    }
+
+    xbus.on('UPDATE-META-ROWS', (msg)=> {
+      this.updateData(msg.rows)
+    })
+
+    xbus.on('DIALOG-SHOW', (msg) => {
+      this.isShow = msg.isShow
+      this.update()
+    })
+  </script>
+</meta-dialog>

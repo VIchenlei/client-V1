@@ -1,0 +1,572 @@
+<reader-list2>
+    <li each={ rows } if={field_name !=='obj_range' }>
+        <text-filed if={field_type !=='SELECT' && !hideFields.includes(field_name)} text={field_label}
+            enableNull={field_enableNull} class="xinput {getTimeClass(field_type)}" data-oldvalue={field_value}
+            value={getTextValue(field_value, field_name, field_type)} type={getInputType(field_type, field_name)}
+            ref={field_name} min='1' name={field_name} onblur={leaveInput} readonly={isReadonly(field_name)}>
+        </text-filed>
+        <text-select if={field_type=='SELECT' && !hideFields.includes(field_name)} text={field_label}
+            enableNull={field_enableNull} ref={field_name} name={ field_name} data-oldvalue={field_value}
+            value={field_value} data-name={tableName } onchange={change} class={field_name}
+            disabled={isDisabled(field_name)}>
+        </text-select>
+    </li>
+    <script>
+        import { composeUpdateDBReq, trim, formatTime } from '../../js/utils/utils.js'
+        import { metaUpdateRes, formatFieldValue, testUnenableNullData, testForm, getDays, getIdx, checkDate } from '../utils.js'
+        let msg = opts.msg
+        this.rows = msg.rows
+        this.tableName = msg.table
+        this.tableKeyName = msg.key
+        this.topicName = msg.name
+        this.hideFields = opts.field
+        this.cmd = msg.cmd
+        this.name = msg.name
+        this.isRegister = true
+        let date1
+        let date2
+        let isMustFill = ['dat_occupation','dat_drivingface_warning_point','dat_drivingface_vehicle','dat_sensor']
+        this.chekcValue = (value,rows) => {
+          let row = xdata.metaStore.data.reader.get(value)
+          for (let i = 0; i < rows.length; i++) {
+            let fieldName = rows[i].field_name
+            rows[i].field_value = row[fieldName]
+          }
+          this.rows = rows
+        }
+
+        this.init=()=>{
+          for (let i = 0; i < this.rows.length; i++) {
+            let fieldName = this.rows[i].field_name
+            if (fieldName === this.tableKeyName) this.keyValue = this.rows[i].field_value
+          }
+        }
+        this.init()
+        this.on('mount', () => {
+          // 拖动分站 把拖动后坐标赋值到输入框
+          if (opts.coord) {
+            this.refs['x'].root.querySelector('input').value = opts.coord[0].toFixed(1)
+            this.refs['y'].root.querySelector('input').value = opts.coord[1].toFixed(1)
+          }
+        })
+        this.getTimeClass = (type) => {
+            if (type === 'DATETIME' || type === 'DATE') return 'datetime-input'
+            return ''
+        }
+        this.getTextValue = (field_value, field_name, field_type) => {
+          if (this.tableName === 'dat_drivingface_vehicle' && field_name === 'shake_threshold') {
+            if (!field_value) return 20
+          } else {
+            if (field_value) {
+              if (field_name === 'y' && this.cmd !== 'INSERT') {
+                field_value = -Number(field_value)
+              }
+              if (field_type === 'DATETIME') {
+                  return new Date(field_value).format('yyyy-MM-ddThh:mm:ss')
+              } else if (field_type === 'DATE') {
+                  return new Date(field_value).format('yyyy-MM-dd')
+              } else if (field_type === 'TIME') {
+                  return new Date('2018-12-12 ' + field_value).format('hh:mm')
+              }
+            }
+            return field_value
+          }
+        }
+        this.getInputType = (fieldType) => {
+            if (fieldType !== 'SELECT') {
+                let ret = 'text'
+                switch (fieldType) {
+                    case 'DATETIME':
+                        ret = 'datetime-local'
+                        break
+                    case 'DATE':
+                        ret = 'date'
+                        break
+                    case 'TIME':
+                        ret = 'time'
+                        break
+                    case 'COLOR':
+                        ret = 'color'
+                        break
+                    default:
+                        ret = 'text'
+                }
+                return ret
+            }
+        }
+
+        this.isReadonly = (field_name) => {
+            if (this.cmd === 'INSERT') return
+            if (this.cmd === 'DELETE') return 'readonly'
+            let readonly = ''
+            if (field_name === this.tableKeyName) readonly = 'readonly'
+            return readonly
+        }
+        this.isDisabled = (field_name) => {
+          if (field_name === 'vehicle_id') {
+            let row = this.rows.filter(item => item.field_name === 'device_type_id')[0]
+            let selectIndex = row.field_value
+            return selectIndex !== 10 ? 'disabled' : ''
+          }
+          if (this.cmd === 'INSERT') return ''
+          if (this.cmd === 'DELETE') return 'disabled'
+          if (field_name === this.tableKeyName) return 'disabled'
+        }
+        this.doInsert = () => {
+            let fields = ''
+            let values = ''
+            let keyValue = this.keyValue
+            let state = 0
+            if (testForm('保存失败，请核对正确保存！', this.root)) return
+            let notifyShaffId = ''
+            let date1 = ''
+            let date2 = ''
+            for (let i = 0; i < this.rows.length; i++) {
+                let fieldName = this.rows[i].field_name
+                let fieldValue = null
+                let ele = null
+                let value = ''
+                if (this.hideFields.includes(fieldName)) {
+                    switch (fieldName) {
+                        case 'brief_name':
+                            value = this.rows[0].field_value
+                            break;
+                        case 'angle':
+                        case 'enable_simulate_card':
+                            value = 0
+                            break;
+                        case 'limit_speed':
+                            value = 5
+                            break;
+                        default:
+                            value = this.rows[i].field_value
+                            break;
+                    }
+                } else {
+                    ele = this.refs[fieldName].root.querySelector('input')
+                    value = ele && ele.value
+                }
+                if (fieldName === 'brief_name' && value === '') value = this.refs.reader_id.root.querySelector('input').value
+                if (value) value = trim(value.toString())
+                if (fieldName === 'start_time') date1 = value
+                if (fieldName === 'plan_time') date2 = value
+                if ((fieldName === 'lastUpdate' || fieldName === 'start_time' || fieldName === 'plan_time') && this.refs[fieldName].value === '') {
+                    fieldValue = '"' + new Date().format('yyyy-MM-dd hh:mm:ss') + '"'
+                } else {
+                    if (this.rows[i].field_type === 'SELECT') {
+                        if (!this.hideFields.includes(fieldName)) {
+                            fieldValue = this.root.querySelector('.' + fieldName + ' select').getAttribute('value')
+                            fieldValue = this.root.querySelector('.' + fieldName + ' select').value
+                            if (!fieldValue || !fieldValue.match(/\d/ig) && this.tableName !== 'dat_coalface_vehicle' && fieldName !== 'stat') {
+                                fieldValue = 0
+                            } else if (this.tableName === 'dat_coalface_vehicle' && fieldName === 'state') {
+                                fieldValue = `'${fieldValue}'`
+                            }
+                        } else {
+                            fieldValue = value
+                        }
+                    } else {
+                        fieldValue = value
+                        fieldValue = formatFieldValue(this.rows[i].field_type, fieldValue)
+                    }
+                }
+                if (this.tableName === 'dat_reader' && fieldName === 'reader_id')  keyValue = fieldValue
+                if (fieldName === 'y') {
+                    fieldValue = -Number(fieldValue)
+                }
+                if (fieldName === 'vehicle_id') {
+                  let selectIndex = this.root.querySelector('.device_type_id select').value
+                  if (Number(selectIndex) !== 10) continue
+                }
+                //当fieldValue为""时，也提示‘请把必填字段填写完整’ 2019-05-50 lmj
+                if (!this.hideFields.includes(fieldName)) {
+                    if (this.refs[fieldName].tips && fieldValue !== 0 && !fieldValue) {//如果是必填字段但是没有值时
+                        return testUnenableNullData()
+                    } else if (this.refs[fieldName].tips && fieldValue !== 0 && fieldValue === '""') {
+                        return testUnenableNullData()
+                    }
+                }
+                if (this.tableName !== 'dat_battery' || i !== 0) {
+                    if (i === 0) {} else {
+                        fields += ','
+                        values += ','
+                    }
+                    fields += fieldName
+                    values += fieldValue
+                }
+            }
+
+            let sql = `INSERT into ${this.tableName} (${fields}) VALUES(${values})`
+            let req = composeUpdateDBReq('INSERT', this.topicName, keyValue, sql)
+            // console.log('reader-list2-req', req)
+            req['state'] = state
+            if (!!notifyShaffId) {
+                req.data['notify'] = `${notifyShaffId}`
+            }
+            xbus.trigger('META-UPDATE-DB', {
+                req: req
+            })
+        }
+        this.doUpdate = () => {
+            if (testForm('更新失败，请核对正确保存！', this.root)) return
+            let sql = ''
+            let notifyShaffId = ''
+            let notifyId = ''
+            let date1 = ''
+            let date2 = ''
+            let state = 0
+            if (this.topicName === 'reader') this.chekcValue(this.keyValue,this.rows)
+            let doSqlType = 'UPDATE'
+            for (let i = 0; i < this.rows.length; i++) {
+                let fieldName = this.rows[i].field_name
+                if (this.hideFields.includes(fieldName)) continue
+                let inputValue = null
+                let ele = this.refs[fieldName].root.querySelector('input')
+                let value = ele && ele.value
+                if (value) value = trim(value)
+                if (fieldName === 'start_time') inputValue = value
+                if (fieldName === 'plan_time') inputValue = value
+                if ((fieldName === 'lastUpdate' || fieldName === 'start_time' || fieldName === 'plan_time') && this.refs[fieldName].value === '') {
+                    inputValue = new Date().format('yyyy-MM-dd hh:mm:ss')
+                } else if (this.rows[i].field_type === 'SELECT') {
+                    inputValue = this.refs[fieldName].root.querySelector('select').value
+                } else {
+                    inputValue = value
+                }
+                if (this.refs[fieldName].tips && !inputValue && inputValue !== 0) {//如果是必填字段但是没有值时
+                    return testUnenableNullData()
+                }
+                if (fieldName === 'y') {
+                    inputValue = -Number(inputValue)
+                }
+                if (fieldName === 'vehicle_id') {
+                  let selectIndex = this.root.querySelector('.device_type_id select').value
+                  if (Number(selectIndex) !== 10) continue
+                }
+                if (this.rows[i].field_value != inputValue) {
+                    this.rows[i].field_value = inputValue
+                    if (this.tableName === 'dat_reader' && (fieldName === 'state' || fieldName === 'need_power_alarm')){
+                        if (fieldName === 'state') {
+                            if (Number(inputValue) === 1) state = 1
+                            if (Number(inputValue) === 0) doSqlType = 'INSERT'
+                        }
+                        if(fieldName === 'need_power_alarm') {
+                            if (Number(inputValue) === 0) state = 1
+                            if (Number(inputValue) === 1) doSqlType = 'INSERT'
+                        } 
+                    }
+                    if (this.tableName !== 'dat_coalface_vehicle' && fieldName !== 'stat') {
+                        let formatFieldType = fieldName === 'staff_id' && this.rows[i].field_type === 'STRING' ? 'NUMBER' : this.rows[i].field_type
+                        inputValue = formatFieldValue(formatFieldType, inputValue)
+                    } else {
+                        inputValue = `'${inputValue}' `
+                    }
+                    if (sql !== '' && sql.substr(-1) !== ',') {
+                        sql += ','
+                    }
+                    sql += `${fieldName}=${inputValue}`
+                }
+            }
+            this.sql = sql
+            if (sql !== '') {
+                let keyValue = this.keyValue
+                sql = `UPDATE ${this.tableName} set ${sql} where ${this.tableKeyName}=${keyValue}`
+                let req = composeUpdateDBReq('UPDATE', this.topicName, keyValue, sql)
+                req['state'] = state
+                // console.log(req)
+                if (!!notifyShaffId) {
+                    req.data['notify'] = `${notifyId};${notifyShaffId}`
+                }
+                xbus.trigger('META-UPDATE-DB', {
+                    req: req
+                })
+            } else if (this.modified) {
+                this.close()
+            }
+        }
+        this.doDelete = () => {
+            let keyValue = this.refs[this.tableKeyName].opts.dataOldvalue
+            if (!keyValue && keyValue !== 0) {
+                keyValue = this.refs[this.tableKeyName].value
+            }
+            this.deleteMsg()
+            return
+        }
+        this.deletePopup = (evt) => { //弹窗提醒删除
+            let self = this
+            if (this.activePanel) {
+                this.activePanel.unmount(true)
+            }
+            this.activePanel = riot.mount('call-leave', {
+                name: 'dodelete',
+                currentTag: self
+            })[0]
+        }
+        this.deleteMsg = (target) => {
+            let keyValue = this.refs[this.tableKeyName].opts.dataOldvalue
+            if (!keyValue && keyValue !== 0) {
+                keyValue = this.refs[this.tableKeyName].value
+            }
+
+            if (this.name === 'reader') {
+              let msg = {
+                name: this.keyValue, //分站id用于获取分站覆盖范围信息
+                checked: false, // true  false 用去判断隐藏显示分站覆盖范围
+              }
+              xbus.trigger('MAP-SHOW-READERPATH', msg)
+            }
+
+            let sql = null
+            let state = 0
+            if (this.tableName === 'dat_reader_path_tof_n') {
+                sql = `DELETE from ${this.tableName} where ${this.tableKeyName}=${keyValue} and ${this.rows[1].field_name} = ${this.rows[1].field_value}`
+            } else if (this.tableName === 'dat_reader') {
+                state = 1
+                sql = `delete dat_reader,dat_antenna,dat_reader_path_tof_n from dat_reader left join dat_antenna on dat_reader.reader_id = dat_antenna.reader_id left join dat_reader_path_tof_n on dat_reader.reader_id = dat_reader_path_tof_n.reader_id where dat_reader.reader_id = ${keyValue};`
+            } else {
+                sql = `DELETE from ${this.tableName} where ${this.tableKeyName}=${keyValue}`
+            }
+            // console.log(sql)
+            let req = composeUpdateDBReq('DELETE', this.topicName, keyValue, sql)
+            req['state'] = state
+            xbus.trigger('META-UPDATE-DB', {
+                req: req
+            })
+        }
+
+        /**
+         * @description: 实时界面新增分站时 录入信息后画取分站覆盖范围时 画取时更新录入的信息
+         */    
+        xbus.on('SAVE-ENTRYMSG', ()=>{
+            this.saveEntryMsg()
+        })
+        this.saveEntryMsg = ()=>{
+            for (let i = 0; i < this.rows.length; i++) {
+                let fieldName = this.rows[i].field_name
+                let fieldValue = null
+                let ele = null
+                let value = ''
+                if (this.hideFields.includes(fieldName)) {
+                    switch (fieldName) {
+                        case 'brief_name':
+                            value = this.rows[0].field_value
+                            break;
+                        case 'enable_simulate_card':
+                            value = 0
+                            break;
+                        case 'limit_speed':
+                            value = 5
+                            break;
+                        default:
+                            value = this.rows[i].field_value
+                            break;
+                    }
+                } else {
+                    ele = this.refs[fieldName] && this.refs[fieldName].root.querySelector('input')
+                    value = ele && ele.value
+                }
+                if (value) value = trim(value.toString())
+                if (fieldName === 'start_time') date1 = value
+                if (fieldName === 'plan_time') date2 = value
+                if (this.rows[i].field_type === 'SELECT') {
+                    if (!this.hideFields.includes(fieldName)) {
+                        fieldValue = this.root.querySelector('.' + fieldName + ' select') && this.root.querySelector('.' + fieldName + ' select').getAttribute('value')
+                        fieldValue = this.root.querySelector('.' + fieldName + ' select') && this.root.querySelector('.' + fieldName + ' select').value
+                        if (!fieldValue || !fieldValue.match(/\d/ig) && this.tableName !== 'dat_coalface_vehicle' && fieldName !== 'stat') {
+                            fieldValue = 0
+                        } else if (this.tableName === 'dat_coalface_vehicle' && fieldName === 'state') {
+                            fieldValue = `'${fieldValue}'`
+                        }
+                    } else {
+                        fieldValue = value
+                    }
+                } else {
+                    fieldValue = value
+                    fieldValue = formatFieldValue(this.rows[i].field_type, fieldValue)
+                }
+                if (fieldName === 'y' && this.cmd !== 'INSERT') {
+                    fieldValue = -Number(fieldValue)
+                }
+
+                if(this.rows[i].field_value !== fieldValue && this.topicName === 'reader'){
+                    if (fieldName === 'y') {
+                        fieldValue = Number(fieldValue)
+                    }
+                    this.rows[i].field_value = this.rows[i].field_type === 'STRING' ? fieldValue.replace(/\"/g, "") : fieldValue
+                }
+            }  
+            if(this.topicName === 'reader'){
+                //实时界面录入信息时 跳转画取分站覆盖范围保存已录入的信息
+                this.parent.opts.message.rows = this.rows
+            }
+        }
+
+        this.isRequired = ()=>{
+            let names = ['dat_coalface', 'dat_drivingface', 'dat_reader']
+            if(names.includes(this.tableName) && this.cmd === 'INSERT') this.isDittoRegister()
+            if(!this.isRegister) return
+            for (let i = 0; i < this.rows.length; i++) {
+                let fieldName = this.rows[i].field_name
+                let fieldValue = null
+                let ele = null
+                let value = ''
+                if (this.hideFields.includes(fieldName)) {
+                    switch (fieldName) {
+                        case 'brief_name':
+                            value = this.rows[0].field_value
+                            break;
+                        case 'enable_simulate_card':
+                            value = 0
+                            break;
+                        case 'limit_speed':
+                            value = 5
+                            break;
+                        default:
+                            value = this.rows[i].field_value
+                            break;
+                    }
+                } else {
+                    ele = this.refs[fieldName].root.querySelector('input')
+                    value = ele && ele.value
+                }
+                if (value) value = trim(value.toString())
+                if (fieldName === 'start_time') date1 = value
+                if (fieldName === 'plan_time') date2 = value
+                if ((fieldName === 'lastUpdate' || fieldName === 'start_time' || fieldName === 'plan_time') && this.refs[fieldName].value === '') {
+                    fieldValue = '"' + new Date().format('yyyy-MM-dd hh:mm:ss') + '"'
+                } else {
+                    if (this.rows[i].field_type === 'SELECT') {
+                        if (!this.hideFields.includes(fieldName)) {
+                            fieldValue = this.root.querySelector('.' + fieldName + ' select').getAttribute('value')
+                            fieldValue = this.root.querySelector('.' + fieldName + ' select').value
+                            if (!fieldValue || !fieldValue.match(/\d/ig) && this.tableName !== 'dat_coalface_vehicle' && fieldName !== 'stat') {
+                                fieldValue = 0
+                            } else if (this.tableName === 'dat_coalface_vehicle' && fieldName === 'state') {
+                                fieldValue = `'${fieldValue}'`
+                            }
+                        } else {
+                            fieldValue = value
+                        }
+                    } else {
+                        fieldValue = value
+                        if (!checkDate(this.rows[i].field_type, fieldName, fieldValue)) {
+                          this.parent.isRequired_rl = false
+                          let tips = '请输入正确的时间！'
+                          return testUnenableNullData(tips)
+                        } else {
+                          this.parent.isRequired_rl = true
+                        }
+                        fieldValue = this.rows[i].field_type !== 'NUMBER' ? formatFieldValue(this.rows[i].field_type, fieldValue) : fieldValue
+                    }
+                }
+                if (fieldName === 'y') {
+                    fieldValue = -Number(fieldValue)
+                }
+                if (fieldName === 'vehicle_id') {
+                  let selectIndex = this.root.querySelector('.device_type_id select').value
+                  if (Number(selectIndex) !== 10) continue
+                }
+                if (this.tableName === 'dat_reader' && fieldName === 'vehicle_id') {
+                  if (this.rows[i].field_value !== Number(fieldValue)) {
+                    let rows = Array.from(xdata.metaStore.data.reader.values()).filter(item => item.vehicle_id === Number(fieldValue))
+                    let tips = '该车辆已被绑定，请选择其他车辆！'
+                    if (rows.length > 0) { //添加车辆判断其他工作面是否绑定该车辆
+                      this.parent.isRequired_rl = false
+                      return testUnenableNullData(tips)
+                    } else {
+                      this.parent.isRequired_rl = true
+                    }
+                  } 
+                }
+                
+                //当fieldValue为""时，也提示‘请把必填字段填写完整’ 2019-05-50 lmj
+                if (!this.hideFields.includes(fieldName)) {
+                    if (this.refs[fieldName].tips && fieldValue !== 0 && !fieldValue) {//如果是必填字段但是没有值时
+                        this.parent.isRequired_rl = false
+                        return testUnenableNullData()
+                    } else if (this.refs[fieldName].tips && fieldValue !== 0 && fieldValue === '""') {
+                        this.parent.isRequired_rl = false
+                        return testUnenableNullData()
+                    }else if(isMustFill.includes(this.tableName) && this.refs[fieldName].tips && fieldValue===0 ){//fieldValue === "''"与!fieldValue冲突
+                        this.parent.isRequired_rl = false
+                        return testUnenableNullData()
+                    }else {
+                        this.parent.isRequired_rl = true
+                    }
+                }
+            }
+        }
+
+        /**
+         * @description: 选择采煤面 掘进面 更改相对应的采煤机 掘进机管理中的编号
+         */
+        this.change =(evt)=>{
+          let value = evt.target.value
+          if(['drivingface', 'coalface'].includes(this.topicName)){
+              let mindex = getIdx(this.parent.opts.message,`${this.topicName}_id`)
+              this.parent.opts.message.rows[mindex].field_value = value
+
+              let index = getIdx(msg,`${this.topicName}_id`)
+              this.parent.rows_one[0].rows[index].field_value = value // 采煤机 掘进机只有一个 索引0选择第1个
+
+              if(this.parent.rows_two && this.parent.rows_two.length > 0){ //修改传感器工作面id
+                  let sindex = getIdx(this.parent.rows_two[0],'work_face_id')
+                  this.parent.rows_two.forEach(e => {
+                      e.rows[sindex].field_value = value
+                  })
+              }
+
+              //新增修改 告警点drivingface_id与掘进面drivingface_id  保持一致
+              if(this.parent.rows_tre && this.parent.rows_tre.length > 0){
+                  let index = getIdx(this.parent.rows_tre[0],'drivingface_id')
+                  this.parent.rows_tre.forEach(e => {
+                      e.rows[index].field_value = value
+                  })
+              }
+
+              //新增修改 基准点drivingface_id与掘进面drivingface_id  保持一致
+              if(this.parent.rows_four && this.parent.rows_four.length > 0){
+                  let index = getIdx(this.parent.rows_four[0],'drivingface_id')
+                  this.parent.rows_four.forEach(e => {
+                      e.rows[index].field_value = value
+                  })
+              }
+          } else if (this.topicName === 'reader') {
+            if (evt.item.field_name === 'device_type_id') {
+              let selectIndex = Number(value)
+              this.refs["vehicle_id"].disabled = selectIndex !== 10 ? true : false
+            }
+          }
+        }
+
+        this.isDittoRegister = () => {
+          if (/^dat_/.test(this.tableName)) {
+            let table = this.tableName.slice(4)
+            let rows = xdata.metaStore.data[table]
+            let ele, keyValue
+            let names = ['dat_coalface', 'dat_drivingface']
+            if(names.includes(this.tableName)) {
+              ele = this.root.querySelector('.' + this.tableKeyName + ' select').getAttribute('value')
+              keyValue = this.root.querySelector('.' + this.tableKeyName + ' select').value
+            } else if (this.tableName === 'dat_reader') {
+              ele = this.refs.reader_id.root.querySelector('input')
+              keyValue = ele.value
+            } 
+            if (rows && rows.get(Number(keyValue))) {
+                let msg = {
+                    value: 'nochange',
+                    tip: `该信息已被注册！`
+                }
+                window.hintip.open(msg)
+                this.parent.isRequired_rl = false
+                this.isRegister = false
+                return
+            }else {
+                this.parent.isRequired_rl = true
+                this.isRegister = true
+            }
+          }
+        }
+
+    </script>
+</reader-list2>

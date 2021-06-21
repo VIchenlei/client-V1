@@ -1,0 +1,86 @@
+@import '../../sass/defs'
+
+.dlg-closer
+  display: flex
+  cursor: pointer
+
+  &:hover,&.active
+    color: red
+
+.card-tips-container
+  @include wh(32rem,auto)
+  position: absolute
+  box-shadow: 5px 5px 25px rgba(0, 0, 0, 0.4)
+  font-size: $fontsize-s
+  background: #ebebeb
+  z-index: 9999
+  opacity: 1
+
+  @media screen and (max-width: $width-medium)
+    width: 96%
+    min-width: 20rem
+    max-width: 24rem
+
+  .tips-title
+    @include align-middle-between
+    background: $active-bg
+    height: 2rem
+    padding: 5px 1rem
+    cursor: move
+    color: #FFF
+
+  .content-body
+    padding: 1rem
+    @media screen and (max-width: $width-medium)
+      font-size: .7rem
+
+    .title-block
+      @include line-height(2rem,2rem)
+      border-bottom: 1px solid #DDD
+      font-weight: bold
+      margin-bottom: .5rem
+
+
+      &:nth-child(2)
+        margin-top: 1rem
+
+    .content-block
+      position: relative
+      display: flex
+      flex-flow: row wrap
+
+      div
+        width: 50%
+        p
+          height: 2rem
+          margin-bottom: 5px
+          img
+            vertical-align: top
+          .tlabel
+            color: #666
+      .pic-container
+        @include align-center
+
+        .card-pic
+          @include align-center
+          height: 8rem
+
+      .current-pos
+        width: 100%
+
+    .tipsop-panel
+      display: flex
+      border-top: 1px solid #DDD
+      margin-top: .5rem
+      padding: .8rem 0 .2rem 0
+    
+    .person-onCar
+      height: auto
+      span
+        @include line-height(1.5rem,1.5rem)
+        display: inline-block
+        width: 16.6%
+        text-align: center
+        border-radius: 50%
+        background: #f1f1f1
+        margin: 0.1rem 0

@@ -1,0 +1,357 @@
+<oilwear-record>
+  <p>
+    <span onclick={ queryDay } type='last'>上一天</span>
+    <span onclick={ queryDay } type='next'>下一天</span>
+    <span onclick={ saveData }>保存</span>
+    <span class="printButton hint--bottom-left" aria-label="导出CSV" name="csv" onclick="{askFile}" data-value="his_special_vehicle_transport">
+      <svg name="csv" class="icon black-icon">
+        <use name="csv" xlink:href="/icons/icons.svg#icon-file-excel"></use>
+      </svg>
+    </span>
+    <span class="printButton hint--bottom-left" aria-label="打印" name="printPDF" onclick={askFile} data-value="his_special_vehicle_transport">
+      <svg name="printPDF" class="icon black-icon">
+        <use name="printPDF" xlink:href="/icons/icons.svg#icon-printer"></use>
+      </svg>
+    </span>
+    <span onclick={ showChart }>查看汇总</span> 胶轮车柴油消耗
+
+    <table>
+      <thead>
+        <th>日期</th>
+        <th>班次</th>
+        <th colspan="20">胶轮车车号与加油量依据实际情况填写</th>
+        <th>记录人</th>
+      </thead>
+      <tbody each={ data in dataRows }>
+        <tr>
+          <td rowspan='6' class="date-time">{ cur_time }</td>
+          <td rowspan='2' class='oil-number'>{ data.shiftText }</td>
+          <td class='oil-number'>车号</td>
+          <td each={ i in data.rows } class="content" onclick={ doFillContent }>
+            <span type='span'></span>
+            <input type="text" name={ data.shift } if={ data.rows.indexOf(i) !== 19 } class={ data.class + data.rows.indexOf(i) } value={
+              typeof(i) === Number || i.cur_shift !== data.shift ? '' : i.name } onblur={ showspan } class="vehicleNumber" />
+            <input type="text" value={ data.user } if={ data.rows.indexOf(i)=== 19 } />
+          </td>
+        </tr>
+        <tr>
+          <td class='oil-number'>油耗(L)</td>
+          <td each={ i in data.rows } class="content" onclick={ doFillContent }>
+            <span type='span'></span>
+            <input type="text" name={ data.shift } if={ data.rows.indexOf(i) !== 19 } class={ data.class + data.rows.indexOf(i)} value={
+              typeof(i) === Number || i.cur_shift !== data.shift ? '' : i.oli_wear } onblur={ showspan } class='oil-wear' />
+            <input type="text" value={ data.user } if={ data.rows.indexOf(i) === 19 } />
+          </td>
+        </tr>
+      </tbody>  
+    </table>
+    <div class="tooltips" if={ hastips}>{ tooltips }</div>
+    <div id="countChart"></div>
+  </p>
+  <script>
+    import './count-chart.html'
+    import {composeUpdateDBReq} from '../../js/utils/utils.js'
+    this.root.classList.remove('hide')
+
+    this.showChart = () => {
+      let vehicleNumber = xdata.metaStore.dataInArray.get('vehicle')
+      let time = this.cur_time
+      riot.mount('#countChart', 'count-chart', {
+        times: time,
+        vehicleNumber: vehicleNumber
+      })
+    }
+
+    if (this.time) {
+      this.cur_time = this.time
+      this.time = this.time
+    } else {
+      this.cur_time = new Date().format('yyyy-MM-dd')
+      this.time = new Date().format('yyyy-MM-dd')
+    }
+
+    this.data = ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+    this.vehicleNumber = []
+    this.num === 0 ? this.num = this.num : this.num = 0
+
+    this.queryDay = (evt) => {
+      let type = evt.target.getAttribute('type')
+      if (type === 'last') {
+        this.num--
+      } else if (type === 'next') {
+        this.num++
+      }
+      this.time = this.GetDateStr(this.num)
+      this.cur_time = this.time
+      this.init(this.num, this.time)
+    }
+
+    this.GetDateStr = (AddDayCount) => {
+      let dd = new Date()
+      dd.setDate(dd.getDate() + AddDayCount)// 获取AddDayCount天后的日期
+      let y = dd.getFullYear()
+      let m = dd.getMonth() + 1 // 获取当前月份的日期
+      m = m < 10 ? '0' + m : m
+      let d = dd.getDate()
+      d = d < 10 ? '0' + d : d
+      return y + '-' + m + '-' + d
+    }
+
+    // 初始化
+    this.init = () => {
+      let sql = ` SELECT dv.name,hvo.cur_shift,hvo.oli_wear,hvo.user FROM his_vehicle_oilwear hvo,dat_vehicle_extend dve,dat_vehicle dv WHERE cur_time = '${this.time}' AND hvo.card_id = dve.card_id and dv.vehicle_id = dve.vehicle_id `
+      let message = {
+        cmd: 'query',
+        data: {
+          name: 'oilwear',
+          sql: sql
+        }
+      }
+      console.log('sql', sql)
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: 'oilwear'
+        }
+      })
+    }
+    this.init()
+
+    let self = this
+    xbus.on('REPT-SHOW-RESULT', (ds) => {
+      if (ds.def.name === 'oilwear') {
+        console.log('ds.rows---', ds.rows)
+        if (ds.rows) {
+          this.distributeData(ds.rows)
+          let inpObj = this.root.querySelectorAll('input')
+          for (let i = 0, len = inpObj.length; i < len; i++) {
+            inpObj[i].value = ''
+          }
+          this.zeroUser = this.getShiftRecordName(ds.rows, 0)
+          this.eightUser = this.getShiftRecordName(ds.rows, 8)
+          this.fourUser = this.getShiftRecordName(ds.rows, 4)
+          this.dataRows = [{
+            rows: this.zeroShiftData,
+            user: this.zeroUser,
+            class: 'num0',
+            shift: 0,
+            shiftText: '零点班'
+          }, {
+            rows: this.eightShiftData,
+            user: this.eightUser,
+            class: 'num8',
+            shift: 8,
+            shiftText: '八点班'
+          }, {
+            rows: this.fourShiftData,
+            user: this.fourUser,
+            class: 'num4',
+            shift: 4,
+            shiftText: '四点班'
+          }]
+          self.update()
+        }
+      }
+    })
+
+    this.distributeData = (data) => { // 处理数据
+      this.zeroShiftData = data.filter(item => item.cur_shift === 0)
+      this.eightShiftData = data.filter(item => item.cur_shift === 8)
+      this.fourShiftData = data.filter(item => item.cur_shift === 4)
+      this.zeroShiftData = this.zeroShiftData.length < 20 ? this.addData(this.zeroShiftData) : this.zeroShiftData
+      this.eightShiftData = this.eightShiftData.length < 20 ? this.addData(this.eightShiftData) : this.eightShiftData
+      this.fourShiftData = this.fourShiftData.length < 20 ? this.addData(this.fourShiftData) : this.fourShiftData
+    }
+
+    this.getShiftRecordName = (data, shift) => {
+      let result = data.filter(item => item.cur_shift === shift && item.user)
+      let dataRes = result && result[0] ? result[0].user : ''
+      return dataRes
+    }
+
+    this.addData = (rows) => { // 补数据
+      let i = 0
+      do {
+        i++
+        rows.push(i)
+      } while (rows.length < 20)
+      return rows
+    }
+
+    this.doFillContent = (evt) => {
+      if (evt.target.getAttribute('type') === 'span') {
+        evt.target.classList.add('hide')
+        if (evt.currentTarget.children[1].getAttribute('name')) {
+          let inputEle = evt.target.parentNode.childNodes[3]
+          let className = inputEle && inputEle.getAttribute('class')
+          let data = this.root.querySelectorAll('.' + className)
+          this.inputPreVal = data[0].value// 车号原来的值
+          this.inputPreNext = data[1].value// 油耗原来的值
+        }
+      }
+    }
+
+    let updateArr = [],insertArr = []
+    this.showspan = (evt) => { // 失去焦点存储数据
+      evt.target.parentNode.firstElementChild.classList.remove('hide')
+      let inputEle = evt.target.parentNode.childNodes[3]// 现在的值
+      // let judge = inputEle.getAttribute('att')
+      let className = inputEle.getAttribute('class')
+      let shift = inputEle.getAttribute('name')
+      let data = this.root.querySelectorAll('.' + className)// 选取两个input
+      let user = xdata.userName
+
+      if (this.inputPreVal && this.inputPreNext && this.inputPreVal !== inputEle.value && inputEle.value) { // 如果原来有值并且现在的值不等于之前的值
+        let preCardID = this.getCardbyVehicleId(this.inputPreVal)
+        let nowCardID = this.getCardbyVehicleId(this.inputPreVal)
+        card ? '' : this.hastips = true
+        if (card && preCard) {
+          let msg = {
+            preCard: preCardID,
+            card: nowCardID,
+            shift_id: shift,
+            oil: data[1].value,
+            time: this.time,
+            user: user
+          }
+          updateArr.push(msg)
+        }
+      } else if (this.inputPreVal && this.inputPreVal === inputEle.value) { // 如果现在的值和原来的值一样，认为没有修改
+
+      } else if (this.inputPreVal && this.inputPreNext && !inputEle.value) { // 执行删除操作
+        let preCardID = this.getCardbyVehicleId(this.inputPreVal)
+        if (preCardID) {
+          let sql = ` DELETE from his_vehicle_oilwear where card_id = ${preCardID} and cur_shift = ${shift} and cur_time ='${this.time}'`
+          let req = composeUpdateDBReq('DELETE', this.topicName, '', sql)
+          xbus.trigger('META-UPDATE-DB', {
+            req: req
+          })
+        }
+      } else { // 执行插入
+        let card = this.getCardbyVehicleId(data[0].value)
+
+        if (data && data.length > 1 && data[0].value && data[1].value && card) {
+          let msg = {
+            card: card,
+            shift_id: shift,
+            oil: data[1].value,
+            time: this.time,
+            user: user
+          }
+          insertArr.push(msg)
+        }
+      }
+    }
+
+    this.saveData = () => {
+      if (!updateArr[0] || !insertArr[0]) {
+        this.attTips('checkData')
+      }
+
+      for (let i = 0; i < updateArr.length; i++) {
+        let oil = updateArr[i].oil
+        if (!oil) {
+          oil = 0
+        }
+        let sql = ` UPDATE his_vehicle_oilwear hvo set card_id = '${updateArr[i].card}',hvo.cur_time = '${updateArr[i].time}',hvo.cur_shift ='${updateArr[i].shift_id}',hvo.oli_wear ='${oil}',hvo.user ='${updateArr[i].user}' where card_id ='${updateArr[i].preCard}' and hvo.cur_time = '${updateArr[i].time}' and hvo.cur_shift = ${updateArr[i].shift_id}`
+        console.log('sql', sql)
+        let req = composeUpdateDBReq('UPDATE', this.topicName, '', sql)
+        xbus.trigger('META-UPDATE-DB', {
+          req: req
+        })
+      }
+
+      for (let i = 0, len = insertArr.length; i < len; i++) {
+        let values = insertArr[i].card + ',' + "'" + insertArr[i].time + "'" + ',' + insertArr[i].shift_id + ',' + insertArr[i].oil + ',' + "'" + insertArr[i].user + "'"
+        let sql = ` INSERT into his_vehicle_oilwear  VALUES(${values})  `
+        console.log('sql', sql)
+        let req = composeUpdateDBReq('INSERT', this.topicName, '', sql)
+        xbus.trigger('META-UPDATE-DB', {
+          req: req
+        })
+      }
+
+      insertArr = []
+      updateArr = []
+    }
+
+    this.getCardbyVehicleId = (inputName) => { // 通过车牌返回卡号
+      let preCard = xdata.metaStore.dataInArray.get('vehicle').filter(item => item.name === inputName)[0]
+      let preCardID = preCard && xdata.metaStore.data.vehicle_extend.get(preCard.vehicle_id)
+      return preCardID && preCardID.card_id
+    }
+
+    // this.composeUpdateDBReq = (dbOp, sqlstring) => {
+    //   return {
+    //     cmd: 'update', // update, CMD.META.UPDATE
+    //     data: {
+    //       op: dbOp, // INSERT, UPDATE, DELETE
+    //       name: this.topicName,
+    //       sql: sqlstring
+    //     }
+    //   }
+    // }
+
+    xbus.on('META-UPDATE-DB-RES', (res) => {
+      if (res.data.op === 'DELETE') {
+        this.attTips('delete')
+      } else if (res.code === 0) {
+        this.attTips('saveSucess')
+      } else {
+        this.attTips('saveFail')
+      }
+    })
+
+    this.attTips = (type) => {
+      let self = this
+      self.hastips = true
+
+      if (type === 'saveSucess') {
+        this.tooltips = '保存成功！'
+      } else if (type === 'saveFail') {
+        this.tooltips = '更新数据库失败，请检查输入是否正确！'
+      } else if (type === 'checkData') {
+        this.tooltips = '请检查输入是否正确！'
+      } else if (type === 'delete') {
+        this.tooltips = '删除成功！'
+      }
+      self.update()
+      setTimeout(function () {
+        self.hastips = false
+        self.update()
+      }, 3000)// 3s之后提示消失
+    }
+
+    this.askFile = (evt) => {
+      let printType = evt.target.getAttribute('name')
+      let isThreeArr = ['车牌号', '日期', '班次', '油耗(L)', '记录人']
+      let type = ['STRING', 'DATE', 'NUMBER', 'NUMBER', 'STRING']
+      let name = ['dv.name', 'date_format(hvo.cur_time,"%Y-%m-%d")', 'hvo.cur_shift', 'hvo.oli_wear', 'hvo.user']
+      let title = '胶轮车柴油消耗记录'
+      let time = this.cur_time.split(' ')[0]
+      // let sqlString = ` select dv.name,date_format(hvo.cur_time,"%Y-%m-%d"),hvo.cur_shift,hvo.oli_wear,hvo.user from his_vehicle_oilwear as hvo ,dat_vehicle as dv where hvo.card_id = dv.card_id and hvo.cur_time = '${time}' `
+      let sqlString = `select dv.name,DATE_FORMAT(hvo.cur_time,"%Y-%m-%d"),hvo.cur_shift,hvo.oli_wear,hvo.user from dat_vehicle_extend dve left join his_vehicle_oilwear hvo on dve.card_id = hvo.card_id left join dat_vehicle dv on dve.vehicle_id = dv.vehicle_id where hvo.cur_time = '${time}'`
+      let reptTime = new Date().getTime()
+      // let defNames = evt.currentTarget.getAttribute('')
+      console.log('sqlString---------------', sqlString)
+      let msg = {
+        cmd: 'file',
+        exprList: [],
+        fileType: printType,
+        labels: isThreeArr,
+        name: '',
+        namesInShort: name,
+        title: title,
+        reptIndex: reptTime,
+        types: type,
+        sql: sqlString,
+        userName: xdata.userName
+      }
+      xbus.trigger('REPT-FETCH-FILE', msg)
+    }
+
+    this.on('unmount', () => {
+      this.root.classList.add('hide')
+    })
+  </script>
+</oilwear-record>

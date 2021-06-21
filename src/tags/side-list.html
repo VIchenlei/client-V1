@@ -1,0 +1,81 @@
+<side-list>
+  <div class="title" onclick={ toggleItems }>
+      <div class="triangle"></div>
+      <div class="iconBG">
+        <svg class="icon sidebar-icon">
+          <use xlink:href="/icons/icons.svg#{ icon }"></use>
+        </svg>
+      </div>
+      <span class="sidebar-title-text">{title}</span>
+    </div>
+  <div if={ showItems } class="content">
+    <article style="width:{data.length}00%;">
+      <div each={ i in data } index={ data.indexOf(i) } maxIndex={ data.length }>
+        <p each={ i} name={name} if={ isShowItem(name) }>{ getLabel(name,label) }</p>
+        <span if={ data.length> 1 } class="transfer-bar" onclick={ changeIndex }>></span>
+      </div>
+    </article>
+  </div>
+
+  <script>
+    this.title = opts.def.title
+    this.items = opts.def.items
+    this.icon = opts.def.icon
+    const showNumber = 100//设置为100,暂时隐藏滑动功能
+    let arr = [],translateX = 0, target = 'left'//全局
+    this.isShowItem = (name) => {
+      if (name === 'dept' && xdata.isCheck === 1) return false
+      return true
+    }
+
+    this.getLabel = (name,label) => {
+      if (name === 'dept_ck' && xdata.isCheck === 1) return '部门管理'
+      return label
+    }
+
+    this.splitEle = () => {
+      for (var i = 0, len = this.items.length; i < len; i += showNumber) {
+        arr.push(this.items.slice(i, i + showNumber))
+        this.data = arr
+      }
+    }
+
+    this.changeIndex = (evt) => {//类无缝轮播，暂时隐藏
+      let ele = evt.target.parentElement, currentIndex = Number(ele.getAttribute('index')), maxIndex = Number(ele.getAttribute('maxIndex'))
+      let transferEle = this.root.querySelector('article')
+      let count = 0 + translateX, speed = 1, timer, percent = Math.floor(100 / this.data.length)//translateX:保留原来的位置,percent:每次平移父级percent
+      function move() {
+        target === 'left' ? count += speed : count -= speed
+        if (count < percent + translateX && target === 'left') {
+          transferEle.style.transform = "translateX(" + (-count) + "%)"
+        } else if (count > translateX - percent && target === 'right') {
+          transferEle.style.transform = "translateX(" + (-count) + "%)"
+        } else {
+          target === 'left' ? translateX += percent : translateX -= percent
+          clearInterval(timer)
+        }
+      }
+      timer = setInterval(move, 15)
+      if (currentIndex === 0) {//初始值时设置方向
+        target = 'left'
+      } else if (currentIndex === maxIndex - 1) {//达到最大时改变方向
+        target = 'right'
+      }
+    }
+
+    this.init = (opts) => {
+      let parentClassname = opts.def.parent.root.getAttribute('class')
+      if (parentClassname === 'homepage' || parentClassname === 'menu') {
+        this.showItems = true
+      } else {
+        this.showItems = opts.def.expand || false
+      }
+      this.splitEle()
+    }
+    this.init(opts)
+
+    this.toggleItems = (evt) => {
+      this.showItems = !this.showItems
+    }
+  </script>
+</side-list>

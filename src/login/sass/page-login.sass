@@ -1,0 +1,47 @@
+@import '../../sass/defs'
+
+.page-login
+    @include wh(100%,100%)
+    @include justify-middle
+    position: absolute
+    top: 0
+    overflow: hidden
+    flex-flow: column nowrap
+    color: $content-bgcolor
+    background: url("/img/bj@2x.jpg") no-repeat scroll 50% 50% / cover border-box
+
+    @media screen and (max-width: $width-medium)
+        background: $head-bg
+        background-image: linear-gradient(15deg, #009fff, #05b720, #0586f5, #063394)
+
+.login-head
+    @include align-middle
+    flex: 0 0 3rem
+    justify-content: flex-start
+    padding: 0 1rem
+    z-index: 999
+
+    .customer-logo
+        @include wh(13rem,auto)
+        @media screen and (max-width: $width-medium)
+            width: 6rem
+
+.login-body
+    @include align-center-middle
+    flex: auto
+    flex-flow: column nowrap
+
+    @media screen and (max-width: $width-medium) and (min-aspect-ratio: 10/8) //(orientation: landscape)
+        flex-flow: row nowrap
+        justify-content: space-around
+
+
+.login-foot
+    @include font-color($fontsize-xs,$head-ft)
+    @include align-center-middle
+    flex: 0 0 3rem
+    z-index: 999
+
+    img
+        @include wh(6rem,auto)
+        display: inline

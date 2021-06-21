@@ -1,0 +1,181 @@
+<scene-query>
+  <article class="query-condition-panel">
+    <div class="expr-input-tag">
+      <!--<span class="expr-input-label">地图</span>-->
+      <!--<span onclick = { selectMap }>{ Array.from(xdata.metaStore.dataInArray.get('map'))[0].map_id }</span>-->
+      <!--<select ref="mapID" id="mapID" placeholder="地图ID" class="expr-input-area" onfocus={ changeMapBorder } onblur={ changeBorder } name={ maps[0].map_id }>
+              <option each={ map in maps } class={ map.map_id }>{ map.name }</option>
+          </select>-->
+      <div onclick={ selectCurMap } class="mapselect">
+        <span ref="mapID" id="mapID" placeholder="地图ID" class="expr-input-area"  name={ map.map_id }>{ map.name }</span>
+      </div>
+      <div class="option hide" onmouseout={ addHideOption }>
+        <div each={ map in maps } mapId={ map.map_id } onclick={ selectMap }>{ map.name }</div>
+      </div>
+    </div>
+    <div data-is="duration-select" class="duration-select-panel"></div>
+    <div class="button-area">
+      <button type="button" class="query-tracklist-btn" onclick={ doQueryHistoryScene }>查询</button>
+    </div>
+  </article>
+
+  <div id="scene_info" data-is="scene-info"></div>
+  <script>
+    import './scene-info.html'
+    import './duration-select.html'
+
+    this.map = xdata.metaStore.dataInArray.get('map')
+    this.map = this.map && this.map[0]
+
+    this.on('unmount', () => {
+      this.unregisterGlobalEventHandlers()
+      xdata.historyStore.clearSegement()
+    })
+
+   // this.registerGlobalEventHandlers = () => {
+    xbus.on('HISTORY-DATA-RESULT', (ds) => {
+      let hasPreLoadIndex = xdata.historyStore.loadIndex.get(ds.segmentIndex)
+      if (!hasPreLoadIndex) {
+        xdata.historyStore.loadIndex.set(ds.segmentIndex, ds.segmentIndex)
+      } else {
+        return
+      }
+    
+      console.log('ds', ds)
+      this.processHistoryData(ds)
+    })
+
+   // }
+
+    this.unregisterGlobalEventHandlers = () => {
+      xbus.off('HISTORY-DATA-RESULT', this.processHistoryData)
+    }
+
+    this.selectCurMap = () => {
+      this.maps = Array.from(xdata.metaStore.dataInArray.get('map_gis'))
+      this.root.querySelector('.option').classList.remove('hide')
+    }
+
+    this.selectMap = (event) => {
+      let current = event.currentTarget
+      this.root.querySelector('#mapID').innerHTML = current.innerHTML
+      this.root.querySelector('#mapID').setAttribute('name', current.className)
+      this.root.querySelector('.option').classList.add('hide')
+      let mapID = Number(current.getAttribute('mapId'))
+      xbus.trigger('RESET-MAP-HISTORY',(mapID))
+    }
+
+  // 获取查询的时间区间
+    this.getQueryDuration = () => {
+      let ret = null
+      let tagDuration = this.tags['duration-select']
+      ret = tagDuration && tagDuration.getDuration()
+      return ret
+    }
+
+    this.doQueryHistoryScene = (event) => {
+      window.xhint.showLoading()
+      xbus.trigger('MAP-HISTORY-RESET')
+      // this.clearPerviewContent()
+     // this.removeSelectTag()
+      this.activeTrack = null
+
+      let mapID = this.root.querySelector('#mapID').getAttribute('name')
+
+      let duration = this.getQueryDuration()
+
+      this.startTime = duration && duration.startTime
+      this.endTime = duration && duration.endTime
+
+      xdata.historyStore.initSegementIndex(this.startTime, this.endTime, mapID, null)
+      let message = {
+        cmd: 'queryHistoryScene',
+        data: {
+          name: 'HistoryCompose',
+          mapID: mapID,
+          startTime: this.startTime,
+          endTime: this.endTime,
+          cur_time: xdata.historyStore.sceneInfo.cur_time
+        }
+      }
+      console.log('Request scene data : ', message)
+
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: 'HistoryCompose'
+        }
+      })
+
+     // event.preventUpdate = true
+    }
+
+    xbus.on('REPT-SHOW-RESULT', (ds) => {
+      if (ds && ds.def.name === 'HistoryCompose') {
+        this.processSceneResult(ds)
+        window.xhint.close()
+      }
+    })
+
+    // 点击查询的时候初始化场景数据
+    this.processHistoryData = (ds) => {
+      let tagPlayer = this.opts.papa.parent.tagPlayer
+      if (!ds || !ds.def || !ds.def.name) {
+        tagPlayer.isDataLoaded = false
+        return
+      }
+      for (let i = 0; i < (ds.segementOffset + 1); i++) {
+        xdata.historyStore.setSegment(ds.segmentIndex + i, ds.rows[i])
+      }
+      tagPlayer.isDataLoaded = true
+      if (ds.def.stat === 'jump' && ds.segmentIndex === 0) {
+        // this.showMap(this.mapID)
+        // let segData = xdata.historyStore.segment[0]
+        let msg = {
+          mapID: xdata.historyStore.sceneInfo.mapID,
+          rows: xdata.historyStore.segment[0],
+          cmd: ds.def.name,
+          // startTime: segData[0].cur_time,
+          // endTime: segData[segData.length-1].cur_time,
+          startTime: this.startTime,
+          endTime: this.endTime
+
+        }
+        tagPlayer.initPlayer(msg)
+      }
+      // else if (ds.def.stat === 'jump' && ds.segmentIndex > 0) {
+      //   this.tagPlayer.afterJump()
+      // }
+      // this.tagPlayer.play()
+    }
+
+    this.processSceneResult = (ds) => {
+      let dataCompose = ds.rows
+      this.tagResult = this.tags['scene-info']
+      this.tagResult.update({ name: 'HistoryCompose', dataCompose: dataCompose })
+      if (dataCompose.cardCount === 0) {
+        return
+      }
+
+      let msg = {
+        cmd: 'historyData',
+        type: 'scene',
+        mapID: xdata.historyStore.sceneInfo.mapID,
+        cards: xdata.historyStore.sceneInfo.cards,
+        startTime: this.startTime,
+        endTime: this.endTime,
+        cur_time: dataCompose.cur_time,
+        startSegementIndex: 0,
+        segementCount: xdata.historyStore.sceneInfo.segementCount,
+        segementOffset: 1
+      }
+      xbus.trigger('HISTORY-FETCH-DATA', {
+        req: msg,
+        def: {
+          name: 'HistoryScene',
+          stat: 'jump'
+        }
+      })
+    }
+  </script>
+</scene-query>

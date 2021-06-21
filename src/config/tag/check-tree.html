@@ -1,0 +1,98 @@
+<check-tree>
+  <div class="checktree">
+    <div class="origin" onclick="{sendUnorigins}">
+      <span each={origin in origins} if={origin}>
+        <span name="" id="{origin}" class="point"></span>
+        <label for="{origin}">{origin}-{xdata.metaStore.getNameByID('reader_id', origin)}</label>
+      </span>
+    </div>
+    <div class="unorigin" onclick="{sendOrigins}">
+      <input type="text" placeholder="请输入分站名称或拼音首字母" onkeyup={searchList}>
+      <span each={unorigin in unorigins} data-name={xdata.metaStore.getNameByID('reader_id', unorigin)} card-spell={getUnorigins(unorigin).spy} class="list-item">
+        <span name="" id="{unorigin}" class="point"></span>
+        <label for="{unorigin}">{getUnorigins(unorigin).name}</label>
+      </span>
+    </div>
+  </div>
+
+  <script>
+    import { searchList, judgeAreaIsneedDisplay } from '../../js/utils/utils.js'
+    const TABLE = {
+      area_reader: {
+        title: 1,
+        values: 2,
+        table: 'reader'
+      }
+    }
+ 
+    this.searchList = (evt) => {
+      searchList(evt, this.root)
+    }
+
+    this.getUnorigins = (unorigin) => {
+      let readers = xdata.metaStore.data.reader
+      let reader = readers && readers.get(Number(unorigin))
+      let areaID = reader && reader.area_id
+      let spy = reader && reader.spy
+      return {
+        name: `${unorigin}-${xdata.metaStore.getNameByID('reader_id', unorigin)}-${xdata.metaStore.getNameByID('area_id', areaID)}`,
+        spy: spy
+      }
+    }
+
+    this.getID = (target, tagname) => {
+      switch (tagname) {
+        case 'SPAN':
+          return target.getAttribute('id')
+        case 'LABEL':
+          return target.parentElement.querySelector('span').getAttribute('id')
+        default:
+          return null
+      }
+    }
+
+    this.changes = (evt, olds, news, type) => {
+      let target = evt.target
+      let tagname = target.tagName
+      let id = this.getID(target, tagname)
+      if (!id) return
+      if (type) {
+        if (this.oldOrigins.includes(id)) {
+          this.sUnorigins.push(id)
+        }
+      }
+      olds.push(id)
+      let index = news.indexOf(id)
+      news.splice(index, 1)
+    }
+
+    this.sendUnorigins = (evt) => {
+      this.changes(evt, this.unorigins, this.origins, 'unorigins')
+    }
+
+    this.sendOrigins = (evt) => {
+      this.changes(evt, this.origins, this.unorigins)
+    }
+
+    this.init = (datas) => {
+      let data = datas.data
+      let rows = data.rows
+      let tablename = data.name
+      let table = TABLE[tablename]
+      let valueIndex = table.values
+      let origins = rows[valueIndex].field_value
+      origins = origins && origins.split(';')
+      this.sUnorigins = []
+      this.oldOrigins = origins || []
+      this.origins = origins ? [...origins] : []
+      let objs = xdata.metaStore.data[table['table']] && Array.from(xdata.metaStore.data[table['table']].values())
+      let unorigins = []
+      objs.forEach(obj => {
+        let needDisplay = judgeAreaIsneedDisplay(obj)
+        if (!origins || (origins && !origins.includes(`${obj.reader_id}`)) && needDisplay) unorigins.push(`${obj.reader_id}`)
+      })
+      this.unorigins = unorigins
+    }
+    this.init(opts)
+  </script>
+</check-tree>

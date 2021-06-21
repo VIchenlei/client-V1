@@ -1,0 +1,131 @@
+<driveface-vehicle>
+    <img id="drivevehicle" src="/img/drivevehicle.png" alt="" ref="drivevehicle" data-top={top} data-right={right}>
+    <img src="/img/belt.png" alt="" id="belt" ref="belt">
+    <span class="danger hide" style="right: {dangerRight}px"></span>
+    <script>
+        this.animate = (x, y, movenode) => {
+          let moveObj = this.root.querySelector('#' + movenode)
+          // 原位置
+          // let top = Number(this.root.querySelector('#drivevehicle').getAttribute('data-top'))
+          // let right = Number(this.root.querySelector('#drivevehicle').getAttribute('data-right'))
+          // if ((x === top && y === right) || (top === 0 && right === 0)) return
+          if (x === this.top && y === this.right) return
+          // let charX = this.top - x
+          // let charY = this.right - y
+          // let a = this.right - charY
+          // let bgImgWidth = parseInt(document.querySelector('.bgimg').style.width, 10)
+          // let vehicleLeft = bgImgWidth - this.right
+          // let vehicleCurrentLeft = bgImgWidth - y
+          // console.log(vehicleCurrentLeft)
+          // moveObj.style = `transform: translate(${-a}px);`
+          // moveObj.style['transition'] = 'all 5s linear'
+          moveObj.style.top = x + 'px'
+          moveObj.style.right = y + 'px'
+        }
+
+        this.updateVehiclePos = (x, y, dangerMile) => {
+          let vehicleImg = this.root.querySelector('#drivevehicle')
+          let beltImg = this.root.querySelector('#belt')
+        
+          this.measuringScale = this.parent.measuringScale // 屏幕比例
+          this.rightLength = this.parent.rightLength // 巷道口20米 * 屏幕比例 + 伸缩层20px
+          this.scale = this.parent.scale // 地图比例
+          this.vehicle = vehicleImg.getBoundingClientRect() // 车辆大小px
+          this.belt = beltImg.getBoundingClientRect() // 皮带大小px
+        
+          if (!this.basicCoord) return
+          let charX = Math.abs(x - this.basicCoord[0]) // 车辆距离基准点x的距离
+          let charY = Math.abs(y - this.basicCoord[1]) // 车辆距离基准点y的距离
+          // let brow = this.parent.driveface.base_point_y // 巷道口的y坐标
+          // let beltwidth = Math.abs(y - brow) * this.measuringScale * this.scale
+          let vehicleX = charX * this.measuringScale * this.scale // （ iconX - 基准点X ）* 2 * 屏幕比例
+          let vehicleY = charY * this.scale * this.measuringScale // ((iconY - 基准点Y) * 2 + 巷道口显示20米) * 屏幕比例 + 伸缩层20px 其中 rightLength = 巷道口20米 * 屏幕比例 + 伸缩层20px
+          // 车辆屏幕位置
+          let screenVehicleX = vehicleX - this.vehicle.height / 2
+          let screenVehicleY = vehicleY + this.rightLength - this.vehicle.width / 2
+          // 皮带屏幕位置
+          let screenBeltX = vehicleX - this.belt.height / 2
+          let screenBeltY = vehicleY + this.rightLength - 6000
+        
+          if (this.top || this.right) {
+            this.animate(screenVehicleX, screenVehicleY, 'drivevehicle') // 车辆动画
+            this.animate(screenBeltX, screenBeltY, 'belt') // 皮带动画
+            this.parent.tags['driverface-sensor'] && this.parent.tags['driverface-sensor'].updateJIZAIgas(vehicleX, vehicleY, this.rightLength, this.vehicle.width, 'needMove') // 更新机载甲烷传感器位置
+          } else {
+            // 掘进机位置
+            vehicleImg.style = `top: ${screenVehicleX}px; right: ${screenVehicleY}px;`
+          // 皮带位置
+          // beltImg.style.width = charY + 'px'
+            beltImg.style = `top: ${screenBeltX}px; right: ${screenBeltY}px;`
+            this.parent.tags['driverface-sensor'] && this.parent.tags['driverface-sensor'].updateJIZAIgas(vehicleX, vehicleY, this.rightLength, this.vehicle.width) // 更新机载甲烷传感器位置
+          }
+          // 危险范围位置
+          let danger = dangerMile * this.measuringScale // 设置的距离（米） * 屏幕比例
+          this.dangerRight = vehicleY + this.rightLength - danger
+
+          this.top = screenVehicleX
+          this.right = screenVehicleY
+        
+          this.vehicleBeltState() // 掘进机、皮带开停
+          // this.update()
+        }
+        
+        this.vehiclePosition = (basicCoord) => {
+          if (basicCoord) {
+            this.basicCoord = basicCoord // 基准点
+          }
+          this.drivefaceID = this.parent.parent.opts.id
+          let drivefaceVehicle = xdata.metaStore.data.drivingface && xdata.metaStore.data.drivingface.get(this.drivefaceID)
+          let vehicleID = xdata.metaStore.data.drivingface_vehicle && xdata.metaStore.data.drivingface_vehicle.get(this.drivefaceID) && xdata.metaStore.data.drivingface_vehicle.get(this.drivefaceID).vehicle_id
+          let dangerMile = xdata.metaStore.data.drivingface_vehicle && xdata.metaStore.data.drivingface_vehicle.get(this.drivefaceID) && xdata.metaStore.data.drivingface_vehicle.get(this.drivefaceID).warning_threshold
+        
+          let cardID = vehicleID && xdata.metaStore.data.vehicle_extend && xdata.metaStore.data.vehicle_extend.get(vehicleID) && xdata.metaStore.data.vehicle_extend.get(vehicleID).card_id
+          let currentVehicle = xdata.coaltunneller.tunneller && xdata.coaltunneller.tunneller.get(cardID)
+        
+          if (currentVehicle) {
+            this.x = Math.abs(currentVehicle[1])
+            this.y = Math.abs(currentVehicle[2])
+          } else if (drivefaceVehicle) {
+            this.x = Math.abs(drivefaceVehicle.icon_x) // 车辆x坐标
+            this.y = Math.abs(drivefaceVehicle.icon_y) // 车辆y坐标
+          }
+          this.updateVehiclePos(this.x, this.y, dangerMile) // 车辆位置
+        }
+
+        xbus.on('TUNNELLER-STAT-LIST', () => {
+          this.vehiclePosition()
+        })
+
+        this.changeImg = (turnOff, turnOffObj) => {
+          if (turnOff == 0) {
+            this.root.querySelector('#' + turnOffObj).setAttribute('src', `/img/${turnOffObj}.gif`)
+            if (turnOffObj === 'drivevehicle') {
+              this.root.querySelector('.danger').classList.remove('hide')
+            }
+          } else if (turnOff == 1) {
+            this.root.querySelector('#' + turnOffObj).setAttribute('src', `/img/${turnOffObj}.png`)
+            if (turnOffObj === 'drivevehicle') {
+              this.root.querySelector('.danger').classList.add('hide')
+            }
+          }
+        }
+
+        this.vehicleBeltState = () => {
+          let datasources = xdata.environmentalStore.environmentalData
+          let controlSources = xdata.metaStore.data.workface_sensor && Array.from(xdata.metaStore.data.workface_sensor.values()).filter(item => item.drivingface_id === this.drivefaceID)
+          if (controlSources) {
+            for (let i = 0; i < controlSources.length; i++) {
+              let datasource = Number(controlSources[i].data_source)
+              if (controlSources[i].sensor_id === 8) { // 掘进机开停
+                this.vehicleTurnOff = datasources.get(datasource) && datasources.get(datasource)[1]
+                this.changeImg(this.vehicleTurnOff, 'drivevehicle')
+              } else if (controlSources[i].sensor_id === 9) { // 皮带开停
+                this.beltTurnOff = datasources.get(datasource) && datasources.get(datasource)[1]
+                this.changeImg(this.beltTurnOff, 'belt')
+              }
+            }
+          }
+          // this.update()
+        }
+    </script>
+</driveface-vehicle>

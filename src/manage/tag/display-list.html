@@ -1,0 +1,248 @@
+<display-list>
+  <div class="state-area">
+    <span>当前部门：{ curDeptName }</span>
+    <span if={ name==='staff' }>当前工种：{ curWorktypeName }</span>
+    <input type='checkbox' onclick={ checkAll }>全部选中</div>
+  <table>
+    <thead>
+      <tr>
+        <th class="checkinput" if={ xdata.roleID===1 }>
+          <span>{controlMode ==='need_display' ? '是否显示':'是否上报'}</span>
+        </th>
+        <th each={ title in titles }>{ title }</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr each={ list in lists } class={ list[name + '_id'] }>
+        <td class="checkinput" if={ xdata.roleID===1 }>
+          <input class="checkbox" type="checkbox" checked={ list[controlMode]===1 ? 'checked' : '' } onclick={ changeBoxStatus }>
+        </td>
+        <td each={ i in names }>{ i === 'dept_id' ? xdata.metaStore.getNameByID("dept_id", list[i]) : list[i] }</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="pagination" data-is="pagination" totalpage={ totalPage } pageindex={ pageIndex } tablename={ tablename } if={totalPage>1}></div>
+  <div data-is="blank-message" message="没有符合条件结果" class="blank-message" if={ !hasdata }></div>
+  <script>
+    import { basicMsg } from '../../js/def/basic_msg_def.js'
+    import './search-bar.html'
+    this.curDeptName = '所有'
+    this.curWorktypeName = '所有工种'
+    let self = this
+    this.checkAllStatus = false
+    this.condition = null
+    this.controlMode = this.parent.controlMode
+
+    this.on('mount', () => {
+      let name = opts.name
+      this.name = name
+      let theme = basicMsg[name]
+      this.titles = theme.table.labels
+      this.names = theme.table.names
+      this.sqlname = null
+      this.pageIndex = 0
+      this.total = -1
+      this.inpuireDB(name)
+      this.update()
+    })
+
+    this.on('update', (msg) => {
+      if (!msg) return
+      this.curDeptName = '所有'
+      this.curWorktypeName = '所有工种'
+      this.inpuireDB(this.name)
+    })
+
+    //1.刚进页面点击全选，此时ident未定义 ，可用ident判断
+    //2：点击详情,全选，ident为stafflist,condition在session中，需要用条件查询 ident && ident !== this.name
+    //3：点击查询 ident 为this.name
+    this.checkAll = () => {//全选或取消全选
+      this.checkAllStatus = !this.checkAllStatus
+      // this.condition = this.msg && this.msg.condition ? 'where ' + this.msg.condition : ''
+      let condition = this.parent.msg.condition ? 'where ' + this.parent.msg.condition : ''
+      let displayValue = this.checkAllStatus ? 1 : 0, sql
+      if (this.name === 'staff') {
+        sql = `update dat_staff_extend se inner join dat_staff s on se.staff_id = s.staff_id set se.${this.controlMode} = ${displayValue} ${condition};`
+      } else if (this.name === 'vehicle') {
+        sql = `update dat_vehicle_extend se inner join dat_vehicle s on se.vehicle_id = s.vehicle_id set se.${this.controlMode} = ${displayValue} ${condition};`
+      }
+      let req = this.composeUpdateDBReq('UPDATE', '', sql)
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+      if(!displayValue && this.controlMode === 'need_display'){
+        xbus.trigger('REMOVE-MAP-GROUPCARD',this.curAllData,this.name)
+      }
+    }
+
+    xbus.on('META-UPDATE-DB-RES', (res) => {
+      let arr = ['staff_extend', 'vehicle_extend'], msg
+      if (res && res.code === 0 && res.data && arr.includes(res.data.name)) {
+        this.inpuireDB(this.parent.msg)
+      }
+    })
+
+    xbus.on('DISTRIBUTE-HAD-OVER', (res) => {
+      this.parent.update()
+    })
+
+    this.changeBoxStatus = (evt) => { // 改变选中状态
+      let ele = evt.target
+      let number = ele.parentElement.nextElementSibling.innerText
+      let preStatus = ele.getAttribute('checked')
+      let value, sql, type_id = null
+      if (preStatus) {
+        ele.setAttribute('checked', '')
+        value = 0// 不显示
+      } else {
+        ele.setAttribute('checked', 'checked')
+        value = 1
+      }
+
+      type_id = this.name === 'staff' ? 'staff_id' : 'vehicle_id'
+      sql = `update dat_${this.name}_extend set ${this.controlMode}=${value} where ${type_id} =${number};`
+      console.log(sql)
+      let req = this.composeUpdateDBReq('UPDATE', number, sql)
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+      let cardid
+      if (this.name === 'staff' && value === 0) {
+        cardid = xdata.metaStore.data.staff_extend.get(Number(number)).card_id
+      } else if (this.name === 'vehicle' && value === 0) {
+        cardid = xdata.metaStore.data.vehicle_extend.get(Number(number)).card_id
+      }
+      // console.log('cardid', cardid)
+      xbus.trigger('REMOVE-MAP-CARD', { id: cardid, type: this.name })
+    }
+
+    this.composeUpdateDBReq = (db_op, number, sqlstring) => {
+      return {
+        cmd: 'update', // update, CMD.META.UPDATE
+        data: {
+          op: db_op, // INSERT, UPDATE, DELETE
+          name: this.name + '_extend',
+          id: number,
+          sql: sqlstring
+        }
+      }
+    }
+
+    this.inpuireDB = (msg) => {
+      if (msg === 'staff' || msg.name === 'stafflist' || msg.name === 'staffSearch') {
+        // this.sqlname = 'stafflist'
+        if (msg.condition) {
+          this.sqlname = 'staffSearch'
+          this.sql = `select s.staff_id, name, ident, se.dept_id,se.${this.controlMode} from dat_staff s left join dat_staff_extend se on s.staff_id = se.staff_id left join dat_card c on se.card_id = c.card_id where ${msg.condition};`
+          this.countsql = `select count(1) as total from dat_staff s left join dat_staff_extend se on s.staff_id = se.staff_id left join dat_card c on se.card_id = c.card_id where ${msg.condition};`
+          this.searchDB(this.sqlname, this.sql, this.countsql, 0, -1)
+        } else {
+          this.sqlname = 'stafflist'
+          this.sql = `select s.staff_id, name, ident, se.dept_id,se.${this.controlMode} from dat_staff s left join dat_staff_extend se on s.staff_id = se.staff_id left join dat_card c on se.card_id = c.card_id;`
+          this.countsql = `select count(1) as total from dat_staff s left join dat_staff_extend se on s.staff_id = se.staff_id left join dat_card c on se.card_id = c.card_id;`
+          this.searchDB(this.sqlname, this.sql, this.countsql, this.pageIndex, this.total)
+        }
+      } else if (msg === 'vehicle' || msg.name === 'vehiclelist' || msg.name === 'vehicleSearch') {
+        // this.sqlname = 'vehiclelist'
+        if (msg.condition) {
+          this.sqlname = 'vehicleSearch'
+          this.sql = `select v.vehicle_id, name, ident, se.dept_id,se.${this.controlMode} from dat_vehicle v left join dat_vehicle_extend se on v.vehicle_id = se.vehicle_id left join dat_card c on se.card_id = c.card_id where ${msg.condition};`
+          this.countsql = `select count(1) as total from dat_vehicle v left join dat_vehicle_extend se on v.vehicle_id = se.vehicle_id left join dat_card c on se.card_id = c.card_id where ${msg.condition};`
+          this.searchDB(this.sqlname, this.sql, this.countsql, 0, -1)
+        } else {
+          this.sqlname = 'vehiclelist'
+          this.sql = `select v.vehicle_id, name, ident, se.dept_id,se.${this.controlMode} from dat_vehicle v left join dat_vehicle_extend se on v.vehicle_id = se.vehicle_id left join dat_card c on se.card_id = c.card_id;`
+          this.countsql = `select count(1) as total from dat_vehicle v left join dat_vehicle_extend se on v.vehicle_id = se.vehicle_id left join dat_card c on se.card_id = c.card_id;`
+          this.searchDB(this.sqlname, this.sql, this.countsql, this.pageIndex, this.total)
+        }
+      }
+      this.searchDB(this.sqlname, this.sql,'','','','all')//查询所有
+      // console.log('this.sql---------------',this.sql)
+    }
+
+    this.searchDB = (name, sql, countsql, pageindex, total,type) => {
+      let message = {
+        cmd: 'query',
+        data: {
+          name: name,
+          sql: sql,
+          pageSize: PAGE_SIZE,
+          pageIndex: pageindex, 
+          total: total,
+          countSql: countsql
+        }
+      }
+      if(type){
+        message = {
+          cmd: 'query',
+          data: {
+            name: name,
+            sql: sql
+          }
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: name
+        }
+      })
+    }
+
+    this.initPagination = (total) => {
+      this.totalPage = Math.ceil(total / PAGE_SIZE)
+      this.pageIndex = this.pageIndex ? this.pageIndex : 0
+      this.update()
+    }
+
+    this.updateList = (ds) => {
+      if (ds.def.name === this.sqlname && ds.total) {
+        window.xhint.close()
+        this.lists = ds.rows
+        if (this.lists && this.lists.length <= 0) {
+          this.hasdata = false
+        } else {
+          this.hasdata = true
+        }
+        this.tablename = ds.def.name
+        this.seTotal = ds.total
+        if (this.sqlname.match(/list/ig)) {
+          this.total = ds.total
+        } else if (this.sqlname.match(/search/ig)) {
+          this.pageIndex = ds.pageIndex
+        }
+        this.initPagination(ds.total)
+      }else if(ds.def.name === this.sqlname && !ds.total){
+        this.curAllData = ds.rows
+      }
+    }
+
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+      msg.total = this.seTotal
+      if (msg.name === this.sqlname) {
+        this.dopagechangeDB(msg)
+      }
+    })
+
+    this.dopagechangeDB = (msg) => {
+      this.pageIndex = msg ? msg.pageIndex : 0
+      let message = {
+        cmd: 'query',
+        data: {
+          reptName: this.sqlname,
+          pageSize: PAGE_SIZE,
+          pageIndex: msg.pageIndex,
+          total: msg.total,
+          sql: this.sql,
+          countSql: this.countsql
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: this.sqlname
+        }
+      })
+    }
+  </script>
+</display-list>

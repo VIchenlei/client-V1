@@ -1,0 +1,48 @@
+<topic-nav>
+  <span each={ item in listSwitcher } id={ item.name } ref={ item.name } class="hint--right {chargeisHide(item.name)}" aria-label={ item.label } onclick={
+    switchItem }>
+    <!-- <svg ref={ item.name + '_svg' } class="icon"><use xlink:href="/icons/icons.svg#{item.iconName}"></use></svg> -->
+    <span ref={ item.name + '_svg' } class="icon {item.iconName}"></span>
+  </span>
+
+  <script>
+    import { TOPIC, TopicDef } from '../../js/def/topic_def.js'
+
+    this.listSwitcher = Object.values(TopicDef)
+
+    this.papa = opts.papa
+
+    this.chargeisHide = (name) => {
+      if (!opts.papa) return ''
+      if ((opts.papa.opts.papa.isCheck === 1 || xdata.isCheck === 1) && name === 'staffByLevel') return 'hide'
+      return ''
+    }
+
+    // set the default list
+    // this.currentList = TopicDef[TOPIC.VEHICLE_BY_AREA]
+
+    this.switchItem = (evt) => {
+      let listName = evt.currentTarget.getAttribute('id')
+      if (listName && listName !== this.currentList.name) {
+        this.papa.switchToItem(listName)
+        // this.currentList.class = ''
+        this.setActiveItem(this.currentList)
+        this.currentList = TopicDef[listName]
+        // this.currentList.class = 'active'
+        this.setActiveItem(this.currentList)
+      }
+
+      this.papa.showPanel()
+    }
+
+    this.setActiveItem = (currentList) => {
+      this.refs[currentList.name] && this.refs[currentList.name].classList.toggle('active')
+      this.refs[currentList.name] && this.refs[currentList.name + '_svg'].classList.toggle('active')
+    }
+
+    this.on('mount', () => {
+      this.currentList = TopicDef[TOPIC.VEHICLE_BY_AREA]
+      this.setActiveItem(this.currentList)
+    })
+  </script>
+</topic-nav>

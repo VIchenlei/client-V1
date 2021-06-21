@@ -1,0 +1,43 @@
+@import '../../sass/defs'
+
+$dlg-body-height: 12rem
+
+.modify-dialog
+    width: 20rem
+    font-size: $fontsize-s
+    @media screen and (max-width: $width-medium)
+      width: 90%
+      max-width: 24rem
+
+    .modify-body
+        padding: 1rem
+        // height: $dlg-body-height
+        height: 20rem
+        display: flex
+        flex-flow: column
+        align-items: center
+
+    .modify-form
+        justify-content: space-around
+        div
+            flex: 0
+            margin: 0.5rem 0
+            label
+                width: 6rem
+                text-align: right
+                // display: inline-block
+            input
+              width: 15rem
+
+    .modify-result
+        align-items: center
+        justify-content: center
+
+    .op-panel
+        display: flex
+        justify-content: center
+        align-items: center
+
+        .modify-button
+            margin-bottom: 1rem
+            width: 12rem

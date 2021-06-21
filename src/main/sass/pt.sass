@@ -1,0 +1,176 @@
+@import '../../sass/defs'
+
+.container
+    position: relative
+    width: 100%
+    height: 100%
+    display: flex
+    perspective: 2000px
+    transform-style: preserve-3d
+    @media screen and (max-width: $width-medium)
+        overflow-y: scroll
+
+    .p_main
+        position: absolute
+        width: 100%
+        height: 100%
+        display: flex
+        flex-flow: column nowrap
+        flex: auto
+        background: url("/img/ratebg.png") no-repeat cover 
+        @media screen and (max-width: $width-medium) and (orientation: landscape)
+            overflow: hidden
+        .main_panel
+            position: relative
+            // width: 100%
+            // height: 100%
+            display: flex
+            flex: auto
+            perspective: 2000px
+            transform-style: preserve-3d
+
+            .sub-page
+                position: absolute
+                width: 100%
+                height: 100%
+                display: flex
+                flex-flow: row nowrap
+                align-items: stretch
+                color: $main-color
+            // #sp_manage
+                // .manages
+                    // width: 100%
+            #cesiumContainer
+                width: 100%
+
+            // .sp_monitor
+            //     position: absolute
+            //     width: 100%
+            //     height: 100%
+            //     display: flex
+            //     flex-flow: row nowrap
+            //     align-items: stretch
+            //     color: $main-color
+
+            // .sp_history
+            //     position: absolute
+            //     width: 100%
+            //     height: 100%
+            //     display: flex
+            //     flex-flow: row nowrap
+            //     align-items: stretch
+            //     color: $main-color
+            //     .ol-zoomslider
+            //         display: none !important
+
+            // .sp_manage
+            //     position: absolute
+            //     width: 100%
+            //     height: 100%
+            //     display: flex
+            //     flex-flow: row nowrap
+            //     color: $main-color
+            //     .manages
+            //         width: 100%
+
+            // .sp_report
+            //     position: absolute
+            //     width: 100%
+            //     height: 100%
+            //     display: flex
+            //     flex-flow: row nowrap
+            //     color: $main-color
+            //     background: #fff
+
+            // .sp_status
+            //     position: absolute
+            //     width: 100%
+            //     height: 100%
+            //     display: flex
+            //     background: white
+            //     color: $main-color
+            //     flex-flow: row nowrap
+
+
+            // .sp_user
+            //     position: absolute
+            //     width: 100%
+            //     height: 100%
+            //     display: flex
+            //     flex-flow: row nowrap
+            //     background: white
+            //     color: $main-color
+
+
+            // .sp_config
+            //     position: absolute
+            //     width: 100%
+            //     height: 100%
+            //     display: flex
+            //     flex-flow: row nowrap
+            //     color: $main-color
+            //     .configers
+            //         width: 100%
+// -------------- animation ------------------
+
+.cubeLeftOut
+    transform-origin: 100% 50%
+    animation: rotateCubeLeftOut 1s both ease-in
+
+.cubeLeftIn
+    transform-origin: 0% 50%
+    animation: rotateCubeLeftIn 1s both ease-in
+    // height: 100%
+
+.cubeRightOut
+    transform-origin: 0% 50%
+    animation: rotateCubeRightOut 1s both ease-in
+
+.cubeRightIn
+    transform-origin: 100% 50%
+    animation: rotateCubeRightIn 1s both ease-in
+    // height: 100%
+
+@keyframes rotateCubeLeftOut
+    50%
+        animation-timing-function: ease-out
+        transform: translateX(-50%) translateZ(-200px) rotateY(-45deg)
+
+    100%
+        opacity: 0
+        transform: translateX(-100%) rotateY(-90deg)
+
+@keyframes rotateCubeLeftIn
+    0%
+        opacity: 0.3
+        transform: translateX(100%) rotateY(90deg)
+
+    50%
+        opacity: 1
+        animation-timing-function: ease-out
+        transform: translateX(50%) translateZ(-200px) rotateY(45deg)
+
+    100%
+        transform: translateX(0%) translateZ(0px) rotateY(0deg)
+
+@keyframes rotateCubeRightOut
+    50%
+        animation-timing-function: ease-out
+        transform: translateX(50%) translateZ(-200px) rotateY(45deg)
+
+    100%
+        opacity: 0
+        transform: translateX(100%) rotateY(90deg)
+
+@keyframes rotateCubeRightIn
+    0%
+        opacity: 0.3
+        transform: translateX(-100%) rotateY(-90deg)
+
+    50%
+        opacity: 1
+        animation-timing-function: ease-out
+        transform: translateX(-50%) translateZ(-200px) rotateY(-45deg)
+
+    100%
+        transform: translateX(0%) translateZ(0px) rotateY(0deg)

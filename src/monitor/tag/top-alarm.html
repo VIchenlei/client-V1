@@ -1,0 +1,34 @@
+<top-alarm>
+  <div>
+    <span>安全分析指数</span>
+    <span>0</span>
+  </div>
+  <div>
+    <span>标识卡告警</span>
+    <span>{cardsAlarm}</span>
+  </div>
+  <div>
+    <span>设备告警</span>
+    <span>{devicesAlarm}</span>
+  </div>
+  <div>
+    <span>区域告警</span>
+    <span>{areasAlarm}</span>
+  </div>
+  <script>
+    this.cardsAlarm = 0
+    this.devicesAlarm = 0
+    this.areasAlarm = 0
+    xbus.on('THREE-ALARM-TOP-SHOW', () => {
+      // console.log(xdata.alarmStore)
+      // let cardsAlarm = 0
+      // let devicesAlarm = 0
+      // let areasAlarm = 0
+      let alarms = xdata.alarmStore.alarm
+      this.cardsAlarm = alarms.get(9) && Array.from(alarms.get(9).values()).length
+      this.devicesAlarm = alarms.get(4) && Array.from(alarms.get(4).values()).length
+      this.areasAlarm = alarms.get(2) && Array.from(alarms.get(2).values()).length
+      this.update()
+    })
+  </script>
+</top-alarm>

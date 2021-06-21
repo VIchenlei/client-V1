@@ -1,0 +1,134 @@
+<driver-list>
+  <table class="arrangeOrder">
+    <thead>
+      <tr>
+        <th class="vehicleNumber">车辆</th>
+        <th class="monShift">0点班</th>
+        <th class="midShift">8点班</th>
+        <th class="nigShift">4点班</th>
+        <th class="graShift {ishide}">夜班</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr each={ vehicle in vehicles }>
+        <td>{ vehicle.name }</td>
+        <td>
+          <span ondblclick={ createNode }>{vehicle.es}</span>
+          <input class="hide" onkeyup={ enterForSearch } value={vehicle.es}>
+          <span class="morning-icon icon hide" name={ vehicle.vehicle_id }>
+            <span class="morning-icon morShift" onclick={ saveDB } name={ vehicle.vehicle_id } type={ vehicle.name }>确定</span>
+            <span class="morShift" onclick={ cancel }>取消</span>
+          </span>
+        </td>
+        <td>
+          <span ondblclick={ createNode }>{vehicle.ms}</span>
+          <input class="hide" onkeyup={ enterForSearch } value={vehicle.es}>
+          <span class="middle-icon icon hide" name={ vehicle.vehicle_id }>
+            <span class="middle-icon morShift" onclick={ saveDB } name={ vehicle.vehicle_id } type={ vehicle.name }>确定</span>
+            <span class="morShift" onclick={ cancel }>取消</span>
+          </span>
+        </td>
+        <td>
+          <span ondblclick={ createNode }>{vehicle.ns}</span>
+          <input class="hide" onkeyup={ enterForSearch } value={vehicle.es}>
+          <span class="night-icon icon hide" name={ vehicle.vehicle_id }>
+            <span class="night-icon morShift" onclick={ saveDB } name={ vehicle.vehicle_id } type={ vehicle.name }>确定</span>
+            <span class="morShift" onclick={ cancel }>取消</span>
+          </span>
+        </td>
+        <td class="{ishide}">
+          <span ondblclick={ createNode }>{vehicle.ys}</span>
+          <input class="hide" onkeyup={ enterForSearch } value={vehicle.es}>
+          <span class="grave-icon icon hide" name={ vehicle.vehicle_id }>
+            <span class="grave-icon morShift" onclick={ saveDB } name={ vehicle.vehicle_id } type={ vehicle.name }>确定</span>
+            <span class="morShift" onclick={ cancel }>取消</span>
+          </span>
+        </td>
+      </tr>
+    </tbody>
+  </table> 
+  <script>
+    import {compare, trim} from '../../js/utils/utils.js'
+    this.driver = null
+    this.parentTag = opts.parentTag
+
+    this.on('mount', () => {
+      let msg = opts.rows
+      this.ishide = opts.shiftType === 1 ? 'hide' : ''
+      let vehicles = (xdata.objRange === 1 || xdata.isCheck ===1) ? [].concat(JSON.parse(JSON.stringify(Array.from(xdata.metaStore.data.vehicle.values()).filter(item => item.need_display === 1)))) : [].concat(JSON.parse(JSON.stringify(Array.from(xdata.metaStore.data.vehicle.values()))))
+      if (msg) {
+        for (let i = 0, len = msg.length; i < len; i++) {
+          let row = msg[i]
+          let vehicleID = Number(row.vehicle_id)
+          let searchvehicle = vehicles.filter(item => item.vehicle_id === vehicleID)
+          this.fillvehicle(row, searchvehicle[0])
+        }
+      }
+      this.vehicles = Array.from(vehicles.values()).sort(compare('name'))
+      this.update()
+    })
+
+    this.fillvehicle = (row, searchvehicle) => {
+      let shiftID = row.shift_id
+      switch (shiftID) {
+        case 1:
+        case 4 :
+          searchvehicle.es = `${row.name}-${row.da}`
+          break
+        case 2:
+        case 5:
+          searchvehicle.ms = `${row.name}-${row.da}`
+          break
+        case 3:
+        case 6:
+          searchvehicle.ns = `${row.name}-${row.da}`
+          break
+        case 7:
+          searchvehicle.ys = `${row.name}-${row.da}`
+          break
+      }
+    }
+
+    this.createNode = (evt) => {
+      let target = evt.currentTarget
+      if (this.root.querySelector('#input')) {
+        let msg = {
+          value: 'notsave',
+          tip: '请先保存修改'
+        }
+        window.hintip.open(msg)
+      } else {
+        this.shiftTarrget = target
+        this.importMsg()
+      }
+    }
+
+    this.importMsg = () => {
+      if (!this.shiftTarrget) return
+      this.driver = this.shiftTarrget.innerHTML
+      this.shiftTarrget.classList.add('hide')
+      this.shiftTarrget.parentElement.querySelector('input').classList.remove('hide')
+      this.shiftTarrget.parentElement.querySelector('input').setAttribute('id', 'input')
+      this.shiftTarrget.parentElement.querySelector('.icon').classList.remove('hide')
+      this.shiftTarrget.parentElement.querySelector('.icon').setAttribute('id', 'id')
+      this.parentTag.tags["dept-staff-list"].removestaffsList()
+      this.parentTag.tags["dept-staff-list"].position(this.shiftTarrget)
+    }
+
+    this.saveDB = (evt) => {
+      let target = evt.currentTarget
+      this.parentTag.save(target, this.driver)
+    }
+
+    this.cancel = (evt) => {
+      let target = event.currentTarget
+      target.parentElement.parentElement.querySelector('input').classList.add('hide')
+      target.parentElement.parentElement.querySelector('span').classList.remove('hide')
+      target.parentElement.parentElement.querySelector('span').innerHTML = this.driver
+      target.parentElement.classList.add('hide')
+      target.parentElement.setAttribute('id', '')
+      this.parentTag.tags["dept-staff-list"].addhide()
+      target.parentElement.parentElement.querySelector('#input').setAttribute('id', '')
+    }
+  </script>
+</driver-list>

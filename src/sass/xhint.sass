@@ -1,0 +1,91 @@
+@import defs
+
+.xhint-dialog
+    @include align-middle
+    background: $body-bg
+    padding: 2rem
+    flex-flow: column
+    border-radius: 2px
+    font-size: $fontsize-m
+    box-shadow: 5px 5px 25px rgba(0, 0, 0, 0.4)
+
+    @media screen and (max-width: $width-medium)
+        width: 100% 
+        max-width: 40rem
+        left: 0 rem
+        top: 30%
+
+    .tips-icon
+        @include wh(3rem,3rem)
+        margin: 1rem
+    .xhint-icon-warn
+        fill: $color-warn
+        transform: rotate(180deg)
+    .xhint-tips
+        font-size: $fontsize-m
+        padding-top: 1rem
+        max-width: 30rem
+        max-height: 20rem
+        word-break: break-all
+        overflow: auto
+    .loading-text
+        @include align-middle-between
+        .tips-icon
+            @include wh(2rem,2rem)
+            margin: 0
+    .xhint-hint
+        font-size: $fontsize-s
+        color: $body-ft-light
+        padding-top: 1rem
+
+    .xhint-button
+        width: 6rem
+        margin-top: 2rem
+    #hold
+        @include absolute(50%,50%)
+        animation: spin 10s linear infinite
+    .dot
+        @include wh(20px,20px)
+        border-radius: 100%
+        position: absolute
+        opacity: 0
+        transform-origin: 0% 0%
+    @keyframes spin 
+        from 
+            transform: rotate(360deg)
+        to 
+            transform: rotate(0deg)
+    @keyframes osc 
+        0%
+            transform: scale(0.5)
+            opacity: 0
+        50% 
+            transform: scale(1.5)
+            opacity: 1
+        100% 
+            transform: scale(0.5)
+            opacity: 0
+    @keyframes rainbow 
+        0% 
+            background: #df2020
+        25% 
+            background: #80df20
+        50% 
+            background: #20dfdf
+        75% 
+            background: #7f20df
+        100% 
+            background: #df2020
+
+
+.loading-icon
+    animation: load 2s linear infinite
+@keyframes load
+    from
+        transform: rotate(0deg)
+    to
+        transform: rotate(360deg)
+
+.loading-page 
+    width: 30rem
+    padding: 1.5rem   

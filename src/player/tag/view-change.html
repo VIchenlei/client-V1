@@ -1,0 +1,41 @@
+<view-change class="addbg">
+    <div onclick={ changeView }>
+        <svg class="icon">
+            <use href='/icons/icons.svg#{iconShow}'></use>
+        </svg>
+        <!-- <img src="/img/angle-down.png" alt=""> -->
+    </div>
+    <script>
+        import '../sass/view-change.sass'
+        this.iconShow = 'icon-arrow'
+        this.showList = true
+
+        this.changeView = () => {
+            this.showList = !this.showList
+            let trackListTag = this.parent.tags['track-list']
+            if (trackListTag) {
+                this.showList ? trackListTag.root.classList.remove('hide') : trackListTag.root.classList.add('hide')
+                this.showList ? this.root.classList.add('addbg') : this.root.classList.remove('addbg')
+            }
+            this.iconShow = this.showList ? 'icon-arrow' : 'icon-arrowon'
+            this.update()
+        }
+
+        xbus.on('HIDE-TRACKLIST-MENU', () => {
+            this.root.classList.add('hide')
+            this.parent.tags['track-list'].root.classList.add('hide')
+        })
+
+        xbus.on('SHOW-VIEW-CHANGE', () => {
+            this.root.classList.remove('hide')
+            let isCheckout = this.parent.parent.tags["history-querypc"].checkoutWork
+            isCheckout ? this.parent.tags['track-list'].root.classList.remove('hide') : this.parent.tags['track-list'].root.classList.add('hide')
+            isCheckout ? this.root.classList.remove('hide') : this.root.classList.add('hide')
+        })
+        xbus.on('CHANGE-SHOW-LIST', () => {
+            this.iconShow = 'icon-arrow'
+            this.showList = true
+            this.update()
+        })
+    </script>
+</view-change>

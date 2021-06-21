@@ -1,0 +1,27 @@
+<rs-table>
+  <table class="rs-table">
+    <thead>
+      <tr>
+        <th each={ title in titles }>{ title }</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr each={ data in datas }>
+        <td each={ label in data }>{ label }</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <script>
+    import './rs-table.sass'
+    this.updateList = (datas) => {
+      this.init(datas)
+    }
+
+    this.init = (datas) => {
+      this.titles = datas.dataDef || this.titles
+      this.datas = datas.data
+    }
+    this.init(opts)
+  </script>
+</rs-table>

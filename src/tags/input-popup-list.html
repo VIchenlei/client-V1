@@ -1,0 +1,65 @@
+<input-popup-list>
+  <div>
+    <label for="all" class="label" onclick={addLine} if={lists.length>0}>
+      <input type="checkbox" id="all" class="input">
+      <span>全选</span>
+    </label>
+    <label each={lists} for={staff_id} class="label" onclick={addLine}>
+      <input type="checkbox" id={staff_id} class="input" checked={checkworkline(work_line)}>
+      <span>{name}</span>
+    </label>
+    <div if={lists.length <= 0}>当前部门没有可选人员</div>
+  </div>
+  <script>
+    this.staffLine = new Map()
+    this.getLabel = (tagname, target) => {
+      switch (tagname) {
+        case 'span': 
+        case 'input':
+          return target.parentElement
+        case 'label':
+          return target
+      }
+    }
+
+    this.checkworkline = (workline) => {
+      let ret = workline === this.line ? true : false
+      return ret
+    }
+
+    this.addLine = (evt) => {
+      evt.stopPropagation()
+      let target = evt.target
+      let tagname = evt.target.tagName.toLowerCase()
+      let label = this.getLabel(tagname, target)
+      if (!label) return
+      let row = evt.item
+      let checkbox = label.querySelector('input')
+      let staffID = checkbox.getAttribute('id')
+      let isChecked = checkbox.checked
+      opts.self.addLine(isChecked, staffID, this.title, row)
+    }
+
+    this.clear = () => {
+      this.staffLine.clear()
+    }
+
+    this.init = (opts) => {
+      this.key = parseInt(opts.self.key, 10)
+      this.title = opts.name
+      this.line = this.title === 'frontline' ? 1 : 2
+      let metaEdit = opts.self
+      let frontlineLength = metaEdit.frontline && Array.from(metaEdit.frontline.values()).length
+      let secondlineLength = metaEdit.secondline && Array.from(metaEdit.secondline.values()).length
+      if (frontlineLength === 0 && secondlineLength === 0) {
+        this.lists = metaEdit.staffLists
+      } else {
+        this.lists = this.title === 'frontline' ? metaEdit.staffLists.filter(item => item.work_line !== 2) : metaEdit.staffLists.filter(item => item.work_line !== 1) 
+      }
+      this.root.classList.remove('hide')
+      this.update()
+    }
+
+    this.init(opts)
+  </script>
+</input-popup-list>

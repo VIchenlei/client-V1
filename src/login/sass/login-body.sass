@@ -1,0 +1,77 @@
+@import '../../sass/defs'
+
+
+.slogan-panel
+    @include align-middle
+    flex-flow: column nowrap
+    min-width: 20rem
+    z-index: 999
+    height: 10rem
+
+    @media screen and (max-width: $width-medium)
+        height: 6rem
+
+    .slogan
+        @include font-color-pos(2.4rem,$active-ft,left)
+        padding-bottom: 2rem
+        @media screen and (max-width: $width-medium)
+            font-size: 1.4rem
+            padding-bottom: 1rem
+
+    .minor-slogan
+        @include font-color-pos(1.2rem,$grip-color,left)
+        @media screen and (max-width: $width-medium)
+            font-size: $fontsize-s
+
+.login-form
+    @include align-middle
+    flex-flow: column nowrap
+    right: 20%
+    font-size: $fontsize-s
+    background: rgba(0, 0, 0, 0.4) // rgba(0, 0, 0, 0.3)
+    box-shadow: 0px 0px 50px 0px rgba(255, 255, 255, 0.2) // 1px 1px 2px rgba(255, 255, 255, 0.1)
+    border-radius: $control-radius
+    padding: 2.7rem 4rem
+    z-index: 999
+
+    .form-head
+        @include align-center-middle
+        flex: 0 0 3rem
+        border-top-left-radius: 2px
+        border-top-right-radius: 2px
+        color: $head-ft
+
+    .form-body
+        display: flex
+        flex-flow: column
+        flex: 0 0 8rem
+        justify-content: space-around
+        position: relative
+        .error-message
+            @include absolute(50%,-1.7rem)
+            width: 18rem
+            margin-left: -9rem
+            background: #151413
+            border-radius: 20px
+            border: 1px solid #444
+        .login-field
+            @include align-center-middle
+            flex-flow: column nowrap
+
+            .login-input
+                @include wh(18rem,2rem)
+                padding-left: 2rem
+                color: $color-white
+
+            .icon
+                fill: $fill-color
+                height: 1.2rem
+
+    .form-footer
+        @include align-center-middle
+        width: 100%
+        position: relative
+
+        .login-button
+            flex: 0 0 14rem
+            margin-top: 1rem

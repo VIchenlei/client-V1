@@ -1,0 +1,84 @@
+<geo-fault>
+  <div class="dlg-bg animated">
+    <div class="dlg-window xhint-dialog call-leave-dialog animated zoomIn">
+      
+      <div class="dlg-body align-center">
+        <p>地质断层距离告警阈值</p>
+        <p>
+          <icon-input idname="setting" ref="setting" type="setting" class="x-date" placeholder="" icon="icon-down" classname="login-input" data-type="text" value={getDefaultValue()}></icon-input>
+          <span>米</span>
+        </p>
+      </div>
+
+      <div class="dlg-foot">
+        <button class="btn-sure" onclick={ makesure }>确认</button>
+        <button class="btn-cancel" onclick={ close }>取消</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    import {composeUpdateDBReq} from '../../js/utils/utils.js'
+    const GEOID = 12
+
+    this.on('mount', () => {
+      this.registerGlobalEventHandlers()
+    })
+
+    this.getDefaultValue = () => {
+      let geofault = xdata.metaStore.data.setting.get(GEOID)
+      this.oldValue = geofault && Number(geofault.value)
+      return this.oldValue
+    }
+
+    this.makesure = () => {
+      let value = this.root.querySelector('input').value
+      value = Number(value)
+      if (!value || value === this.oldValue) {
+        let msg = {
+          value: 'failure',
+          tip: !value ? '请输入距离阈值' : '阈值未修改'
+        }
+        window.hintip.open(msg)
+        return
+      }
+      let sql = `UPDATE dat_setting SET value = ${value} WHERE setting_id = 12`
+      let req = composeUpdateDBReq('UPDATE', 'setting', 12, sql)
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+    }
+
+    this.registerGlobalEventHandlers = () => {
+      xbus.on('META-UPDATE-DB-RES', (res) => {
+        if (res.data.name === 'setting') {
+          let tip = ''
+          if (res.code === 0) {
+            tip = '更新成功'
+          } else {
+            tip = res.msg
+          }
+          this.close()
+          let msg = {
+            value: res.code === 0 ? 'success' : 'failure',
+            tip: tip
+          }
+          window.hintip.open(msg)
+        }
+      })
+    }
+
+    this.unregisterGlobalEventHandlers = () => {
+      xbus.off('META-UPDATE-DB-RES')
+    }
+  
+    this.close = () => {
+      this.unregisterGlobalEventHandlers()
+      let ele = this.root.querySelector('.dlg-window').classList
+      let dlBgEle = this.root.querySelector('.dlg-bg').classList
+      ele.remove('zoomIn')
+      ele.add('zoomOut')
+      dlBgEle.remove('zoomToOut')
+      dlBgEle.add('zoomNone')
+    }
+  </script>
+</geo-fault>

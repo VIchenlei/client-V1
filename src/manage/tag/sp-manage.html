@@ -1,0 +1,552 @@
+<sp-manage>
+  <aside id="manage_menu" data-is="side-bar" menus={manageMenu} class="sidebar" name="MANAGE"></aside>
+
+  <div class="manages">
+    <div class="back-homepage hide" onclick={backHomepage}>
+      <img src="/img/back.png" alt="">
+    </div>
+    <div id="manage-menu" class="homepage homeMange hide" menus={manageMenu} name="MANAGE"></div>
+    <div class="maintenance-table hide"></div>
+
+    <div class="battery-table hide"></div>
+    <div class="manage-table hide"></div>
+
+    <div class="parts-record"></div>
+    <div class="oilwear-record hide"></div>
+    <div class="maintenance-detail"></div>
+    <div class="transport-bars hide"></div>
+    <div class="basic-message-form hide"></div>
+    <div class="echarts-work"></div>
+  </div>
+
+  <script>
+    import manageMenu from '../../js/def/manage_menu.js'
+    import {manages} from '../../js/def/manage_def.js'
+    import { getInfo, getInsertMsg, getModifyInsertMsg } from '../../config/utils.js'
+    import {config} from '../../js/def/config_def.js'
+
+    import '../../tags/side-bar.html'
+    import '../../tags/transfer-menu.html'
+    import '../../config/tag/meta-dialog.html'
+    import '../../tags/meta-edit.html'
+    import '../../tags/meta-select.html'
+
+    // import './configer-table.html'
+    import './driver-table.html'
+    import './battery-table.html'
+    import './transport-bars.html'
+    import './materiel-bar.html'
+    import './dept-staff-level.html'
+    import './dept-staff-lamp.html'
+    import './echarts-work.html'
+
+    import './oilwear-record.html'
+    import './parts-record.html'
+    import '../../config/tag/meta-table.html'
+    import './basic-message.html'
+
+    import '../../tags/file-dialog.html'
+    import '../../tags/import-file-dialog.html'
+
+    this.roleID = this.opts.roleID || xdata.roleID
+    this.manageMenu = this.roleID === 100 ? manageMenu.slice(0, 1) : manageMenu
+    let self = this
+    this.leaderDate = null
+    let sensorReaders = xdata.metaStore.data.sensor_reader_map && Array.from(xdata.metaStore.data.sensor_reader_map.values())
+    let driverNames = xdata.metaStore.data.sensor_driver_map && Array.from(xdata.metaStore.data.sensor_driver_map.values())
+    let reader = xdata.metaStore.data.reader
+    let staffs = xdata.metaStore.data.staff
+    let sensorMsg = null
+    let metaList = ['his_checkparts_data', 'credentials', 'card_type', 'state_card', 'state_object', 'state_biz', 'card', 'vehicle_type', 'coalface', 'coalface_render', 'coalface_vehicle', 'drivingface', 'drivingface_render', 'drivingface_warning_point', 'drivingface_vehicle', 'drivingface_worktype_permission', 'credentials_staff', 'parts', 'machine', 'work_face', 'rt_person_forbid_down_mine', 'road_segment', 'tt_inspection_route_planning']
+    let batterList = ['transport_plan', 'patrol_task', 'checkpartsitem', 'checkparts', 'state_vehicle', 'parts_type']
+    let transportList = ['materPPT', 'materiel_bar', 'materiel_submitted', 'special_vehicle_plan', 'credentials_staff']
+    let basicList = ['staff', 'vehicle']
+    let echartsWork = ['coalface_work', 'drivingface_work', 'sanlv_schedule']
+    let searchDB = ['his_maintenance', 'dat_vehicle_state', 'dat_vehicle_drive']
+
+    this.on('mount', () => {
+      if (this.sidebar) {
+        this.sidebar.unmount(true)
+      }
+      // this.root.querySelector('.homepage').classList.remove('hide')
+      if (this.roleID !== 100) {
+        this.sidebar = riot.mount('div#manage-menu', 'transfer-menu', {
+          name: 'MANAGE',
+          menus: this.manageMenu,
+          roleID: this.opts.roleID
+        })[0]
+        this.root.querySelector('.homeMange').classList.remove('hide')
+      }
+      this.init()
+      this.roleID === 100 && this.switchItem('staff')
+    })
+
+    this.init = () => {
+      this.readersStore = new Map()
+      this.driversStore = new Map()
+      this.time()
+      xbus.on('MANAGE-SWITCH-MENU', (msg) => {
+        this.switchItem(msg.menuname)
+      })
+
+      this.on('META-INSERT-ROW', (msg) => {
+        if(msg.name === 'coalface'){
+            let vmessage = getInsertMsg(this.vtable.def, this.vtable.maxid)
+            let smessage =  getInsertMsg(this.stable.def, this.stable.maxid)
+
+            let vmsg = []
+            let smsg = []
+            vmsg.push(getModifyInsertMsg(msg,vmessage))
+            // smsg.push(getModifyInsertMsg(msg,smessage))
+            this.showReaderDialog(msg,vmsg,smsg)
+        }else if(msg.name === 'drivingface'){
+            let vmessage = getInsertMsg(this.vtable.def, this.vtable.maxid)
+            let smessage =  getInsertMsg(this.stable.def, this.stable.maxid)
+            let wmessage =  getInsertMsg(this.wtable.def, this.wtable.maxid)
+            let dmessage =  getInsertMsg(this.dtable.def, this.dtable.maxid)
+            let vmsg = []
+            let smsg = []
+            let wmsg = []
+            let dmsg = []
+            vmsg.push(getModifyInsertMsg(msg,vmessage))
+            // smsg.push(getModifyInsertMsg(msg,smessage))
+            // wmsg.push(getModifyInsertMsg(msg,wmessage))
+            dmsg.push(getModifyInsertMsg(msg,dmessage))
+            this.showReaderDialog(msg,vmsg,smsg,wmsg,dmsg)
+        }else{
+            this.showMetaDialog(msg)
+        }
+      })
+
+      this.on('META-UPDATE-ROW', (msg) => {
+        if(msg.name === 'coalface'){
+            let value = msg.rows[0].field_value
+            let key = msg.key
+            if(this.sensorMsg) this.stable = this.upDateSensor(this.sensorMsg) //更新绑分站 绑定司机结果
+            let vmessage = getInfo(this.vtable, value, msg.cmd,key)
+            let smessage =  getInfo(this.stable, value, msg.cmd,'work_face_id')
+            this.showReaderDialog(msg,vmessage,smessage)
+        }else if(msg.name === 'drivingface'){
+            let value = msg.rows[0].field_value
+            let key = msg.key
+            if(this.sensorMsg) this.stable = this.upDateSensor(this.sensorMsg) //更新绑分站 绑定司机结果
+            let vmessage = getInfo(this.vtable, value, msg.cmd,key)
+            let smessage = getInfo(this.stable, value, msg.cmd,'work_face_id')
+            let wmessage = getInfo(this.wtable, value, msg.cmd,key)
+            let dmessage = getInfo(this.dtable, value, msg.cmd,key)
+            this.showReaderDialog(msg,vmessage,smessage,wmessage,dmessage)
+        }else {
+            this.showMetaDialog(msg)
+        }
+      })
+
+      this.on('META-DELETE-ROW', (msg) => {
+        if(msg.name === 'coalface'){
+            let value = msg.rows[0].field_value
+            let key = msg.key
+            if(this.sensorMsg) this.stable = this.upDateSensor(this.sensorMsg) //更新绑分站 绑定司机结果
+            let vmessage = getInfo(this.vtable, value, msg.cmd,key)
+            let smessage =  getInfo(this.stable, value, msg.cmd,'work_face_id')
+            this.showReaderDialog(msg,vmessage,smessage)
+        }else if(msg.name === 'drivingface'){
+            let value = msg.rows[0].field_value
+            let key = msg.key
+            if(this.sensorMsg) this.stable = this.upDateSensor(this.sensorMsg) //更新绑分站 绑定司机结果
+            let vmessage = getInfo(this.vtable, value, msg.cmd,key)
+            let smessage = getInfo(this.stable, value, msg.cmd,'work_face_id')
+            let wmessage = getInfo(this.wtable, value, msg.cmd,key)
+            let dmessage = getInfo(this.dtable, value, msg.cmd,key)
+            this.showReaderDialog(msg,vmessage,smessage,wmessage,dmessage)
+        }else {
+            this.showMetaDialog(msg)
+        }
+      })
+
+      xbus.on('META-EDIT-MSG', (msg) => {
+        this.showMetaEdit(msg)
+      })
+
+      xbus.on('FILE-MODIFY', (msg) => {
+        this.showFileDialog(msg)
+      })
+
+      this.on('META-IMPORT-DATA', (msg) => {
+        this.showImportFileDialog(msg)
+      })
+    }
+
+    this.showFileDialog = (msg) => {
+      if (this.fileDialog) {
+        this.fileDialog.unmount(true)
+      }
+
+      this.fileDialog = riot.mount('file-dialog', msg)[0]
+    }
+
+    this.showImportFileDialog = (msg) => {
+      if (this.importFileDialog) {
+        this.importFileDialog.unmount(true)
+      }
+
+      this.importFileDialog = riot.mount('import-file-dialog', msg)[0]
+}
+
+    this.showMetaDialog = (msg) => {
+      if (this.metaDialog) {
+        this.metaDialog.unmount(true)
+      }
+      this.metaDialog = msg.name === 'tt_inspection_route_planning' ? riot.mount('role-dialog', { message: msg, papa: self })[0] : riot.mount('meta-dialog', { message: msg })[0]
+    }
+
+    this.showMetaEdit = (msg) => {
+      if (this.metaEdit) {
+        this.metaEdit.unmount(true)
+      }
+      this.metaEdit = riot.mount('meta-edit', msg)[0]
+    }
+
+    this.time = () => {
+      // let sqlName = null
+      let now = new Date()
+      let year = now.getFullYear()
+      let month = now.getMonth() + 1
+      let day = now.getDate()
+      this.data = year + '-' + month + '-' + day
+      this.earlyMonth = year + '-' + month + '-' + '01'
+      this.endMonth = year + '-' + (month + 1) + '-' + '01'
+      this.month = `${year}-${month}`
+      if (month === 12) {
+        this.endMonth = (year + 1) + '-' + '1-1'
+      }
+    }
+
+    this.switchItem = (name) => {
+      this.name = name
+      this.roleID !== 100 && this.root.querySelector('.back-homepage').classList.remove('hide')
+      if (this.sidebar) {
+        this.root.querySelector('.homepage').classList.add('hide')
+        this.sidebar.unmount(true)
+      }
+      if (this.metaTable) {
+        this.metaTable.unmount(true)
+        if (this.metaTable.mainDetail) {
+          this.metaTable.mainDetail.unmount(true)
+        }
+      }
+      if (this.batteryTable) {
+        this.batteryTable.unmount(true)
+      }
+      if (this.workTable) {
+        this.workTable.unmount(true)
+      }
+
+      if (metaList.includes(name)) {
+        if(name === 'coalface'){
+            this.vtable = {
+                def: xdata.metaStore.defs['coalface_vehicle'],
+                rows: xdata.metaStore.dataInArray.get('coalface_vehicle'),
+                maxid: xdata.metaStore.maxIDs['coalface_vehicle'],
+            }
+            this.stable = {
+                def: config['sensor'].def,
+                rows: xdata.metaStore.dataInArray.get('sensor'),
+                maxid: xdata.metaStore.maxIDs['sensor'],
+            }
+            
+            this.stable.rows.forEach(item => {
+                let sensorID = item.sensor_id
+                this.readersStore.set(sensorID, new Map())
+                this.driversStore.set(sensorID, new Map())
+                let readers = sensorReaders && sensorReaders.filter(item => item.sensor_id === sensorID)
+                let drivers = driverNames && driverNames.filter(item => item.sensor_id === sensorID)
+                let readerName = this.getname(readers, 'reader', 'brief_name', '分站', reader, this.readersStore.get(sensorID))
+                let driverName = this.getname(drivers, 'staff', 'name', '', staffs, this.driversStore.get(sensorID))
+                item['readers'] = readerName
+                item['drivers'] = driverName
+            })
+        }else if(name === 'drivingface'){
+            this.vtable = {
+                def: xdata.metaStore.defs['drivingface_vehicle'],
+                rows: xdata.metaStore.dataInArray.get('drivingface_vehicle'),
+                maxid: xdata.metaStore.maxIDs['drivingface_vehicle'],
+            }
+            this.wtable = {
+                def: xdata.metaStore.defs['drivingface_warning_point'],
+                rows: xdata.metaStore.dataInArray.get('drivingface_warning_point'),
+                maxid: xdata.metaStore.maxIDs['drivingface_warning_point'],
+            }
+            this.dtable = {
+                def: xdata.metaStore.defs['drivingface_ref_point'],
+                rows: xdata.metaStore.dataInArray.get('drivingface_ref_point'),
+                maxid: xdata.metaStore.maxIDs['drivingface_ref_point'],
+            }
+            this.stable = {
+                def: config['sensor'].def,
+                rows: xdata.metaStore.dataInArray.get('sensor'),
+                maxid: xdata.metaStore.maxIDs['sensor'],
+            }
+            this.stable.rows.forEach(item => {
+                let sensorID = item.sensor_id
+                this.readersStore.set(sensorID, new Map())
+                this.driversStore.set(sensorID, new Map())
+                let readers = sensorReaders && sensorReaders.filter(item => item.sensor_id === sensorID)
+                let drivers = driverNames && driverNames.filter(item => item.sensor_id === sensorID)
+                let readerName = this.getname(readers, 'reader', 'brief_name', '分站', reader, this.readersStore.get(sensorID))
+                let driverName = this.getname(drivers, 'staff', 'name', '', staffs, this.driversStore.get(sensorID))
+                item['readers'] = readerName
+                item['drivers'] = driverName
+            })
+        }
+        let table = this.getTable(name)
+        this.metaTable = riot.mount('.maintenance-table', 'meta-table', table)[0]
+      } else if (name === 'patrol_data') {
+        this.sql = `select * from his_patrol_data`
+        let sqlName = 'his_patrol_data'
+        this.countSql = `select count(1) as total from his_patrol_data`
+        this.inquireDB(sqlName, this.sql, this.countSql)
+      } else if (batterList.includes(name) || /^patrol/ig.test(name)) {
+        let table = this.getTable(name)//巡检记录表没有数据
+        this.batteryTable = riot.mount('.battery-table', 'battery-table', table)[0]
+      } else if (transportList.includes(name)) {
+        this.metaTable = riot.mount('.transport-bars', 'transport-bars', {
+          name: name
+        })[0]
+      } else if (name === 'his_vehicle_oilwear') {
+        this.metaTable = riot.mount('.oilwear-record', 'oilwear-record')[0]
+      } else if (name === 'parts_record') {
+        let table = this.getTable(name)
+        this.metaTable = riot.mount('.parts-record', 'parts-record', table)[0]
+      } else if (name === 'driver') {
+        this.sql = `select v.vehicle_id, d.name da, dda.name,dda.driver_date,v.name vn,dda.shift_id from dat_driver_arrange dda,dat_vehicle v,dat_dept d where dda.driver_date='${this.data}' and dda.shift_type_id = 1 and dda.vehicle_id = v.vehicle_id and dda.dept_id = d.dept_id`
+        // this.sql = `select v.vehicle_id, d.name da, a.name, a.driver_date, v.name vn, a.shift_id from (select vehicle_id, dept_id, name, driver_date, shift_id from dat_driver_arrange dda where dda.driver_date='${this.data}' and dda.shift_type_id = 1) a left join dat_vehicle v on a.vehicle_id = v.vehicle_id left join dat_dept d on a.dept_id = d.dept_id;`
+        let sqlName = 'curDayDriver'
+        this.shiftType = 1
+        this.tableDate = new Date().format('yyyy年MM月dd日')
+        this.driverDate = new Date().format('yyyy-MM-dd')
+        this.timestamp = new Date().getTime()
+        this.inquireDB(sqlName, this.sql)
+      } else if (name === 'leader_scheduling') {
+        this.sql = `select duty_date, dst.shift_type_id, dla.shift_id, dla.staff_id from his_leader_arrange dla, dat_shift_type dst, dat_shift s, dat_staff ds where dla.shift_id = s.shift_id and dla.staff_id = ds.staff_id and s.shift_type_id = dst.shift_type_id and duty_date >= '${this.earlyMonth}' and duty_date < '${this.endMonth}' order by duty_date desc`
+        let sqlName = 'leader_scheduling'
+        this.countSql = `select count(1) as total from his_leader_arrange dla, dat_shift_type dst, dat_shift s, dat_staff ds where dla.shift_id = s.shift_id and dla.staff_id = ds.staff_id and s.shift_type_id = dst.shift_type_id and duty_date >= '${this.earlyMonth}' and duty_date < '${this.endMonth}' order by duty_date desc`
+
+        this.inquireDB(sqlName, this.sql, this.countSql)
+      } else if (name === 'battery_vehicle') {
+        this.sql = `select v.name,staff_id,battery_id,use_date,remark from dat_battery_vehicle bv, dat_vehicle v where not exists (select 1 from dat_battery_vehicle where vehicle_id=bv.vehicle_id and use_date > bv.use_date) and bv.vehicle_id = v.vehicle_id`
+        let sqlName = 'battery_vehicle'
+        this.countSql = `select count(1) as total from dat_battery_vehicle bv, dat_vehicle v where not exists (select 1 from dat_battery_vehicle where vehicle_id=bv.vehicle_id and use_date > bv.use_date) and bv.vehicle_id = v.vehicle_id`
+        this.inquireDB(sqlName, this.sql, this.countSql)
+      } else if (name === 'battery') {
+        this.sql = `select battery_id,name,staff_id,charge_date,remark from dat_battery b where not exists (select 1 from dat_battery where name=b.name and charge_date > b.charge_date)`
+        let sqlName = 'battery_charge'
+        this.countSql = `select count(1) as total from dat_battery b where not exists (select 1 from dat_battery where name=b.name and charge_date > b.charge_date)`
+        this.inquireDB(sqlName, this.sql, this.countSql)
+      } else if (name === 'his_maintenance') {
+        this.sql = `select * from his_maintenance`
+        let sqlName = 'his_maintenance'
+        this.countSql = `select count(1) as total from his_maintenance`
+        this.inquireDB(sqlName, this.sql, this.countSql)
+      } else if (name === 'dat_vehicle_state') {
+        this.sql = `select * from dat_vehicle_state`
+        let sqlName = 'dat_vehicle_state'
+        this.countSql = `select count(1) as total from dat_vehicle_state`
+        this.inquireDB(sqlName, this.sql, this.countSql)
+      } else if (name === 'dat_vehicle_drive') {
+        this.sql = `select vehicle_id, enter_time, leave_time, shift_id, staff_id from dat_vehicle_drive`
+        let sqlName = 'dat_vehicle_drive'
+        this.countSql = `select count(1) as total from dat_vehicle_drive`
+        this.inquireDB(sqlName, this.sql, this.countSql)
+      } 
+      // else if (name === 'rt_person_forbid_down_mine') {
+      //   this.sql = `select id,fdm.staff_id, name, dept_id,start_time,oper_time,oper_user from rt_person_forbid_down_mine fdm LEFT JOIN dat_staff ds ON fdm.staff_id = ds.staff_id LEFT JOIN dat_staff_extend dse ON ds.staff_id = dse.staff_id where status = 1;`
+      //   let sqlName = 'rt_person_forbid_down_mine'
+      //   this.countSql = `select count(1) as total from rt_person_forbid_down_mine where status = 1;`
+      //   this.inquireDB(sqlName, this.sql, this.countSql)
+      // } 
+      else if (basicList.includes(name)) {
+        this.metaTable = riot.mount('.basic-message-form', 'basic-message', {
+          name: name
+        })[0]
+      } else if (name === 'staff-level' || name === 'staff-lamp') {
+        this.metaTable = riot.mount('.battery-table', `dept-${name}`)[0]
+      } else if (echartsWork.includes(name)) {
+        this.workTable = riot.mount('.echarts-work', 'echarts-work', {
+          name: name,
+          sptag: self
+        })[0]
+      }
+    }
+
+    this.backHomepage = (evt) => {
+      if (this.metaTable) {
+        this.metaTable.unmount(true)
+        this.root.querySelector('.manage-table') && this.root.querySelector('.manage-table').classList.add('hide')
+        if (this.metaTable.mainDetail) {
+          this.metaTable.mainDetail.unmount(true)
+        }
+      }
+      if (this.batteryTable) {
+        this.batteryTable.unmount(true)
+      }
+      if (this.workTable) {
+        this.workTable.unmount(true)
+      }
+      if (this.sidebar) {
+        this.sidebar.unmount(true)
+      }
+      this.roleID !== 100 && this.root.querySelector('.homepage').classList.remove('hide')
+      this.sidebar = riot.mount('div#manage-menu', 'transfer-menu', {
+        name: 'MANAGE',
+        menus: manageMenu
+      })[0]
+      this.root.querySelector('.back-homepage').classList.add('hide')
+    }
+
+    this.getTable = (name) => {
+      let self = this
+      return {
+        def: xdata.metaStore.defs[name],
+        rows: xdata.metaStore.dataInArray.get(name),
+        maxid: xdata.metaStore.maxIDs[name],
+        parentag: self
+      }
+    }
+
+    this.inquireDB = (name, sql, countSql) => {
+      window.xhint.showLoading()
+      console.log(sql)
+      let message = name === 'curDayDriver' || name === 'workface_scheduling_echarts' ? {
+        cmd: 'query',
+        data: {
+          name: name,
+          sql: sql
+        }
+      } : {
+        cmd: 'query',
+        data: {
+          name: name,
+          sql: sql,
+          pageSize: 10000,
+          pageIndex: 0,
+          total: -1,
+          countSql: countSql
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: name
+        }
+      })
+    }
+
+    xbus.on('REPT-SHOW-RESULT', (ds) => {
+      let names = ['curDayDriver', 'leader_scheduling', 'battery_vehicle', 'battery_charge', 'his_maintenance', 'dat_vehicle_state', 'dat_vehicle_drive', 'battery', 'his_patrol_data']
+      if (names.includes(ds.def.name)) {
+        window.xhint.close()
+      }
+      if (ds.def.name === 'curDayDriver') {
+        let table = {
+          name: 'driver',
+          def: xdata.metaStore.defs['staff'],
+          detail: ds.rows,
+          sptag: self,
+          shiftType: this.shiftType,
+          tableDate: this.tableDate,
+          driverDate: this.driverDate,
+          time: this.timestamp
+        }
+        this.root.querySelector('.manage-table').classList.remove('hide')
+        this.metaTable = riot.mount('.manage-table', 'driver-table', table)[0]
+        this.metaTable.mountDriverList(ds.rows)
+      } else if (names.includes(ds.def.name) && ds.def.name !== 'curDayDriver') {
+        if (this.metaTable) {
+          this.metaTable.unmount(true)
+        }
+        let table = manages[ds.def.name]
+        table.rows = ds.rows
+        table.total = ds.total
+        table.pageIndex = ds.pageIndex
+        table.sql = this.sql
+        table.countSql = this.countSql
+        // table.parentag = self
+        if(ds.def.name === 'rt_person_forbid_down_mine' || ds.def.name === 'his_patrol_data'){
+          table.def = manages[ds.def.name]
+        }
+        // this.metaTable = riot.mount('.maintenance-table', 'meta-table', table)[0]
+        table.parentag = self
+        this.metaTable = ds.def.name === 'rt_person_forbid_down_mine' ? riot.mount('.maintenance-table', 'meta-table', table)[0] : riot.mount('.battery-table', 'battery-table', table)[0]
+      } else if (ds.def.name === 'workface_scheduling_echarts') {
+        this.workTable && this.workTable.splitData(ds.rows)
+        window.xhint.close()
+      }
+    })
+
+    this.on('unmount', () => {
+      this.readersStore = null
+      this.driversStore = null
+    })
+    this.showReaderDialog = (msg,vmsg,smsg,wmsg,dmsg) =>{
+        if (this.readerDialog) {
+            this.readerDialog.unmount(true)
+        } 
+        this.readerDialog = msg.name === 'drivingface' ? riot.mount('reader-dialog', { message: msg, amessage: vmsg, pmessage: smsg, wmessage: wmsg, dmessage: dmsg})[0] : riot.mount('reader-dialog', { message: msg, amessage: vmsg, pmessage: smsg})[0]
+    }
+
+    /**
+     * @description: 新需求更新结果
+     */
+    xbus.on('TABLE-CONFIG-UPDATE', (msg) => {
+        let name = msg.msg.def.name
+        if(name === 'coalface_vehicle' || name === 'drivingface_vehicle'){
+            this.vtable = msg.msg
+        }
+        if(name === 'sensor'){
+            this.sensorMsg = msg
+        }
+        if(name === 'drivingface_warning_point'){
+            this.wtable = msg.msg
+        }
+        if(name === 'drivingface_ref_point'){
+            this.dtable = msg.msg
+        }
+    })
+    this.getname = (rows, storename, typename, title, store, setStore) => {
+      let names = ''
+      if (rows && rows.length > 0) {
+        rows.forEach(item => {
+          let key = item[`${storename}_id`]
+          let name = store.get(key) && store.get(key)[typename]
+          names += `${name}${title}；`
+          setStore.set(key, {
+            key: `${name}${title}`,
+            keyID: key
+          })
+        })
+      }
+      return names
+    }
+
+  /**
+   * @description: 更新绑定司机 绑定分站结果
+   */  
+  this.upDateSensor = (msg) =>{
+    sensorReaders = xdata.metaStore.data.sensor_reader_map && Array.from(xdata.metaStore.data.sensor_reader_map.values())
+    driverNames = xdata.metaStore.data.sensor_driver_map && Array.from(xdata.metaStore.data.sensor_driver_map.values())
+    this.stable = msg.msg
+    this.stable.rows.forEach(item => {
+        let sensorID = item.sensor_id
+        this.readersStore.set(sensorID, new Map())
+        this.driversStore.set(sensorID, new Map())
+        let readers = sensorReaders && sensorReaders.filter(item => item.sensor_id === sensorID)
+        let drivers = driverNames && driverNames.filter(item => item.sensor_id === sensorID)
+        let readerName = this.getname(readers, 'reader', 'brief_name', '分站', reader, this.readersStore.get(sensorID))
+        let driverName = this.getname(drivers, 'staff', 'name', '', staffs, this.driversStore.get(sensorID))
+        item['readers'] = readerName
+        item['drivers'] = driverName
+    })
+    this.stable.def = config['sensor'].def
+    return this.stable
+  }
+  </script>
+</sp-manage>

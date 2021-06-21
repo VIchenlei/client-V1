@@ -1,0 +1,89 @@
+<transport-bars>
+    <div if={ showIMG }>
+        <img src="/img/materBG.png" alt="materPPT" if={ name === 'materPPT' } usemap="#planetmap">
+        <map name="planetmap" id="planetmap">
+            <area shape="rect" coords="350,200,500,350" href ="" alt="img1" name="img1" onclick={ showPIC }/>
+            <area shape="rect" coords="438,34,595,179" href ="" alt="img2" name="img2" onclick={ showPIC }/>
+            <area shape="rect" coords="567,190,716,337" href ="" alt="img3" name="img3" onclick={ showPIC }/>
+            <area shape="rect" coords="455,365,601,516" href ="" alt="img4" name="img4" onclick={ showPIC }/>
+        </map>
+        <img src="/img/{ image }" alt="" class="hide materIMG" onclick={ hideImg }>
+        <div class="shift_detial" if={ name !== 'materPPT' }>
+            <span class="shift_1" dateType='1' onclick={ chooseShift }>八点班</span>
+            <span class="shift_2" dateType='2' onclick={ chooseShift }>四点班</span>
+            <span class="shift_3" dateType='3' onclick={ chooseShift }>零点班</span>
+        </div>
+    </div>
+    <div class="materiel-bar" id="materiel-bar"></div>
+    <div class="content-panel hide" id="credentials-panel"></div>
+
+    <script>
+        import './credentials-staff.html'
+        import './materiel-bar.html'
+        this.name = opts.name
+        this.root.classList.remove('hide')
+        let self = this
+        this.chooseShift = (evt) => {
+            let target = evt.currentTarget
+            let shiftID = target.getAttribute('dateType')
+            this.showIMG = false
+            let msg = {
+                name: this.name,
+                shiftID: shiftID,
+                parentTag: self
+            }
+            if (this.materielBar) {
+                this.materielBar.unmount(true)
+            }
+            this.materielBar = riot.mount('div#materiel-bar','materiel-bar', msg)[0]
+            window.xhint.showLoading()
+        }
+
+        this.showPIC = (evt) => {
+            evt.preventDefault() // 阻止浏览器默认事件 img打开新的URL
+            let target = evt.currentTarget
+            let name = target.getAttribute('name')
+            let img = this.root.querySelector('.materIMG')
+            switch (name) {
+                case 'img1':
+                    this.image = 'img1.png'
+                    break
+                case 'img2':
+                    this.image = 'img2.png'
+                    break
+                case 'img3':
+                    this.image = 'img3.png'
+                    break
+                case 'img4':
+                    this.image = 'img4.png'
+                    break
+            }
+            img.classList.remove('hide')
+        }
+
+        this.hideImg = (evt) => {
+            let target = evt.currentTarget
+            target.classList.add('hide')
+        }
+
+        this.on('mount', () => {
+            // opts.parent = this
+            this.root.querySelector('.content-panel').classList.add('hide')
+            if (this.childPage) {
+                this.childPage.unmount(true)
+            }
+            if (opts.name === 'credentials_staff') {
+                this.showIMG = false
+                this.root.querySelector('.content-panel').classList.remove('hide')
+                this.childPage = riot.mount('div#credentials-panel', 'credentials-staff', { msg: opts })[0]
+            } else {
+                this.showIMG = true
+                this.update()
+            }
+        })
+
+        this.on('unmount', () => {
+            this.root.classList.add('hide')
+        })
+    </script>
+</transport-bars>

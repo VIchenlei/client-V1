@@ -1,0 +1,48 @@
+<coal-face>
+   <div>
+    <nav class="nav-title">
+      <span>名称</span>
+      <span>状态</span>
+      <span>操作</span>
+    </nav>
+    <p each={ i in coalFaceData } class='content-coal-cutting'>
+      <span>{xdata.metaStore.getNameByID('area_id', i[7])}</span>
+      <span if={ i[11]==3 }>割煤中</span>
+      <span if={ i[11] !=3 }>{ i[10] == 0? '静止' : '运动' }</span>
+      <span x={ i[1] } y={ i[2] }>
+        <svg class="icon" onclick={ toggleLocate } callid={ xdata.userName + '-type-' + i[0]} id = { i[0] }>
+            <use class={ 'watch-' + i[0] } xlink:href="/icons/icons.svg#icon-location-2"></use>
+        </svg>
+      </span>
+    </p>
+    <div data-is="blank-message" message="没有相关记录。" class="blank-message" if={ !coalFaceData || coalFaceData.length <= 0 }></div>
+  </div>
+
+  <script>
+    let self = this
+    xbus.on('COAL-CUTTING-LIST', (data) => {
+      let coalData = JSON.stringify(data)
+      sessionStorage.setItem('coalData', coalData)
+      self.coalFaceData = data
+      self.update()
+    })
+
+    this.init = () => {
+      self.coalFaceData = Array.from(xdata.coaltunneller.coal.values())
+      self.update()
+    }
+
+    this.init()
+
+    this.toggleLocate = (evt) => {
+      let target = evt.currentTarget
+      let curClass = target.classList.toggle('active')
+      curClass ? target.classList.remove('active') : target.classList.add('active')
+      let cardID = target.getAttribute('id')
+      let msg = {
+        cards: [cardID]
+      }
+      window.cardStartLocating(msg)
+    }
+  </script>
+</coal-face>

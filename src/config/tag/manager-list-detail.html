@@ -1,0 +1,42 @@
+<manager-list-detail>
+	<div class="manager-list-detail">
+		<ul>
+			<li>
+				<span>属性</span>
+			</li>
+			<li each={item in cols}>
+				<span>
+					<span>{item}</span>
+				</span>
+			</li>
+		</ul>
+		<ul>
+			<li>值</li>
+			<li each={item in newName} onclick={inputShow}>
+				<span>{item}</span>
+				<input class="hide" type="text" placeholder={item} onblur={catchValue}>
+			</li>
+		</ul>
+	</div>
+
+	<script>
+		import '../sass/manager-list-detail.sass'
+
+		this.init = (opts) => {
+			let newCol = opts.dataDef.lebels
+			let newName = opts.dataDef.names
+			this.cols = newCol;
+			this.newName = newName;
+		}
+		this.init(opts)
+		this.inputShow = (evt) => {
+		  evt.target.querySelector('input').classList.remove('hide');
+		  evt.target.querySelector('span').classList.add('hide');
+		}
+		this.catchValue = (evt) => {
+			evt.target.previousElementSibling.innerHTML = evt.target.value
+			evt.target.previousElementSibling.classList.remove('hide');
+			evt.target.classList.add('hide');
+		}
+	</script>
+</manager-list-detail>

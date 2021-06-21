@@ -1,0 +1,74 @@
+@import defs
+
+.hidesidebar
+    @media screen and (max-width: $width-medium)
+        display: none!important
+
+.sidebar
+    height: 100%
+    background: #f5f5f5
+    flex: 0 0 $sidebar-width
+    order: -1
+    background: linear-gradient(140deg, #7cf, #09f)
+    overflow-y: auto
+    overflow-x: hidden
+    display: flex
+    flex-flow: column nowrap
+    // font-size: 14px
+    padding-left: 18px
+    article
+        position: relative
+        height: 100%
+        overflow: hidden
+        .menu
+          // position: absolute
+          height: 100%
+          overflow-y: scroll
+          overflow-x: hidden
+    @media screen and (max-width: $width-medium)
+        z-index: 1
+    @media screen and (max-width: 5000px)
+        font-size: 1.1rem
+    @media screen and (max-width: 3000px)
+        font-size: $fontsize-s
+
+    .bar-title
+        display: flex
+        flex-direction: column
+    .icon
+        fill: #353535
+
+    .title
+        @include wh($sidebar-width,3rem)
+        @include align-middle
+        cursor: pointer
+        color: #fcfcfc
+        // border-bottom: 1px solid $second-bdcolor
+
+        .sidebar-title-text
+            margin: 0px 5px 0px 22px
+        .sidebar-icon
+            @include wh(0.9rem,0.9rem)
+            fill: #fcfcfc
+    ul
+        @include align-middle
+        flex-flow: column nowrap
+        justify-content: flex-start
+        width: $sidebar-width
+        padding-left: 17px
+
+        li
+            @include align-middle
+            position: relative
+            flex: 0 0 3rem
+            padding: 0 10px 0 20px
+            margin: 2px 0
+            color: $color-white
+            flex-flow: row nowrap
+            width: 100%
+            cursor: pointer
+            //border-bottom: 1px dotted $minor-bdcolor
+
+            &:hover, &.active
+                background: #009fff
+                color: #fff

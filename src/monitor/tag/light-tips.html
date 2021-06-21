@@ -1,0 +1,120 @@
+<light-tips>
+    <div ref="light_tips">
+        <div ref="draggeTitle" class="tips-title">
+            <span class="tips-title-text">红绿灯</span>
+        </div>
+        <div class="tips-content" if={ data }>
+            <p class='light-content-line light-content-title'>基本信息</p>
+            <p if={ i.ident !== 'ctrlUser' } each = { i in label } class='light-content-line'>
+                <span>{ i.label }</span>
+                <span if={ i.ident !== 'stateCtrl' }> { data[i.ident] }</span>
+                <span if={ i.ident === 'stateCtrl' }> { data[i.ident] === 0 ? '未被手动控制': '已被手动控制' }</span>
+            </p>
+            <p if={ i.ident === 'ctrlUser' && data[i.ident] } each = { i in label } class='light-content-line'>
+                <span>{ i.label }</span>
+                <span>{ data[i.ident] }</span>
+            </p>
+            <p class='light-content-line light-content-title' if={ data.stateCtrl === 0 || data.stateCtrl === 1 && data['ctrlUser'] === xdata.userName}>红绿灯控制</p>
+            <p class='light-content-line' if={ data.stateCtrl === 0 || data.stateCtrl === 1 && data['ctrlUser'] === xdata.userName}>
+                <span>选择红绿灯控制状态：</span>
+                <span class="light-ctr">
+                    <img each = {item in imgData} path= { item.path } src={ item.src } onclick = { chooseState } name = { item.name }/>
+                </span>
+            </p>
+            <p class='light-content-line' if={ data.stateCtrl === 0 || data.stateCtrl === 1 && data['ctrlUser'] === xdata.userName}><!-- 未被控制，或已被控制，为自己-->
+                <span>将要切换的红绿灯状态：</span>
+                <span>
+                    <img class="curCtlImg" src='/img/{ changeState }'/>
+                </span>
+            </p>
+            <p class='light-content-line' if = { data['ctrlUser'] === xdata.userName }>
+                <span>是否取消控制：</span>
+                <span class="label-span">
+                    <input type="radio" name="ctrl" id="yes" rules = '0' onclick= { judgeIsRemoveCtrl }/> <!--0—不进行控制，1—进行控制 故取消控制应该发0-->
+                    <label for="yes" >是</label>
+                    <input type="radio" name="ctrl" id="not" rules = '1' checked onclick= { judgeIsRemoveCtrl }/>
+                    <label for="not" >否</label>
+                </span>
+            </p>
+            <p class='light-content-line button-area'>
+                <button onclick={ sendState }>确定</button>
+                <button onclick={ close }>取消</button>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        import { getShowPoint } from '../../js/def/getShowPos.js'
+        //todo: Extract to def file
+        this.imgData = [{path: 'lightgreenpage.png',src: '/img/lightgreenpage.png',name: '绿'},{path: 'lightredpage.png',src: '/img/lightredpage.png',name:'红'},/*{path: 'lightyellowpage.png',src:'/img/lightyellowpage.png',name:'黄'},*/{path: 'lightflashpage.gif',src: '/img/lightflashpage.gif',name: '闪烁'}]
+        this.label = [{label: '红绿灯编号：',ident: 'lightId'},{label: '名称：',ident: 'lightName'},{label:'所属灯组：',ident: 'groupName'},{label:'当前状态：',ident: 'stateName'},{label: '控制状态：',ident: 'stateCtrl'},{label: '控制人：', ident: 'ctrlUser'}]
+    
+        this.changeState = 'lightgreenpage.png'
+        this.rules = 1 //默认为不取消控制
+        this.cancleRules = 1
+        let initDeviceState = xdata.metaStore.data.device_state && Array.from(xdata.metaStore.data.device_state.values()).filter(item => item.name === '绿')//默认更改绿灯
+        this.stateId = initDeviceState && initDeviceState[0]? initDeviceState[0].device_state_id : console.warn('pelace check device_state config!')
+
+        this.on('mount', () => {           
+            window.setDraggable({
+                target: this.root,
+                handle: this.refs.light_tips
+            })
+        })
+
+        xbus.on('LIGHT-TIPS-UPDATE',(msg)=>{
+            if(this.root.classList.contains('hide')) this.root.classList.remove('hide')
+            let lightName = xdata.metaStore.data.light.get(msg.lightId)
+            let groupName = xdata.metaStore.data.lights_group.get(msg.groupId)
+            msg.lightName = lightName && lightName.name 
+            msg.groupName = groupName && groupName.name
+            this.data = msg
+
+            let point = getShowPoint(msg.evt, this.root)
+            this.root.style.left = `${point.x}px`
+            this.root.style.top = `${point.y}px`
+        })
+
+        this.chooseState = (evt) =>{
+            let target = evt.target
+            this.changeState = target.getAttribute('path')
+            let name = target.getAttribute('name')
+            let deviceStateData = Array.from(xdata.metaStore.data.device_state.values()).filter(item => item.name === name)
+            this.stateId = deviceStateData && deviceStateData[0]? deviceStateData[0].device_state_id : console.warn('pleace check device_state config!')
+        }
+
+        this.judgeIsRemoveCtrl = (evt) =>{
+             this.cancleRules = Number(evt.target.getAttribute('rules'))
+        }
+
+        this.sendState = () =>{
+            console.log('this.cancleRules',this.cancleRules)
+            console.log('this.data.ctrlUser',this.data.ctrlUser)
+            this.rules = this.data.ctrlUser === xdata.userName ? this.cancleRules : 1//如果是发起控制人有可取消权限，不是发起控制人只有控制权限
+            let sendmsg = {//注： 发送取消控制时应该是本人取消、采集应忽略此次发送的状态，取消上次的状态
+                cmd : 'light_control',
+                data: [{
+                    'GroupId': this.data.groupId,
+                    'LightId': this.data.lightId,
+                    'Control': this.rules,
+                    'ControlName': xdata.userName,
+                    'LightColour': this.stateId
+                }]
+                // [this.data.groupId,this.data.lightId,this.rules,xdata.userName,this.stateId]
+            }
+            console.log('sendmsg',sendmsg)
+            xbus.trigger('LIGHT-CONTROL-REQ',sendmsg)
+            this.cancleRules = 1
+            this.close()
+            this.update()
+        }
+
+        xbus.on('HIDE-ALL-POPUP', () => {
+            this.close()
+        })
+
+        this.close = () => {
+            this.root.classList.add('hide')
+        }
+    </script>
+</light-tips>

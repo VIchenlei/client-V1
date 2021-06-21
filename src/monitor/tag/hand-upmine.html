@@ -1,0 +1,525 @@
+<hand-upmine>
+  <div class="dlg-bg animated" onclick={ hidelist }>
+    <div class="dlg-window hand-upmine-dialog animated zoomIn">
+      <dialog-head title="手动升井"></dialog-head>
+
+      <div class="dlg-body">
+        <div class="ctrl-panel">
+          <span class="condition-builder">
+            <span class="condition">
+              <span>员工：</span>
+              <span class="identify-staff search-bar"></span>
+            </span>
+            <span class="condition">
+              <span>部门：</span>
+              <icon-input ref="vehicle" idname="dept" type="text" class="dept" placeholder="请输入部门" icon="icon-down" classname="login-input" reg-type="NC" onclick={ list } onkeyup={ enterForSearch }></icon-input>
+              <div id="call-list" class="call-list-dept"></div>
+            </span>
+            <span class="condition">
+              <span>工作时长大于：</span>
+              <icon-input ref="vehicle" idname="worktime" type="text" class="worktime" placeholder="请输入时长" icon="icon-down" classname="login-input" reg-type="N" riot-value = 0></icon-input>
+              小时
+            </span>
+          </span>
+          <span>
+            <button onclick={ searchList }>查询</button>
+            <button class="checked" onclick={ upmine }>升井选中</button>
+            <!-- <button class="allcard" onclick={ upmine }>升井全部</!-->
+            <button class="timecard" onclick={ upmine }>升井超过20小时的卡</button>
+            <button onclick={ askFile }>导出</button>
+          </span>
+        </div>
+        <div class="content-panel" if={hasdata}>
+          <table>
+            <thead>
+              <tr onclick={sortRows}>
+                <th each={ title in titles } data-name={title}>
+                  <span>{title}</span>
+                  <img class="hide" src="/img/{isAscending ? 'angle-up.png' : 'angle-down.png'}" alt="">
+                </th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr each={ row in subRows } onclick={showAllAlarm}>
+                <td each={ name, i in names } class={ getClass(name) } onclick={ showBatCurve } >{ row[i] }</td>
+                <td>
+                  <input class="handup-input" if={!xdata.cardStore.handuping.get(row[1])} type="checkbox" data-name={ row[1] } onclick={ ischecked } checked={judgeChecked(row[1])}>
+                  <span if={xdata.cardStore.handuping.get(row[1])}>正在升井中...</span>
+                  <span if={isJoinPersonForbid(row[1])} data-staff={row[0]} class="person-forbid s{row[0]}" onclick={joinPersonForbid}>{xdata.metaStore.data.rt_person_forbid_down_mine.get(row[0]) ? '已加入禁止下井名单' : '加入禁止下井名单'}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination" data-is="pagination" totalpage={ pageCount } pageindex={ pageIndex } tablename={ name } if={pageCount>1}></div>
+      </div>
+
+      <div data-is="blank-message" message="没有符合条件的数据。" class="blank-message" if={ !hasdata }></div>
+    </div>
+  </div>
+
+  <script>
+    // handuping: 正在升井卡 nosignal: 丢失信号卡 不包含正在升井卡
+
+    import cardnosignal from '../../js/def/card_nosignal_def.js'
+    import {CARD} from '../../js/def/state.js'
+    import {copySubRows, checkClick, clone, composeUpdateDBReq} from '../../js/utils/utils.js'
+    import {metaUpdateRes} from '../../config/utils.js'
+    import tables from '../../js/def/detail_table_def.js'
+    import '../../report/tag/bat-curve.html'
+    let self = this
+
+    const CARDLABEL = {
+      '电量状态': 'state_card',
+      '入井时间': 'down_time',
+      '工作时长': 'work_time'
+    }
+
+    this.personForbidHasStaff = (staffID) => {
+      let personForbids = xdata.metaStore.data.rt_person_forbid_down_mine
+      let obj = personForbidHasStaff && personForbidHasStaff.get(staffID)
+      if (obj) return '已加入禁止下井名单'
+      return '加入禁止下井名单'
+    }
+
+    this.isJoinPersonForbid = (row) => {
+      let card = xdata.cardStore.scards.get(row)
+      let statecard = card && card[CARD.state_card]
+      if (statecard === 0) return false
+      return true
+    }
+
+    this.sortRows = (evt) => {
+      let target = evt.target
+      if (!target) return
+      let nodename = target.nodeName.toLowerCase()
+      let label = checkClick(target, nodename)
+      if (!label || !CARDLABEL[label]) return
+     
+      if (this.sortBasic) {
+        this.isAscending = label === this.sortBasic ? !this.isAscending : false
+      }
+      this.sortBasic = label
+      this.showList(this.nosignalcards)
+      this.controlDisplay(target, nodename)
+    }
+
+    this.compare = (carA, carB) => {
+      if (this.sortBasic) {
+        let cardtype = CARDLABEL[this.sortBasic]
+        if (this.isAscending) {
+          return carA[CARD[cardtype]] < carB[CARD[cardtype]] ? -1 : 1
+        } else {
+          return carA[CARD[cardtype]] > carB[CARD[cardtype]] ? -1 : 1
+        }
+      }
+    }
+
+    this.controlDisplay = (target, nodename) => {
+      this.preTarget && this.preTarget.querySelector('img').classList.add('hide')
+      if (!target) return
+      target = nodename === 'th' ? target : target.parentElement
+      target.querySelector('img').classList.remove('hide')
+      this.preTarget = target
+    }
+
+    this.judgeChecked = (cardID) => {
+      if (this.manualupmine.get(cardID)) return 'checked'
+      return ''
+    }
+
+    this.getResult = (result) => {
+      let desc = this.dataSet.desc
+      if (!this.root.querySelector('#searchinput')) return
+      if (this.root.querySelector('#searchinput').value) {
+        if (desc!=='name' || this.dataSet.keys.includes('staff_id')) {  
+          this.root.querySelector('#searchinput').value = result.name
+        } else {
+          this.root.querySelector('#searchinput').value = result[0].name
+        }
+      } else {
+        this.root.querySelector('#searchinput').value = ''
+        this.root.querySelector('.dept').querySelector('#dept').value = ''
+        this.root.querySelector('.worktime').querySelector('#worktime').value = ''
+        this.searchList()
+      }
+    }
+
+    this.initPagination = (cards, counts) => {
+      this.rowCount = cards ? cards.length : 0
+      this.pageCount = Math.ceil(counts / PAGE_SIZE)
+      if (this.pageCount <= this.pageIndex){
+        this.pageIndex = this.pageCount -1
+      }
+      this.pageIndex = this.pageIndex > 0 ? this.pageIndex : 0
+    }
+
+    this.formatCards = (rows, type) => {
+      let count = rows.length
+      for (let i = 0; i < count; i++) {
+        let row = rows[i]
+        let worktime = row[CARD.work_time]
+        let time = 20 * 3600 * 1000
+        rows[i] = xdata.metaStore.formatnosignalcards(this.def, row, 'SHORT-DATE')
+        type && this.allcards.set(rows[i][0], {
+          cardid: rows[i][0],
+          cardtype: 1
+        })
+        type && worktime >= time && this.timecards.set(row[0], {
+          cardid: row[0],
+          cardtype: 1
+        })
+      }
+    }
+
+    this.pushAllCards = () => {
+      let nosignalcards = xdata.cardStore.nosignalscars && Array.from(xdata.cardStore.nosignalscars.values())
+      let def = cardnosignal.staff
+      let count = nosignalcards.length
+      this.cards = [...nosignalcards]
+      this.formatCards(nosignalcards, 'all')
+    }
+
+    this.showList = (rows) => {
+      // 前端显示手动升井列表：正在升井卡+丢失信号卡
+      if (rows) {
+        this.nosignalcards = rows
+      } else {
+        this.nosignalcards = xdata.cardStore.nosignalscars && Array.from(xdata.cardStore.nosignalscars.values())
+      }
+
+      if (this.sortBasic) {
+        this.nosignalcards.sort(this.compare)
+      }
+
+      this.def = cardnosignal.staff
+      this.names = cardnosignal.staff.fields.names
+      this.counts = this.nosignalcards.length
+      this.initPagination(this.nosignalcards, this.counts)
+      this.subRows = copySubRows(this.nosignalcards, this.pageIndex)
+      // this.subRows = this.nosignalcards.slice(this.pageIndex, PAGE_SIZE)
+      this.hasdata = !!this.subRows.length > 0
+      let count = this.subRows.length
+      this.formatCards(this.subRows)
+      this.countRows = clone(this.nosignalcards)
+      this.formatCards(this.countRows)
+      this.update()
+    }
+
+    this.init = () => {
+      this.manualupmine = new Map()
+      this.allcards = new Map()
+      this.timecards = new Map()
+      this.titles = cardnosignal.staff.fields.labels
+      let staffArr = []
+      this.sortBasic = null
+      let staffs = xdata.cardStore.scards.values()
+      for (let rec of staffs) {
+        let staff = xdata.metaStore.getCardBindObjectInfo(rec[0])
+        if (staff && staff.name) {
+          staffArr.push(staff)
+        }
+      }
+      this.typeDef = {
+        name: 'staff',
+        label: '人员',
+        placeholder: '请输入姓名,卡号,姓名首字母',
+        cb: this.getResult  // the callback when select an item.
+      }
+      this.dataSet = {
+        desc: 'name',  // 显示结果集时，显示的字段：一般为描述字段
+        keys: ['name', 'spy', 'card_id', 'staff_id'],  // 参与搜索的列名称
+        data: staffArr
+      }
+      this.pushAllCards()
+      this.showList()
+    }
+    this.init()
+
+    this.on('mount', () => {
+      this.fuzz = riot.mount('span.identify-staff', 'fuzzy-search2', { typeDef: this.typeDef, dataSet: this.dataSet})[0]
+      window.setDialogDraggable(this.root)
+      this.registerGlobalEventHandlers()
+    })
+
+    this.registerGlobalEventHandlers = () => {
+      xbus.on('CARD-NOSIGNAL-CHANGED', () => {
+        this.pushAllCards()
+        this.searchList()
+      })
+
+      xbus.on('META-UPDATE-DB-RES', (res) => {
+        let updateRes = metaUpdateRes(res, 'rt_person_forbid_down_mine', 'INSERT')
+        if (updateRes) {
+          let key = res.data.id
+          let tag = this.root.querySelector(`.s${key}`)
+          tag.innerText = '已加入禁止下井名单'
+        }
+      })
+    }
+
+    this.unregisterGlobalEventHandlers = () => {
+      xbus.off('CARD-NOSIGNAL-CHANGED')
+      xbus.off('META-UPDATE-DB-RES')
+    }
+
+    // 部门/地图列表
+    this.list = (evt) => {
+      evt.stopPropagation()
+      let target = evt.currentTarget
+      let parentTarget = this.root.querySelector('.dlg-window')
+      let name = target.getAttribute('class')
+      if (this.callList) {
+        this.callList.unmount(true)
+      }
+      let vessel = 'div.call-list-' + name
+      this.callList = riot.mount(vessel, 'popup-list', {
+        target: target,
+        name: name,
+        self: self,
+        parentTarget: parentTarget
+      })[0]
+    }
+
+    // 部门/地图选中
+    this.insertChoosed = (target, name) => {
+      let root = this.root.querySelector('.' + name)
+      root.querySelector('#' + name).value = target.innerText
+      root.setAttribute('data-type', target.getAttribute('data-type'))
+    }
+
+    // 部门/地图模糊查询
+    this.enterForSearch = (evt) => {
+      let searchTarget = evt.currentTarget.getElementsByTagName('input')[0]
+      this.callList.enterForSearch(searchTarget)
+    }
+
+    this.hidelist = (evt) => {
+      if (this.callList) {
+        this.callList.unmount(true)
+      }
+    }
+
+    // 查询
+    this.searchList = (evt) => {
+      let staff = this.root.querySelector('.search-box').querySelector('#searchinput').value
+      // staff = staff && parseInt(this.root.querySelector('.search-box').querySelector('#searchinput').getAttribute('data-type'), 10)
+      // staff = staff && xdata.metaStore.data.staff_extend.get(staff) && xdata.metaStore.data.staff_extend.get(staff).card_id
+      let deptName = this.root.querySelector('.dept').querySelector('#dept').value
+      let deptID = this.root.querySelector('.dept').getAttribute('data-type')
+      let worktime = parseInt(this.root.querySelector('.worktime').querySelector('#worktime').value, 10)
+      this.nosignalcards = this.cards
+      if (!staff && !deptName && !worktime) {
+        this.showList()
+        this.isSearch = null
+      } else {
+        if (staff) {
+          this.nosignalcards = this.nosignalcards.filter(item => item[2] === staff)
+        }
+        if (deptName && (deptID || deptID == 0)) {
+          this.nosignalcards = this.nosignalcards.filter(item => item[CARD.dept_id] == deptID)
+        }
+        if (worktime) {
+          worktime = worktime * 3600 * 1000
+          this.nosignalcards = this.nosignalcards.filter(item => item[CARD.work_time] >= worktime)
+        }
+        this.isSearch = [...this.nosignalcards]
+        this.initPagination(this.nosignalcards, this.nosignalcards.length)
+        this.showList(this.nosignalcards)
+      }
+    }
+
+    // 判断该条数据是否被选中
+    this.ischecked = (evt) => {
+      let target = evt.currentTarget
+      if (target.checked) {
+        this.manualupmine.set(target.getAttribute('data-name'), {
+          cardid: target.getAttribute('data-name'),
+          cardtype: 1
+        })
+      } else {
+        this.manualupmine.delete(target.getAttribute('data-name'))
+      }
+    }
+
+    this.setAllcards = () => {
+      if (this.isSearch) {
+        let msg = []
+        for (let i = 0; i < this.isSearch.length; i++) {
+          msg.push({
+            cardid: this.isSearch[i][0],
+            cardtype: 1
+          })
+        }
+        return {
+          cmd: 'clear_card',
+          data: msg
+        }
+      } else {
+        return {
+          cmd: 'clear_card',
+          data: Array.from(this.allcards.values())
+        }
+      }
+    }
+
+    // 执行升井
+    this.upmine = (evt) => {
+      let message = null
+      let target = evt.currentTarget
+      let name = target.getAttribute('class')
+      if (name === 'checked' && this.manualupmine.size > 0) {
+        message = {
+          cmd: 'clear_card',
+          data: Array.from(this.manualupmine.values())
+        }
+      } else if (name === 'allcard' && this.allcards.size > 0) {
+        message = this.setAllcards()
+        // message = {
+        //   cmd: 'clear_card',
+        //   data: Array.from(this.allcards.values())
+        // }
+      } else if (name === 'timecard' && this.timecards.size > 0) {
+        message = {
+          cmd: 'clear_card',
+          data: Array.from(this.timecards.values())
+        }
+      }
+      if (message) {
+        xbus.trigger('MAN-CONTROL-UPMINE', message)
+      } 
+    }
+
+    this.on('PAGEINDEX-CHANGE', (msg) => {
+      this.pageIndex = msg.pageIndex
+      let start = this.pageIndex * PAGE_SIZE
+      let end = start + PAGE_SIZE
+      this.subRows = this.nosignalcards && this.nosignalcards.slice(start, end)
+      let count = this.subRows.length
+      this.formatCards(this.subRows)
+      this.update()
+      window.xhint.close()
+    })
+
+    this.close = () => {
+      this.unregisterGlobalEventHandlers()
+      this.manualupmine = null
+      this.allcards = null
+      this.timecards = null
+      this.nosignalcards = null
+      if (this.fuzz) {
+        this.fuzz.unmount(true)
+      }
+      this.unmount(true)
+    }
+
+    xbus.on('REPT-SHOW-RESULT', (ds) => {
+      if (ds.def.name === 'person_reader_detail_monitor') {
+        if (this.detailTable) {
+          this.detailTable.unmount(true)
+        }
+        let rows = ds.rows.alarmSql.concat(ds.rows.wellSql)
+        this.detailTable = riot.mount('detail-table', {
+          tableName: 'person_reader_detail',
+          title: '历史告警信息',
+          tables: tables.person_reader_detail,
+          rows: rows,
+          def: ds.def
+        })[0]
+      }
+    })
+
+    this.inquireDB = (sqlName, sql, name, type) => {
+      window.xhint.showLoading()
+      let message = {
+        cmd: 'query',
+        data: {
+          name: sqlName,
+          sql: sql
+        }
+      } 
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: sqlName,
+          objID: name,
+          type: type
+        }
+      })
+    }
+
+    this.showAllAlarm = (evt) => {
+      return
+      let target = evt.target
+      let classname = target && target.className
+      if (classname !== 'object_id' && classname !== 'card_id') return
+      let cardID = evt.item.row[0]
+      let staffID = xdata.metaStore.getCardBindObjectInfo(cardID)
+      staffID = staffID && staffID.staff_id
+      if (!staffID) return
+      let sql = tables.person_reader_detail.sqlTmpl
+      sql = JSON.parse(JSON.stringify(sql.staff))
+      let beforeDate = new Date(new Date().getTime() - 14 * 24 * 60 * 60 * 1000).format('yyyy-MM-dd hh:mm:ss')
+      sql.alarmSql = sql.alarmSql.replace('{exprString}', `and s.staff_id = ${staffID} and hed.cur_time >= '${beforeDate}' and hed1.cur_time <= '${new Date().format('yyyy-MM-dd hh:mm:ss')}'`)
+      sql.wellSql = sql.wellSql.replace('{exprString}', `and s.staff_id = ${staffID} and ras.start_time >= '${beforeDate}' and ras.end_time <= '${new Date().format('yyyy-MM-dd hh:mm:ss')}'`)
+      let sqlName = 'person_reader_detail_monitor'
+      this.inquireDB(sqlName, sql, staffID, 'staff')
+      this.close()
+    }
+
+    this.askFile = () => {
+      let msg = {
+        cmd: 'file',
+        name: this.def.name,
+        labels: this.def.fields.labels,
+        title: this.def.label,
+        namesInShort: this.def.fields.names,
+        types: this.def.fields.types,
+        fileType: 'csv',
+				reptIndex: new Date().format('yyyyMMddhhmmss'),
+				data: JSON.stringify(this.countRows),
+				isQuery: true
+      }
+      msg.userName = xdata.userName
+      xbus.trigger('REPT-FETCH-FILE', msg)
+    }
+
+    this.getClass = (name, row) => {
+      // let roleID = xdata.roleID
+      // if (roleID === 1 && name === 'card_id') return 'card_id islink'
+      return name
+    }
+
+    this.joinPersonForbid = (evt) => {
+      let target = evt.currentTarget
+      let staffID = +target.getAttribute('data-staff')
+      let personForbids = xdata.metaStore.data.rt_person_forbid_down_mine
+      let isHasStaff = personForbids && personForbids.get(staffID)
+      if (isHasStaff) return
+
+      let now = new Date().format('yyyy-MM-dd hh:mm:ss')
+      let endYear = new Date().getFullYear() + 1
+      let endtime = `${endYear}-${new Date().format('MM-dd hh:mm:ss')}`
+      let sql = `INSERT INTO rt_person_forbid_down_mine (staff_id, start_time, end_time, oper_time, oper_user) VALUES(${staffID}, '${now}', '${endtime}', '${now}', '${xdata.userName}');`
+      let req = composeUpdateDBReq('INSERT', 'rt_person_forbid_down_mine', staffID, sql)
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+    }
+
+    this.showBatCurve = (evt) => {
+      if (xdata.roleID !== 1 && xdata.roleID !== 2 ) return
+      let target = evt.target
+      let value = target.innerText
+      let item = evt.item
+      let className = target.getAttribute('class')
+      if (item.name === 'card_id') {
+        if (this.activePanel) {
+          this.activePanel.unmount(true)
+        }
+        this.activePanel = riot.mount('bat-curve', {cardID: value})[0]
+      }
+    }
+  </script>
+</hand-upmine>

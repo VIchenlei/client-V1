@@ -1,0 +1,519 @@
+<map-topbar >
+  <ul class="tool-panel">
+    <li each={ toolbar } name={ name } id={ name } ref={ name } class="hint--bottom {iconName} {class}" onclick={ switchItem } aria-label={ cont }>
+      <span class="icon"></span>
+      <span class="icon icon-down" if={ name !== 'vehicle' && name !== 'staff' && name !== 'edit_map' && name !== 'cancel_view'}></span>
+    </li>
+  </ul>
+  <ul class="tool-down animated slideInDownSmall hide" ref="tool-down" name="tool-down">
+    <li class="triangle"></li>
+    <li each={ tooldown } name={ name } id={ name } class={ isContentActive(name) ? 'active' : '' } onclick={ toolDownSwitch }>
+      <span class="icon" if={ isNaN(name) }></span>
+      <span>{ cont }</span>
+    </li>
+  </ul>
+
+  <script>
+    import {toolbarItems, visual, magnifier, measure, visualarea} from '../../js/def/tool_bar.js'
+    import OlMapService from '../../js/service/OlMapService.js'
+
+    this.mapID = this.parent.mapID
+    this.mapType = this.parent.mapType
+    this.fifthSegment = toolbarItems.slice(15, 18)
+    let isCheck = this.parent.papa.isCheck
+    if (isCheck === 1) {
+      toolbarItems.pop()
+    }
+    this.toolbar = toolbarItems
+    this.switchSelect = false
+    this.activeArr = new Map()
+    this.activeArr.set('area_person', true)
+    this.isContentActive = (name) => {
+      if (name ==='fade_area') {
+        let isActive = xdata.metaStore.fadeAreaArr.size > 0 ? true : false
+        return isActive
+      }
+      if (this.activeArr.get(name)) {
+        return true
+      } else if (name === 'reader') {
+        if (Array.from(xdata.locateStore.localReader.keys()).length > 0 || window.isShowReader) {
+          return true
+        }
+      } else if (name === 'landmark') {
+        if (Array.from(xdata.locateStore.locateLandmark.keys()).length > 0 || window.isShowLandMarker) {
+          return true
+        }
+      }
+      return false
+    }
+    this.switchItem = (evt) => {
+      let target = evt.currentTarget
+      let status = false
+      let opName = target.getAttribute('name')
+      this.toolList = opName
+      let msg = null
+      this.mapID = xdata.metaStore.defaultMapID
+      switch (opName) {
+        case 'vehicle':
+          this.refs['tool-down'].classList.add('hide')
+          target.classList.toggle('active')
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            symbolType: opName,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-CARD', msg)
+          break
+        case 'staff':
+          this.refs['tool-down'].classList.add('hide')
+          target.classList.toggle('active')
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            symbolType: opName,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-CARD', msg)
+          break
+        case 'visual':
+          this.judgeCurrentTooldown(opName, visual, target)
+          break
+        case 'magnifier':
+          this.judgeCurrentTooldown(opName, magnifier, target)
+          break
+        case 'measure':
+          this.judgeCurrentTooldown(opName, measure, target)
+          break
+        case 'visualarea':
+        this.judgeCurrentTooldown(opName, visualarea, target)
+          break
+        case 'edit_map':
+          this.refs['tool-down'].classList.add('hide')
+          target.classList.toggle('active')
+          status = target.classList.contains('active')
+          xbus.trigger('MAP-TOGGLE-EDIT', status)
+          break
+        case 'switch_map':
+          this.judgeCurrentTooldown(opName, magnifier, target)
+          break
+      }
+    }
+
+    this.judgeCurrentTooldown = (opname, name, target) => {
+      if (this.tooldown != opname) {
+        if (opname === 'switch_map') {
+          this.tooldown = this.showMapNames()
+        } else {
+          this.tooldown = name
+        }
+        
+        if (this.refs['tool-down'].classList.contains('hide')) {
+          this.refs['tool-down'].classList.remove('hide')
+        } 
+        this.resetPosition(target)
+        this.update()
+      } else {
+        this.refs['tool-down'].classList.add('hide')
+      }
+    }
+
+    this.targetToggle = (target) => {
+      this.refs['tool-down'].classList.toggle('hide')
+      this.update()
+      this.resetPosition(target)
+    }
+
+    this.showMapNames = (evt) => {
+      let maps = xdata.mapStore.gisMap.values() && Array.from(xdata.mapStore.gisMap.values())
+      let mapList = []
+      for (let i = 0; i < maps.length; i++) {
+        let map = maps[i]
+        let msg = {
+          name: map.map_id,
+          cont: map.name
+        }
+        mapList.push(msg)
+      }
+      return mapList
+    }
+
+    this.toolDownSwitch = (evt) => {
+      evt.stopPropagation()
+      let target = evt.currentTarget
+      let status = false
+      let opName = target.getAttribute('name')
+      let msg = null
+      target.classList.toggle('active')
+      if (target.classList.contains('active')) {
+        this.activeArr.set(opName, true)
+      } else {
+        this.activeArr.delete(opName)
+      }
+      let type, geotype
+      switch (opName) {
+        case 'reset':
+          xbus.trigger('MAP-RESET-POS', {
+            mapID: this.mapID
+          })
+          this.activeArr.delete(opName)
+          break
+        case 'reader':
+          status = target.classList.contains('active')
+          xbus.trigger('InitIcon','topbar')
+          msg = {
+            mapID: this.mapID,
+            symbolType: opName,
+            mapType: this.mapType,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-READER', msg)
+          break
+        case 'fade_area':
+          status = target.classList.contains('active')
+          xbus.trigger('InitIcon','topbar')
+          if (this.fadeAreaTips) this.fadeAreaTips.unmount(true)        
+          if (!status) {
+            xbus.trigger('MAP-HIDE-FADEAREA', {readerId: ''})
+          } else {
+            // 查询分站盲区接口函数
+            this.doqueryFadeArea()
+          }
+          break
+        case 'traffic_lights':
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            symbolType: opName,
+            mapType: this.mapType,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-LIGHTS',msg)
+          break
+        case 'power':
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            symbolType: opName,
+            mapType: this.mapType,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-POWER',msg)
+          break
+        case 'camera':
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            symbolType: opName,
+            mapType: this.mapType,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-CAMERA', msg)
+          break
+        case 'gas':
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            symbolType: opName,
+            mapType: this.mapType,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-GAS', msg)
+          break
+        case 'wind':
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            symbolType: opName,
+            mapType: this.mapType,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-WIND', msg)
+          break
+        case 'temperature':
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            symbolType: opName,
+            mapType: this.mapType,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-TEMPERATURE', msg)
+          break
+        case 'landmark':
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            symbolType: opName,
+            mapType: this.mapType,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-LANDMARKER', msg)
+          break
+        case 'fault':
+        case 'underground':
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            symbolType: opName,
+            mapType: this.mapType,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-FAULT', msg)
+          break
+        case 'area_person':
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            symbolType: opName,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-CARD', msg)
+          break
+        case 'area':
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            mapType: this.mapType,
+            isVisible: status
+          }
+          xbus.trigger('MAP-SHOW-AREA', msg)
+          break
+        case 'measure_length':
+          status = target.classList.contains('active')
+          msg = {
+            geometry: 1
+          }
+          xbus.trigger('MAP-MEASURE', msg)
+          this.activeArr.delete('measure_length')
+          break
+        case 'measure_area':
+          status = target.classList.contains('active')
+          msg = {
+            geometry: 2
+          }
+          xbus.trigger('MAP-MEASURE', msg)
+          this.activeArr.delete('measure_area')
+          break
+        case 'poly_query_vehicle':
+          type = 2
+          geotype = 'Polygon'
+          this.poly(target, type, geotype)
+          break
+        case 'circle_query_vehicle':
+          type = 2
+          geotype = 'Circle'
+          this.poly(target, type, geotype)
+          break
+        case 'rect_query_vehicle':
+          type = 2
+          geotype = 'Box'
+          this.poly(target, type, geotype)
+          break
+        case 'poly_query_staff':
+          type = 1
+          geotype = 'Polygon'
+          this.poly(target, type, geotype)
+          break
+        case 'circle_query_staff':
+          type = 1
+          geotype = 'Circle'
+          this.poly(target, type, geotype)
+          break
+        case 'rect_query_staff':
+          type = 1
+          geotype = 'Box'
+          this.poly(target, type, geotype)
+          break
+        case 'bzlx_sz':
+          geotype = 'bzlx_sz'
+          this.bzlx(target, geotype)
+          break
+        case 'bzlx_hz':
+          geotype = 'bzlx_hz'
+          this.bzlx(target, geotype)
+          break
+        case 'edit_area':
+          target.classList.toggle('active')
+          status = target.classList.contains('active')
+          xbus.trigger('MAP-LayerEdit', {
+            layername: 'areaLayer',
+            tool: target
+          })
+
+          this.activeArr.delete('edit_area')
+          break
+        case 'edit_landmark':
+          target.classList.toggle('active')
+          status = target.classList.contains('active')
+          xbus.trigger('MAP-LandmarkEdit', {
+              // layername:'areaLayer',
+            mapID: this.mapID,
+            mapType: this.mapType,
+            tool: target
+          })
+                  
+          this.activeArr.delete('edit_landmark')
+          break
+        case 'edit_forbid_area':
+          target.classList.toggle('active')
+          status = target.classList.contains('active')
+          xbus.trigger('MAP-LayerEdit', {
+            layername: 'areaLayer',
+            tool: target,
+            iconname: 'edit_forbid_area'
+          })
+          this.activeArr.delete('edit_forbid_area')
+          break
+        case 'edit_forbid_bstation'://分站
+          target.classList.toggle('active')
+          status = target.classList.contains('active')
+          xbus.trigger('MAP-readerEdit', {
+              // layername:'areaLayer',
+            mapID: this.mapID,
+            mapType: this.mapType,
+            tool: target
+          })
+          this.activeArr.delete('edit_forbid_bstation')
+          break
+        case 'edit_goaf':
+          xbus.trigger('MAP-DRAW-GOAF', {
+              // layername:'areaLayer',
+            mapID: this.mapID,
+            mapType: this.mapType,
+            tool: target
+          })
+          this.activeArr.delete('edit_goaf')
+          break
+        case 'edit_route_plan':
+          xbus.trigger('MAP-DRAW-ROUTEPLAN', {
+            mapID: this.mapID,
+            mapType: this.mapType,
+            isEdit: false
+          })
+          this.activeArr.delete('edit_route_plan')
+          break
+        case 'edit_lights'://红绿灯
+            target.classList.toggle('active')
+            status = target.classList.contains('active')
+            xbus.trigger('MAP-lightsEdit', {
+                // layername:'areaLayer',
+                mapID: this.mapID,
+                mapType: this.mapType,
+                tool: target
+            })
+            this.activeArr.delete('edit_lights')
+            break
+        case 'area_1':
+        case 'area_3':
+        case 'area_5':
+        case 'area_6':
+        case 'area_1001':
+        case 'area_2000':
+          status = target.classList.contains('active')
+          msg = {
+            mapID: this.mapID,
+            mapType: this.mapType,
+            isVisible: status,
+            visiblearea: opName
+          }
+          xbus.trigger('MAP-SHOW-AREA', msg)
+          break
+        default:
+          this.resetMap(target)
+          break
+      }
+      // this.refs['tool-down'].classList.add('hide')
+      this.hideList()
+      evt.preventUpdate = true
+    }
+
+    this.poly = (target, type, geotype) => {
+      let status = target.classList.contains('active')
+      let opName = target.getAttribute('name')
+      xbus.trigger('MAP-SEARCH-GEO', {
+        tool: target,
+        mapID: this.mapID,
+        mapType: this.mapType,
+        status: status,
+        type: type,
+        geotype: geotype
+      })
+      this.activeArr.delete(opName)
+    }
+
+    this.bzlx = (target, layername) => {
+      let status = target.classList.contains('active')
+      xbus.trigger('VectorlayerControl', {
+        layername: layername,
+        isVisible: status
+      })
+    }
+
+    this.resetMap = (target) => {
+      let mapID = Number(target.getAttribute('name'))
+      let currentMapID = xdata.metaStore.defaultMapID
+      if (mapID === currentMapID) return
+      xdata.metaStore.defaultMapID = mapID
+      this.loadMap(mapID)
+      xbus.trigger('MAP-INIT-LABEL')
+      xdata.cardStore.reset()
+      xdata.locateStore.reset()
+    }
+
+    this.loadMap = (mapID) => {
+      // let currentmap = null
+      let gisMap = xdata.mapStore.maps.get(mapID)
+      this.mapService = new OlMapService(this.mapType)
+      if (window.monitormap.childNodes[0]) {
+        window.monitormap.removeChild(window.monitormap.childNodes[0])
+      }
+      this.mapService && this.mapService.resetWorkspace()
+      xbus.trigger('RESET-MAP', (mapID))
+      // currentmap = this.mapService && this.mapService.loadMap('monitormap', mapID, gisMap)
+    }
+
+    this.resetPosition = (target) => {
+      let x = target.getBoundingClientRect().left
+      let y = target.getBoundingClientRect().top
+      let parX = this.root.getBoundingClientRect().left
+      let list = this.root.querySelector('.tool-down')
+      list.style.left = x - parX - 60 + 'px'
+      list.style.top = y + 'px'
+    }
+
+    this.hideList = () => {
+      if (this.refs['tool-down']) {
+        this.refs['tool-down'].classList.add('hide')
+        this.tooldown = null
+        // this.update()
+      }
+    }
+
+    xbus.on('HIDE-ALL-POPUP', () => {
+      // if (this.refs['tool-down']) {
+      //   this.refs['tool-down'].classList.add('hide')
+      // }
+      this.hideList()
+    })
+
+    this.doqueryFadeArea = () => {
+      let message = {
+        cmd: 'fadeArea',
+        data: {
+          name: 'fadeArea',
+          // 获取全部分站
+          readerId: ''
+          // readerId: 203
+        }
+      }
+      window.xhint.showLoading()
+      xbus.trigger('FADE-READER-DATA', {
+        req: message,
+        def: {
+          name: 'fadeArea'
+        }
+      })
+    }
+  </script>
+</map-topbar>

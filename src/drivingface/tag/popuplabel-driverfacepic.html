@@ -1,0 +1,88 @@
+<popuplabel-driverfacepic>
+    <div class="bgimg" ref="bgimg">
+      <img src="/img/north.png" alt="" class="north">
+      <div data-is="driverface-sensor" class="drivefacesensor"></div>
+      <div data-is="driveface-vehicle" class="drivefacevehicle"></div>
+      <div data-is="driveface-staff" class="driverfacestaff staffs"></div>
+      <div data-is="driveface-reader" class="driverfacereader"></div>
+      <img class="omit" src="/img/omit.png" alt="" if={hasOmit} style="right: {rightLength}px;">
+    </div>
+    <script>
+        import './driveface-vehicle.html'
+        import './driverface-sensor.html'
+        import './driveface-staff.html'
+        import './driveface-reader.html'
+        this.hasOmit = false
+
+        xbus.on('REPT-SHOW-RESULT', (ds) => {
+          if (ds.def.name === this.sqlname) {
+            window.xhint.close()
+            let totleLength = ds.rows[0] && ds.rows[0].total_length
+            let showLength = totleLength - 100
+            if (showLength > 120) {
+              this.hasOmit = true
+            } else {
+              this.rightLength = 20 * this.measuringScale // 没有省略区域的情况
+              this.refs['bgimg'] ? this.refs['bgimg'].style.width = (100 * this.measuringScale + 20 * this.measuringScale) + 'px' : ''
+            }
+            // 获取地图比例关系
+            // this.scale = xdata.metaStore.data.map && xdata.metaStore.data.map.get(xdata.metaStore.defaultMapID) && xdata.metaStore.data.map.get(xdata.metaStore.defaultMapID).scale
+            this.scale = 2
+            showLength = showLength / this.scale // 地图上一个位移代表2米
+            // 按显示的比例，确定基准点 w3305为加上除去可视区域的范围
+            this.basicCoordinate = [this.driveface.base_point_x - 2.5 / this.scale, this.driveface.base_point_y + showLength]
+            this.tags['driverface-sensor'] && this.tags['driverface-sensor'].sensorPosition(this.basicCoordinate)
+            this.tags['driveface-vehicle'] && this.tags['driveface-vehicle'].vehiclePosition(this.basicCoordinate)
+            this.tags['driveface-reader'] && this.tags['driveface-reader'].readerPosition(this.basicCoordinate)
+            this.tags['driveface-staff'] && this.tags['driveface-staff'].staffPosition(this.basicCoordinate)
+            this.update()
+          }
+        })
+
+        this.sendToDb = (cmd, name, sql) => { // 查询数据库
+          let msg = {
+            cmd: cmd,
+            data: {
+              name: name,
+              sql: sql
+            }
+          }
+          xbus.trigger('REPT-FETCH-DATA', {
+            req: msg,
+            def: {
+              name: name
+            }
+          })
+        }
+
+        this.getTotleLength = (drivefaceID) => {
+          let vehicleID = xdata.metaStore.data.drivingface_vehicle && xdata.metaStore.data.drivingface_vehicle.get(drivefaceID) && xdata.metaStore.data.drivingface_vehicle.get(drivefaceID).vehicle_id
+          let vehicle = vehicleID && xdata.metaStore.data.vehicle_extend && xdata.metaStore.data.vehicle_extend.get(vehicleID)
+          let cardID = vehicle && vehicle.card_id
+
+          // let sql = `select * from his_drivingface_shift_finish_length where total_length in (select max(total_length) from his_drivingface_shift_finish_length where card_id = ${cardID}) order by cur_time desc limit 1`
+          let sql = `select * from his_drivingface_shift_finish_length where total_length in (select max(total_length) from his_drivingface_shift_finish_length where drivingface_id = ${drivefaceID}) order by cur_time desc limit 1` // 按照掘进面ID取数据
+          this.sqlname = 'getDriverFaceTotleLength'
+          this.sendToDb('query', this.sqlname, sql)
+          window.xhint.showLoading()
+        }
+
+        this.on('mount', () => {
+          let drivefaceID = this.parent.opts.id
+          let box = this.refs['bgimg'].getBoundingClientRect()
+          this.height = box.height
+          this.measuringScale = this.height / 5
+
+          // 宽度确定：100米可视范围 + 20米巷道口范围 + 120px的伸缩区
+          this.refs['bgimg'].style.width = (100 * this.measuringScale + 20 * this.measuringScale + 120) + 'px'
+          // 计算时，img距离右侧距离 为 除去巷道口的距离及伸缩区的距离之和
+          this.rightLength = 20 * this.measuringScale + 120
+        
+          this.driveface = xdata.metaStore.data.drivingface && xdata.metaStore.data.drivingface.get(drivefaceID)
+          if (this.driveface) {
+            this.getTotleLength(drivefaceID)
+            // this.basicCoordinate = [driveface.base_point_x - 2.5, driveface.base_point_y]
+          }
+        })
+    </script>
+</popuplabel-driverfacepic>

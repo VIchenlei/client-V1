@@ -1,0 +1,286 @@
+<ligth-ctrl>
+  <div class="light-call hide">
+    <div class="lcTitle">
+      <span class="lightcontrol">控制</span>
+      <span class="callout">发起呼叫</span>
+    </div>
+    <ul class="detail">
+      <li>
+        <span>设备名称</span>
+        <span class="lightName" name={ 'lightName' + lightName } if={ !allLights }>{ lightName }#红绿灯</span>
+        <span class="lightName" if={ allLights }>红绿灯</span>
+      </li>
+      <li>
+        <span>当前状态</span>
+        <span class="light-state" if={ !allLights } data-value="3">
+          <span class="redsolid" if={ lightState === '1' }></span>
+        <span class="redhollow" if={ lightState==='2' }></span>
+        <span class="redfork" if={ lightState==='3' }>
+            <svg class="icon">
+              <use xlink:href="/icons/icons.svg#icon-circle-cross"></use>
+            </svg>
+          </span>
+        <span class="greenup" if={ lightState==='4' }>↑</span>
+        <span class="greendown" if={ lightState==='5' }>↓</span>
+        <span class="greenleft" if={ lightState==='6' }>←</span>
+        <span class="greenright" if={ lightState==='7' }>→</span>
+        <span class="redblink" if={ lightState==='8' }></span>
+        <span class="greenblink" if={ lightState==='9' }></span>
+        </span>
+        <span class="light-state" if={ allLights }>
+          <span class="allTrafficLight active" data-value = "0" onclick={ changeAllTriffic }>全部</span>
+        <span class="allTrafficLight" data-value="1" onclick={ changeAllTriffic }>上行</span>
+        <span class="allTrafficLight" data-value="2" onclick={ changeAllTriffic }>下行</span>
+        </span>
+      </li>
+      <li>
+        <span>转化状态</span>
+        <span class="light-color">
+          <span name="1" class="redsolid active" onclick={ showColor }></span>
+        <span name="2" class="redhollow" onclick={ showColor }></span>
+        <span name="3" class="redfork" onclick={ showColor }>
+            <svg class="icon">
+              <use xlink:href="/icons/icons.svg#icon-circle-cross"></use>
+            </svg>
+          </span>
+        <span name="4" class="greenup" onclick={ showColor }>↑</span>
+        <span name="5" class="greendown" onclick={ showColor }>↓</span>
+        <span name="6" class="greenleft" onclick={ showColor }>←</span>
+        <span name="7" class="greenright" onclick={ showColor }>→</span>
+        <span name="8" class="redblink" onclick={ showColor }></span>
+        <span name="9" class="greenblink" onclick={ showColor }></span>
+        </span>
+      </li>
+      <!--<li>
+        <span>持续时间</span>
+        <span>
+          <span class="timetag select-tag active" data-value="0" onclick={setEndTime}>永久</span>
+          <span class="timetag select-tag" data-value="5" onclick={setEndTime}>5分钟</span>
+          <span class="timetag select-tag" data-value="10" onclick={setEndTime}>10分钟</span>
+          <span class="timetag select-tag custome-set-tag" data-value="-1" onclick={setEndTime}>自定义</span>
+        </span>
+      </li>-->
+      <li class="btn">
+        <button class="makeSure" name={ lightName } onclick={ makeSureChange } data-value={ !allLights ? lightState : '' }>确定</button>
+        <button class="cancel" onclick={ cancelChange }>取消</button>
+      </li>
+    </ul>
+  </div>
+
+  <script>
+    this.showLight = () => {
+      let triLights = []
+      let lightData = null
+      let trifficLight = null
+      if (xdata.deviceStore.states.size > 0) {
+        this.lightHasData = true
+        trifficLight = Array.from(xdata.deviceStore.states.values()).filter(item => item.device_type === 3)
+        if (xdata.deviceStore.traffic.size <= 0) {
+          for (let i = 0, len = trifficLight.length; i < len; i++) {
+            lightData = trifficLight[i]
+            this.switchColor(lightData.state)
+            lightData['color'] = lightControlColor
+            triLights.push(lightData)
+          }
+          this.lights = triLights
+        }
+      }
+      if (xdata.deviceStore.traffic.size > 0) {
+        let lightChangeData = Array.from(xdata.deviceStore.traffic.values()).filter(item => item.cmd === "lights_ctrl_rsp")
+        for (let i = 0, len = lightChangeData.length; i < len; i++) {
+          let lightChange = lightChangeData[i]
+          this.selectSQL(lightChange.task_id, lightChange.user_id)
+          let controlLightID = lightChange.lights_id // 哪个红绿灯 0: 所有灯
+          let controlLightState = Number(lightChange.light_state) //更改为什么颜色
+          this.switchColor(controlLightState)
+          if (controlLightID === '0') {
+            let lightColorSpan = this.root.querySelector('.symbolTableLight').querySelectorAll('.lightColor')
+            for (let j = 0, l = lightColorSpan.length; j < l; j++) {
+              // lightColorSpan[j].querySelector('span').className = lightControlColor
+              trifficLight[j].color = lightControlColor
+            }
+          } else {
+            // this.switchColor(controlLightState)
+            if (trifficLight) {
+              let changeTrifficLight = trifficLight.filter(item => item.device_id === Number(controlLightID))
+              if (changeTrifficLight.length > 0) {
+                changeTrifficLight[0].color = lightControlColor
+              }
+            }
+          }
+        }
+      }
+      this.update()
+    }
+
+    this.switchColor = (lightState) => {
+
+      switch (lightState) {
+        case 1:
+          lightControlColor = 'redsolid'
+          break
+        case 2:
+          lightControlColor = 'redhollow'
+          break
+        case 3:
+          lightControlColor = 'redfork'
+          break
+        case 4:
+          lightControlColor = 'greenup'
+          break
+        case 5:
+          lightControlColor = 'greendown'
+          break
+        case 6:
+          lightControlColor = 'greenleft'
+          break
+        case 7:
+          lightControlColor = 'greenright'
+          break
+        case 8:
+          lightControlColor = 'redblink'
+          break
+        case 9:
+          lightControlColor = 'greenblink'
+          break
+        default:
+          lightControlColor = 'breakdown'
+          break
+      }
+      return lightControlColor
+    }
+
+
+    this.controlTrifficLight = (evt) => {
+      let target = evt.currentTarget
+      let targetName = target.getAttribute('name')
+      this.root.querySelector('.light-call').classList.remove('hide')
+      this.root.querySelector('.callout').classList.add('hide')
+      if (targetName === 'all') {
+        this.allLights = true
+      } else {
+        this.allLights = false
+        this.lightName = target.getAttribute('name').split('+')[0]
+        this.lightState = target.getAttribute('name').split('+')[1]
+      }
+
+    }
+
+    this.changeAllTriffic = (evt) => {
+      let target = evt.currentTarget
+      let triffic = this.root.querySelectorAll('.allTrafficLight')
+      for (let i = 0, len = triffic.length; i < len; i++) {
+        triffic[i].classList.remove('active')
+      }
+      target.classList.add('active')
+    }
+
+    this.showColor = (evt) => {
+      let target = evt.currentTarget
+      let span = this.root.querySelector('.light-color').querySelectorAll('span')
+      for (let i = 0, len = span.length; i < len; i++) {
+        span[i].classList.remove('active')
+      }
+      target.classList.add('active')
+    }
+
+    this.makeSureChange = (evt) => {
+      let target = evt.currentTarget
+      let typeName = null
+      let trafficName = null
+
+      if (this.allLights) {
+        typeName = this.root.querySelector('.light-state').querySelector('.active').getAttribute('data-value')
+      } else {
+        trafficName = target.getAttribute('name')
+        // let trafficState = this['activeItem'].getAttribute('name')
+        typeName = this.root.querySelector('.light-state').getAttribute('data-value')
+      }
+      let trafficState = this.root.querySelector('.light-color').querySelector('.active').getAttribute('name')
+      let msg = {
+        cmd: "lights_ctrl_req",
+        version: "1.0.0.1",
+        data: {
+          task_id: new Date().getTime(),
+          obj_type: Number(typeName),
+          ctrl_type: 1,
+          light_state: Number(trafficState),
+          user_id: xdata.userName,
+          lights: [{
+            id: Number(trafficName)
+          }]
+        }
+      }
+      this.saveDB(target, msg)
+      xbus.trigger('DEVICE-TYPE-CHANGE', msg)
+      this.root.querySelector('.light-call').classList.add('hide')
+    }
+
+
+    this.checkTime = (time) => {
+      if (time < 10) {
+        time = '0' + time
+      }
+      return time
+    }
+
+    this.saveDB = (target, msg) => {
+      let controlTraffic = msg.data
+      let task_id = controlTraffic.task_id
+      let time = new Date(controlTraffic.task_id)
+      let year = time.getFullYear()
+      let month = this.checkTime(time.getMonth() + 1)
+      let day = this.checkTime(time.getDate())
+      let hour = this.checkTime(time.getHours())
+      let minutes = this.checkTime(time.getMinutes())
+      let seconds = this.checkTime(time.getSeconds())
+      let controlTime = year + '-' + month + '-' + day + ' ' + hour + ':' + minutes + ':' + seconds
+      let obj_type = controlTraffic.obj_type
+      let ctrl_type = 1
+      let initialState = target.getAttribute('data-value')
+      let changeState = controlTraffic.light_state
+      let user_id = controlTraffic.user_id
+      let controlLight = controlTraffic.lights[0].id ? controlTraffic.lights[0].id : 'null'
+      let value = task_id + ',' + "'" + user_id + "'" + ',' + "'" + controlTime + "'" + ',' + ctrl_type + ',' + obj_type + ',' + controlLight + ',' + changeState
+
+      let sql = `INSERT into his_op_light_log VALUES (${value})`
+      let req = this.composeUpdateDBReq('INSERT', sql)
+      xbus.trigger('META-UPDATE-DB', {
+        req: req
+      })
+    }
+
+    this.composeUpdateDBReq = (db_op, sqlstring) => {
+      return {
+        cmd: 'update', // update, CMD.META.UPDATE
+        data: {
+          op: db_op, // INSERT, UPDATE, DELETE
+          sql: sqlstring
+        }
+      }
+    }
+
+
+    this.selectSQL = (task, user) => {
+      let sql = `select opt_id, user_id from his_op_light_log where opt_id = ${task} and user_id = ${user}`
+      let message = {
+        cmd: 'query',
+        data: {
+          name: 'trafficControl',
+          sql: sql
+        }
+      }
+
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: 'trafficControl'
+        }
+      })
+    }
+
+    this.cancelChange = (evt) => {
+      this.root.querySelector('.light-call').classList.add('hide')
+    }
+  </script>
+</ligth-ctrl>

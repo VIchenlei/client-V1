@@ -1,0 +1,453 @@
+<tool-tips>
+  <div ref="tool_tips" class="tool_tips_box">
+    <div ref="draggeTitle" class="tips-title">
+      <span class="tips-title-text">{ title }</span>
+    </div>
+    <div class="op-panel">
+      <span name="state" ref="state" class="tab-icon" onclick={ switchTo }>实时状态</span>
+      <span if = { subtype !== "power" } name="info" ref="info" class="tab-icon" onclick={ switchTo }>基本信息</span>
+    </div>
+    <div class="tips-content" if={ topic==='state' && hasData } id="stateTips">
+      <p each={ name, i in data.def.fields.names } if={!(subtype==='adhoc' && i===15)}>
+        <span class="lable"if={name !=='state' }>{ data.def.fields.labels[i] }：</span>
+        <span class="value" title="{ data.rec[name] }"  if={name !=='state' }>{ data.rec[name] }</span>
+        <span class="lable" if={name==='state' && subtype==='reader' }>{ data.def.fields.labels[i] }：</span>
+        <span class="value" title="{ data.rec[name] === 0 ? '正常':'异常' }" if={name==='state' && subtype==='reader' }>{ data.rec[name] === 0 ? '正常':'异常' }</span>
+      </p>
+      <p if={subtype==='reader' }>
+        <span class="lable">显示盲区：</span>
+        <span class="value" onclick={ showFadeArea }><input type="checkbox" checked={ getInputCheck() }></span>
+      </p>
+    </div>
+    <div class="tips-content" if={ topic==='info' && hasData } id="infoTips">
+      <p each={ name, i in data.def.fields.names }>
+        <span class="lable">{ data.def.fields.labels[i] }：</span>
+        <span class="value" title="{noTurnTxt(name , data.rec[name])}">{noTurnTxt(name , data.rec[name])}</span>
+      </p>
+      <p if={ showLand } class="showland">
+        <button data-type="edit" if = { subtype === "area" } class="btn-sure editArea" onclick={ editArea }>编辑</button>
+        <button data-type="edit" if = { subtype !== "area" } class="btn-sure" onclick={ handleLand }>编辑</button>
+        <button data-type="delete" class="btn-cancel" onclick={ handleLand }>删除</button>
+      </p>
+    </div>
+  </div>
+  <div class="tips" if={ !hasData }>没有对应信息！</div>
+
+  <script>
+    // import { CARD } from '../js/def/state.js'
+    import { getShowPoint } from '../../js/def/getShowPos.js'
+    import '../../config/tag/meta-dialog.html'
+    import {getMessage, noTurnTxt, showReaderDialog, composeUpdateDBReq } from '../../js/utils/utils.js'
+    import { getInfo, metaUpdateRes, getReaderMsg, getModifyReaderMsg, getReaderCoord, getIdx } from '../../config/utils.js'
+    this.def = opts.def
+    this.id = opts.id
+
+    this.topic = 'state'
+
+    this.isShowing = false   // if the tips is showing or not
+    // this.isTracking = false
+    // this.isCalling = false
+    // this.isLocating = true
+    this.Speed = 0
+    this.isnotMapEditMode = 1
+
+    this.on('mount', () => {      
+      window.setDraggable({
+        target: this.root,
+        handle: this.refs.tool_tips
+      })
+    })
+
+    xbus.on('MAP-TOOLTIPS-SHOW', (symbol) => {
+      this.symbol = symbol
+      this.type = symbol.type // CARD or DEVICE
+      this.subtype = symbol.subtype // CARD: staff, vehicle, ...; DEVICE: reader, traffic, ...
+
+      this.title = this.symbol['info'].def.label
+      // subtype=people时会出现Uncaught TypeError: Cannot read property 'label' of undefined错误，该错误会影响到状态选项卡里标识卡部分StaffCard的状态展示
+      // 原因未明确
+
+      this.id = symbol.id
+
+      // this.typeID = symbol.state.rec.card_type_id
+      
+      if (['landmark', 'personcards', 'area', 'goaf'].includes(this.subtype)) {
+        this.refs['state'].classList.add('hide')
+        this.showLand = this.subtype === 'landmark' ? true : false     
+        this.showTab(this.refs.info)
+      } else {
+        this.refs['state'].classList.remove('hide')
+        this.showLand = false
+        this.showTab(this.refs.state)  // the default tab is 'state'
+      }
+      if(['reader', 'area', 'goaf'].includes(this.subtype)){
+          this.showLand = true
+      }
+
+      let tt = this.root
+      setTimeout(() => {
+        tt.classList.remove('hide')        
+      }, 100);
+      this.isShowing = true
+
+      this.update()
+      let point = getShowPoint(symbol.event, tt)
+      this.root.style.left = `${point.x}px`
+      this.root.style.top = `${point.y}px`      
+      window.setDraggable({
+        target: this.root,
+        handle: this.refs.tool_tips
+      })
+    })
+
+    //将数字修改成文字的参数的参数
+    this.noTurnTxt = (nameTxt, value) => {
+      return noTurnTxt(this.subtype, nameTxt, value)
+    }
+
+    this.getSpeed = (value) => {
+      if (!isNaN(value)) return value
+      return value.replace('1,', '人车,').replace('2,', '料车,').replace('3,', '特种车,')
+    }
+
+    this.getBusiness = (values) => {
+      let businesses = xdata.metaStore.data.area_business
+      if (!values || !businesses) return values
+      businesses = Array.from(businesses.values())
+      values = values.toString(2).padStart(12, 0).split('').reverse()
+      let result = ''
+      for (let i = 0; i < values.length; i++) {
+        if (parseInt(values[i], 10)) {
+          let res = businesses[i] ? businesses[i].name : ''
+          result += res ? `${res};` : ''
+        }
+      }
+      return result
+    }
+
+    xbus.on('HIDE-ALL-POPUP', () => {
+      this.close()
+    })
+
+    this.switchTo = (evt) => {
+      // debugger
+      let tab = evt.currentTarget
+      if (tab === this.activeTab) {
+        return false
+      }
+
+      this.showTab(tab)
+    }
+
+    this.showTab = (tab) => {
+      if (!tab) {
+        return
+      }
+
+      let topic = tab.getAttribute('name')
+      let data = null
+      switch (topic) {
+        case 'state':
+          data = this.symbol[topic]
+          data.rec = xdata.metaStore.formatRecord(data.def, data.rec, null) // convert the display
+          this.data = data
+          this.hasData = !!this.data.rec
+          break
+        case 'info':
+          data = this.symbol[topic]
+          data.rec = xdata.metaStore.formatRecord(data.def, data.rec, null) // convert the display
+          // console.log(data.rec)
+          this.data = data
+          this.hasData = !!this.data.rec
+          break
+        default:
+          console.warn('tooltips : UNKNOWN tips topic : ', topic)
+      }
+
+      this.setActiveTab(tab)
+      this.topic = topic
+    }
+
+    this.setActiveTab = (tab) => {
+      if (!tab || tab === this.activeTab) {
+        return
+      }
+
+      if (this.activeTab) {
+        this.activeTab.classList.remove('active')
+      }
+      tab.classList.add('active')
+      this.activeTab = tab
+    }
+
+    this.getRows = (table, values) => {
+      let rows = []
+      let length = table.def.fields.names.length
+      for (let i = 0; i < length; i++) {
+        let v = values ? values[table.def.fields.names[i]] : ''
+        if (!values && i == table.def.keyIndex) { // 新增记录，id 为 最大id+1
+          v = table.maxid ? table.maxid + 1 : 0
+        }
+        let row = {
+          field_name: table.def.fields.names[i],
+          field_value: v,
+          field_type: table.def.fields.types[i],
+          field_label: table.def.fields.labels[i],
+          field_enableNull: table.def.fields.enableNull[i]
+        }
+        rows.push(row)
+      }
+      return rows
+    }
+
+    this.showMetaDialog = (msg) => {
+      if (this.metaDialog) {
+        this.metaDialog.unmount(true)
+      }
+      if(msg.name === 'area'){
+        msg.fromPage = 'monitor'
+        this.metaDialog = riot.mount('role-dialog', { message: msg })[0]
+      } else {   
+        if (msg.name === 'goaf') {
+          msg.fromPage = 'monitor'
+        }     
+        this.metaDialog = riot.mount('meta-dialog', { message: msg })[0]
+      }
+    }
+
+    this.showMeta = (name) => {
+      let targetID = Number(this.symbol.id)
+      let table,values,atable,ptable,amessage,pmessage
+      table = {
+        def: xdata.metaStore.defs[this.subtype],
+        rows: xdata.metaStore.dataInArray.get(this.subtype),
+        maxid: xdata.metaStore.maxIDs[this.subtype]
+      }
+      values = xdata.metaStore.data[this.subtype].get(targetID)   
+      let rows = this.getRows(table, values)
+      let msg = getMessage(name, rows, table.def, table.maxid)
+      if(this.subtype === 'reader'){
+        let value = msg.rows[0].field_value
+        let key = msg.key
+        atable = {
+            def: xdata.metaStore.defs['antenna'],
+            rows: xdata.metaStore.dataInArray.get('antenna'),
+            maxid: xdata.metaStore.maxIDs['antenna']
+        }
+        ptable = {
+            def: xdata.metaStore.defs['reader_path_tof_n'],
+            rows: xdata.metaStore.dataInArray.get('reader_path_tof_n'),
+            maxid: xdata.metaStore.maxIDs['reader_path_tof_n']
+        }
+        this.msg = msg
+        this.amessage = getInfo(atable, value, msg.cmd, key, 'idx')
+        this.pmessage =  getInfo(ptable, value, msg.cmd, key)
+        if(this.amessage.length === 0){ //编辑  之前未配置天线  给予默认的天线展示
+            let amsg1 = getReaderMsg(atable.def,atable.maxid)
+            let amsg2 = getReaderMsg(atable.def,atable.maxid+1)
+            this.amessage.push(getModifyReaderMsg(msg,amsg1,1))
+            this.amessage.push(getModifyReaderMsg(msg,amsg2,2))
+            let rindex_x = getIdx(msg,'x')  //分站的x坐标下标
+            let rindex_y = getIdx(msg,'y')
+            let aindex_x = getIdx(this.amessage[0],'x') //天线的x坐标下标
+            let aindex_y = getIdx(this.amessage[0],'y')
+            let values = getReaderCoord(msg.rows[rindex_x].field_value, msg.rows[rindex_y].field_value, 2, 0)  //默认的天线坐标
+            this.amessage.forEach(e => {
+                e.rows[aindex_x].field_value = values.x
+                e.rows[aindex_y].field_value = values.y
+            })
+        }else if(this.amessage.length === 1){
+            let amsg1 = getReaderMsg(atable.def,atable.maxid)
+            this.amessage.push(getModifyReaderMsg(msg,amsg1,2))
+            let idx = getIdx(this.amessage[0],'idx')
+            let rindex_x = getIdx(msg,'x')  //分站的x坐标下标
+            let rindex_y = getIdx(msg,'y')
+            let aindex_x = getIdx(this.amessage[0],'x') //天线的x坐标下标
+            let aindex_y = getIdx(this.amessage[0],'y')
+            let values = getReaderCoord(msg.rows[rindex_x].field_value, msg.rows[rindex_y].field_value, 2, 0)  //默认的天线坐标
+            this.amessage[1].rows[aindex_x].field_value = values.x
+            this.amessage[1].rows[aindex_y].field_value = values.y
+            this.amessage[0].rows[idx].field_value = 1
+            this.amessage[1].rows[idx].field_value = 2
+        }
+      }
+      if(this.subtype === 'reader'){
+        // 实时界面弹出删除提示框 确认删除分站 及天线 分站覆盖范围
+        if(name === 'DELETE'){
+            let self = this
+            this.activePanel = riot.mount('call-leave', {
+                name: 'delete-reader',
+                currentTag: self
+            })[0]
+        }else {
+            showReaderDialog(this.msg, this.amessage, this.pmessage)
+        }
+      }else{
+        this.showMetaDialog(msg)
+      }
+      this.close()
+    }
+
+    this.handleLand = (evt) => {
+      let target = evt.currentTarget
+      let type = target.getAttribute('data-type')
+      switch (type) {
+        case 'edit':
+          this.showMeta('UPDATE')
+          break
+        case 'delete':
+          this.showMeta('DELETE')
+          break
+      }
+    }
+
+    this.editArea = () => {
+      this.showMeta('UPDATE')
+      this.close()
+    }
+
+    this.close = () => {
+      let tt = this.root
+      if (tt && !tt.classList.contains('hide')) {
+        tt.classList.add('hide')
+        this.isShowing = false
+
+        this.update()
+      }
+    }
+
+  /**
+   * @description: 实时界面 点击删除 删除分站相关信息
+   */  
+  this.deleteMsg = ()=>{
+    // 删除分站修改reader-dialog cmd为delete
+    xbus.trigger('MODIFY-DELETE')
+    // 删除分站
+    if(this.msg.name === 'reader'){
+        let keyIndex = xdata.metaStore.defs['reader'].keyIndex
+        let keyValue = this.msg.rows[keyIndex].field_value
+        let tableKeyName = this.msg.key
+        let tableName = this.msg.table
+        let topicName = this.msg.name
+        this.doDelete(keyValue, tableKeyName, tableName, topicName, null)
+
+        let msg = {
+          name: keyValue,
+          checked: false
+        }
+        xbus.trigger('MAP-SHOW-READERPATH', msg)
+    }
+    
+    if(this.amessage.length > 1){
+        this.amessage.forEach(e => {
+            let keyIndex = xdata.metaStore.defs[e.name].keyIndex
+            let keyValue = e.rows[keyIndex].field_value
+            this.readerId = xdata.metaStore.data.antenna.get(Number(keyValue)).reader_id
+            let tableKeyName = e.key
+            let tableName = e.table
+            let topicName = e.name
+            this.doDelete(keyValue, tableKeyName, tableName, topicName, null)
+        })
+    }else if(this.amessage.length === 1){
+        let keyIndex = xdata.metaStore.defs[this.amessage[0].name].keyIndex
+        let keyValue = this.amessage[0].rows[keyIndex].field_value
+        this.readerId = xdata.metaStore.data.antenna.get(Number(keyValue)).reader_id
+        let tableKeyName = this.amessage[0].key
+        let tableName = this.amessage[0].table
+        let topicName = this.amessage[0].name
+        this.doDelete(keyValue, tableKeyName, tableName, topicName, null)
+    }
+
+    if(this.pmessage.length > 1){
+        this.pmessage.forEach(e => {
+            let keyIndex = xdata.metaStore.defs[e.name].keyIndex
+            let keyValue = e.rows[keyIndex].field_value
+            this.readerId = xdata.metaStore.data.reader_path_tof_n.get(Number(keyValue)).reader_id
+            let tableKeyName = e.key
+            let tableName = e.table
+            let topicName = e.name
+            if(tableName === 'dat_reader_path_tof_n'){
+                this.doDelete(keyValue, tableKeyName, tableName, topicName, e.rows)
+            }else {
+                this.doDelete(keyValue, tableKeyName, tableName, topicName,null)
+            }
+            
+        })
+    }else if(this.pmessage.length === 1){
+        let keyIndex = xdata.metaStore.defs[this.pmessage[0].name].keyIndex
+        let keyValue = this.pmessage[0].rows[keyIndex].field_value
+        this.readerId = xdata.metaStore.data.reader_path_tof_n.get(Number(keyValue)).reader_id
+        let tableKeyName = this.pmessage[0].key
+        let tableName = this.pmessage[0].table
+        let topicName = this.pmessage[0].name
+        if(tableName === 'dat_reader_path_tof_n'){
+            this.doDelete(keyValue, tableKeyName, tableName, topicName, this.pmessage[0].rows)
+        }else {
+            this.doDelete(keyValue, tableKeyName, tableName, topicName, null)
+        }
+        
+    }
+  }
+
+  /**
+   * @description: 删除分站等
+   */
+  this.doDelete =(keyValue, tableKeyName, tableName, topicName, rows) =>{
+    let sql = null
+    let state = 0
+    if (tableName === 'dat_reader_path_tof_n') {
+        sql = `DELETE from ${tableName} where ${tableKeyName}=${keyValue} and ${rows[1].field_name} = ${rows[1].field_value}`
+    } else if (tableName === 'dat_reader') {
+        state = 1
+        sql = `delete dat_reader,dat_antenna,dat_reader_path_tof_n from dat_reader left join dat_antenna on dat_reader.reader_id = dat_antenna.reader_id left join dat_reader_path_tof_n on dat_reader.reader_id = dat_reader_path_tof_n.reader_id where dat_reader.reader_id = ${keyValue};`
+    } else {
+        sql = `DELETE from ${tableName} where ${tableKeyName}=${keyValue}`
+    }
+    if (['dat_reader_path_tof_n', 'dat_antenna'].includes(tableName)) keyValue = this.readerId
+    let req = composeUpdateDBReq('DELETE', topicName, keyValue, sql)
+    req['state'] = state
+    xbus.trigger('META-UPDATE-DB', {
+        req: req
+    })
+  }
+
+  this.showFadeArea = (evt) => {
+    let ischeck = evt.target.checked
+    let readerId = this.id
+    if (ischeck) {
+      if (this.fadeAreaTips) this.fadeAreaTips.unmount(true)
+      // this.fadeAreaTips = riot.mount('fade-area-tips', { message: { readerId: readerId }})[0]
+      // 查询分站盲区接口函数
+      this.doqueryFadeArea(Number(readerId))
+    } else {
+      xbus.trigger('MAP-HIDE-FADEAREA', {readerId: Number(readerId)})
+    }
+    let inputTaget = evt.target
+    inputTaget.checked = !ischeck
+    this.root.classList.add('hide')
+  }
+
+  this.getInputCheck = () => {
+    let readerId = Number(this.id)
+    let ischecked = xdata.metaStore.fadeAreaArr.get(readerId) ? true : false
+    return ischecked
+  }
+
+  this.doqueryFadeArea = (readerId) => {
+    let message = {
+      cmd: 'fadeArea',
+      data: {
+        name: 'fadeArea',
+        readerId: readerId
+      }
+    }
+    window.xhint.showLoading()
+    xbus.trigger('FADE-READER-DATA', {
+      req: message,
+      def: {
+        name: 'fadeArea'
+      }
+    })
+  }
+  </script>
+</tool-tips>

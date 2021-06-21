@@ -1,0 +1,292 @@
+@import '../../sass/defs'
+#sp_manage
+    .back
+        position: relative
+    .manages
+        width: 100%
+        overflow: hidden
+        position: relative
+        .back-homepage
+            @include align-middle
+            position: absolute
+            z-index: 999
+            cursor: pointer
+            &:hover
+                color: $btn-bg
+        .basic-message-form,.display-report-tag
+            position: relative
+            height: 100%
+            padding: 1.4rem 1rem 4rem 1rem
+            overflow: hidden
+            background: $color-white
+            .title
+                margin-bottom: 0.5rem
+                justify-content: space-between
+                color: $color-black
+                border-bottom: 1px solid $grip-color
+                cursor: auto
+    
+                ul
+                    @include font-color-pos(14px,$minor-color,center)
+                    position: absolute
+                    min-width: 7rem
+                    right: 35px
+                    border: 1px solid $minor-bdcolor
+                    background: $active-ft
+                    z-index: 5
+                    li
+                        margin: 0.5rem
+                        cursor: pointer
+                        &:hover
+                            color: $active-bg
+        .display-report-tag
+            @include absolute(0,0)
+            z-index: 999
+            padding: .2rem 2rem 2rem 2rem
+            @include wh(100%,100%)
+        .basic-message
+            display: flex
+            height: 100%
+            .basic_left
+                flex: 1
+                .basic-search-list
+                    height: 9rem
+                .more
+                    @include align-middle
+                    cursor: pointer
+                    justify-content: flex-end
+                    .more_toggle
+                        display: inline-block
+                        img
+                            vertical-align: middle
+                        &:hover
+                            i
+                                color: $btn-active-bg
+                #selectAll
+                  height: auto
+                .contTitle
+                    display: flex
+                    flex-wrap: wrap
+                    justify-content: space-between
+                    button
+                        margin: 1rem 2rem 0 0 
+                .totalCount
+                    display: flex
+                    justify-content: space-between
+                    padding: 0 1.5rem
+                .condition
+                    font-size: 12px
+                    width: 50%
+                    margin-bottom: 0.4rem
+                    .search-bar
+                        // margin-left: 1rem
+                        .popup-list
+                          width: inherit
+                          max-width: 14rem
+                    .condName
+                        width: 3rem
+                        display: block
+                    .card
+                        position: relative
+                    hr
+                        position: static
+                    .card_list
+                        width: 10rem
+                    icon-input
+                        width: 9rem
+                        display: inline-block
+                    .search-box
+                        padding: 0
+                    input
+                        width: 9rem
+                        padding: 0
+                        &.search-box
+                            position: relative
+                            border-radius: 0
+                            // left: 3rem
+                    .input_bottom
+                        width: 9rem
+                    li
+                        font-size: 12px
+                    .call-list-dept
+                        max-width: 10rem
+                .checkinput
+                    width: 3.4rem
+                .pagination
+                    margin-top: 2.4rem
+            .basic_right, .basic_left
+                background: $page-bg
+                padding: 0.5rem
+                overflow: auto
+            .basic_right
+                margin-left: 1rem
+                flex: 2
+                .red
+                    color: $make-default
+                .cont-title
+                    @include line-height(3rem,3rem)
+                    display: flex
+                    justify-content: space-between
+                    b:nth-child(1)
+                        margin-right: 1rem
+                    span:nth-child(2)
+                        cursor: pointer
+                        &:hover
+                            color: $btn-active-bg
+                .basic
+                    .content
+                        border-left: 6px solid $basic-msg-tab
+                .operation
+                    .content
+                        border-left: 6px solid $basic-busin-tab
+                .credentials
+                    .content
+                        border-left: 6px solid $basic-cred-tab
+                .content
+                    display: flex
+                    flex-wrap: wrap
+                    font-size: 12px
+                    flex-direction: column
+                    background: $color-white
+                    padding: 0.5rem
+                    .basic-top
+                        display: flex
+                    .basic-first-row, .basic-second-row, .basic-third-row,.operation-first,.operation-second,.cre-first, .cre-second
+                        display: flex
+                        flex-wrap: wrap
+                        position: relative
+                    .basic-first-row
+                        width: 64%
+                        span
+                            width: 47%
+                    .basic-second-row
+                        margin-left: 4rem
+                        button
+                            min-width: 3.7rem
+                            margin-right: .5rem
+                            &:hover
+                                background: $make-sure 
+                    .basic-third-row
+                        span
+                            width: 30%
+                    .more
+                        @include align-middle
+                        width: 5rem
+                        cursor: pointer
+                        &:hover
+                            i
+                                color: $btn-active-bg
+                    span
+                        display: flex
+                        margin: 0.3rem
+                        width: 30%
+                        position: relative
+                        flex-direction: column
+                        &.unrequire
+                            padding-right: 1rem
+                        &.basic-row:nth-child(4)
+                            position: absolute
+                            top: 7rem
+                            span
+                                width: 5rem
+                        &.labeltitle
+                            width: 11rem
+                            line-height: 32px
+                            flex-direction: row
+                        &.defaultFill
+                            line-height: 32px
+                            width: 12rem
+                            min-height: 2rem
+                            border-bottom: 1px solid $body-sp
+                        &.cred-svg
+                            @include absolute-right(0,4rem)
+                            display: flex
+                            flex-direction: row
+                            width: auto
+                            .btn-sure
+                                margin-right: 1rem
+                            .btn-sure:hover,.btn-cancel:hover
+                                background: none
+                                border: 0
+
+                        &.picture
+                            flex-direction: column
+                            img
+                                @include wh(8rem,auto)
+                            input
+                                min-width: 3rem
+                                height: 1rem
+                                padding: 0
+                            .file-btn
+                                display: flex
+                                flex-direction: row
+                        p
+                            @include absolute(0,5rem)
+                            color: red
+                        input, select
+                            font-size: 12px
+                            width: 14rem
+                            margin-top: 0.4rem
+                        select
+                            background: none
+                            border-bottom: 1px solid $body-sp
+
+                    button
+                        min-width: 3rem
+                    .save
+                        &:hover
+                            background: $make-sure 
+                    .reset
+                         &:hover
+                            background: $btn-del-color
+                .operation, .basic, .credentials
+                    padding: 0.5rem
+                .operation-button
+                    margin-top: 1rem
+                    display: flex
+                    justify-content: space-around
+                .operation
+                    .content
+                        .operation-first .cont_title:nth-child(1)
+                            display: none
+
+                .credentials
+                    .conten
+                        div
+                            display: flex
+                            font-size: 12px
+                            flex-wrap: wrap
+                            .cred
+                                display: flex
+                                width: 46%
+                                margin: 0.3rem
+                                .labeltitle
+                                    width: 4rem
+                                input
+                                    border: 1px solid $body-sp
+                            .operation-button
+                                width: 100%
+                                justify-content: flex-end
+                                button
+                                    min-width: 3rem
+
+                //img
+                    //width: 1rem
+                    //height: 1rem
+        .waiting-panel
+            @include wh(60%,12%)
+            flex-direction: column
+            justify-content: start
+            background: $minor-color
+            align-items: flex-end
+            .close
+                display: flex
+                justify-content: flex-end
+                padding-right: 1rem
+                height: 38px
+                cursor: pointer
+                color: $active-ft
+            .waiting-message
+                @include wh(100%,100%)
+                @include align-center-middle
+                background: $active-ft

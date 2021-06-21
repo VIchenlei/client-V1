@@ -1,0 +1,427 @@
+// define the base style of the page
+@import defs
+
+*
+    margin: 0
+    padding: 0
+    box-sizing: border-box
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "WenQuanYi Micro Hei", "Hiragino Sans GB", "Helvetica Neue", Arial, "lucida grande", "lucida sans unicode", lucida, helvetica, sans-serif
+
+html, body
+    @include wh(100%,100%)
+    overflow: hidden
+    -webkit-font-smoothing: antialiased
+    font-size: 1rem
+//----------------- svg icons -----------------
+
+#black 
+    .page-head,.panel-switcher,.map-sidebar .topic-nav,.map-sidebar .topic-main .topic-title,.page-foot,.sidebar
+        background: $disabled-color
+    .map-sidebar .topic-nav span .icon
+        fill: $content-bgcolor 
+    .map-sidebar .topic-main .topic-title
+        background: #4A4E53
+        color: #fff
+    .map-sidebar .topic-main #topic_panel
+        background: #50565D
+    #topic_panel .group-list
+        border-bottom: 1px solid #50565D
+    #topic_panel .group-list, #topic_panel .hm-item p:nth-child(1)
+        color: #A3A6A8
+    .group-list-container .detail-panel .detail-list-title
+        background: #74797D
+        color: #fff
+    .group-list-container .detail-panel .detail-list-item
+        background: #129FFF
+    .ol-viewport
+        background: #5D6267
+    .map-sidebar .topic-nav span .icon.active
+        fill: $btn-bg
+    .page-foot,.sidebar
+        color: $content-bgcolor 
+    .overview-card
+        background: #4F535A
+    
+    
+.icon
+    @include wh(1rem,1rem)
+    display: inline-block
+    fill: $color-white
+    cursor: pointer
+
+.icon-close
+    fill: $color-white
+
+.wonder-icon
+    @include wh(3rem,3rem)
+    fill: $color-warn
+
+.black-icon
+  	fill: #3f3f3f
+    opacity: 0.8
+
+  	&:hover
+  		  fill: #0099ff
+
+.readonly-icon
+    fill: $main-bgcolor
+    cursor: auto
+
+.animation
+    transition: transform 300ms linear
+
+img
+    @include wh(auto,1rem)
+//---------------- show or hide --------------
+
+.hide
+    display: none !important
+
+.node-hide
+    visibility: hidden
+
+.node-show
+    visibility: visible
+
+// hide on mobile
+.hide-on-mb
+    @media screen and (max-width: $width-medium)
+        display: none !important
+
+// hide on pc
+.hide-on-pc
+    @media screen and (min-width: $width-medium)
+        display: none !important
+
+//---------------- title bar --------------
+.title
+    flex: 0 0 $unit-height
+    @include align-middle
+    height: 2.5rem
+    color: $color-white
+    padding: 1rem
+    cursor: move
+
+    .title-text
+        color: $main-color
+        margin: 0 5px 0 0
+
+//-------------- grip ---------------
+.grip-vertical
+    @include align-middle-between
+    @include wh(1rem,.5rem)
+
+    span
+        @include wh(1px,.5rem)
+        background: $grip-color
+
+.grip-horizontal
+    @include align-middle-between
+    @include wh(.5rem,1rem)
+    flex-flow: column nowrap
+    margin: 0 .5rem 0 .2rem
+
+    span
+        @include wh(6px,1px)
+        background: $grip-color
+
+.label
+    @include line-height(34px,34px)
+    display: inline-block
+    padding: 0 10px
+    margin-right: 5px
+    font-size: $fontsize-m
+    font-weight: bold
+    text-align: center
+    border-radius: 3px
+    transition: $transition
+
+
+//---------- tips component ------------
+.error-message
+    color: $color-error
+    @include align-center-middle
+    height: 2rem
+
+.tips
+    @include align-center-middle
+    flex: auto
+    color: $side-ft
+    height: 42px
+    @media screen and(max-width: $width-medium) and (orientation: portrait)
+        align-items: center
+
+
+//---------- operation panel ------------
+
+.op-panel
+    .op-title
+        @include align-middle
+        flex-flow: row nowrap
+        color: #e1e828
+
+        @media screen and (max-width: $width-medium)
+            font-size: 21px
+            color: #e1e828
+            .icon-close
+                position: relative
+                right: -9rem
+        select
+            width: 120px
+            margin: 0 10px
+
+.content-panel
+    flex: auto
+    padding: 10px
+    color: $content-color
+    display: flex
+    flex-flow: row nowrap
+
+    &.layout-column
+        flex-flow: column nowrap
+
+    .data-panel
+        flex: 0 0 240px
+        order: 2
+        overflow: scroll
+        border: 1px solid #DDD
+        background: #FFF
+
+    .map-panel
+        flex: 1 1 auto
+        width: calc(100% - 260px)
+        border: 1px solid #DDD
+        background: #FFF
+        display: flex
+
+.foot-panel
+    @include align-center-middle
+    flex: 0 0 $foot-height 
+    flex-flow: row nowrap
+    margin: 0
+    padding: 0
+    // background: $foot-bg
+    background: #E9E9E9
+    border-top: 1px solid #E0E0E0
+
+.waiting-panel
+    @include align-center-middle
+    @include wh(100%,100%)
+    @include absolute(0,0)
+    background: rgba(200, 200, 200, 0.95)
+
+    .message
+        color: $disabled-color
+        padding: 30px
+        line-height: 200%
+        display: block
+        word-break: break-all
+
+    .close-message
+        color: white
+        position: absolute
+        top: 8px
+        left: calc(100% - 30px)
+        cursor: pointer
+
+.progress-panel, .progresspanel
+    @include wh(100%,100%)
+    @include align-center-middle
+    @include absolute(0,0)
+    background: rgba(0, 0, 0, 0.8)
+    color: white
+    flex-flow: column nowrap
+
+    .message
+        padding: 30px
+        line-height: 200%
+        display: block
+        word-break: break-all
+        color: #999
+
+    .close-progressbar
+        color: white
+        position: absolute
+        top: 20px
+        left: calc(100% - 30px)
+        cursor: pointer
+
+.progressbox
+    @include wh(80%,14px)
+    border: 1px solid #666
+    border-radius: 6px
+    display: flex
+
+    .progressbar
+        background: #0F0
+        height: 12px
+        border-radius: 6px
+
+.icon-input, .select-input
+    position: relative
+
+    .icon
+        @include absolute(5px,7px)
+        z-index: 9999
+        transition: $transition
+
+    .input
+        font-size: $fontsize-m
+        border: 0px
+        border-bottom: 1px solid #999
+        outline: none
+        color: $main-color
+        background: transparent
+        z-index: 1
+        transition: $transition
+
+    &:hover, &.active
+        .input
+            background: $minor-bgcolor
+            color: $minor-color
+        .icon
+            fill: $minor-color
+    .illegal-tips
+        @include absolute(0,2rem)
+        color: red
+        font-size: $fontsize-xs
+        justify-content: flex-start
+        width: 10rem
+
+.input_bottom
+    width: 100%
+    border: 0
+    border-bottom: $input-bottom
+    position: absolute
+    transform: scale(0)
+    transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms
+    
+.pic
+    @include wh(180px,240px)
+
+.color-label
+    @include wh(30px,10px)
+    display: inline-block
+    line-height: 40px
+    color: #FFF
+
+.trapezoidal
+    @include wh(60px,0)
+    display: inline-block
+    border-top: 64px $active-bg solid
+    border-bottom: none
+    border-left: none
+    border-right: transparent 30px solid
+    border-top-left-radius: 5px
+    position: absolute
+    left: 0
+    @media screen and (max-width: $width-medium)
+         width: 70px
+         border-top: 48px $active-bg solid
+
+
+
+.count-indicator
+    @include line-height(2rem,2rem)
+    display: inline-block
+    min-width: 6rem
+    color: darken($active-ft, 80%)
+    border: 1px dashed lighten($active-bg, 30%)
+
+    border-radius: 1rem
+    cursor: pointer
+
+.hot-area
+    cursor: pointer
+
+.section-title
+    display: inline-block
+    margin-top: 2rem
+
+.icon-doing
+    fill: #FF0000
+
+.disabled-object
+    color: $grip-color
+
+ul
+    list-style: none
+
+.ticon
+    width: 12px
+
+// for card operation icons
+.opbar
+    flex: auto
+    display: flex
+    justify-content: space-between
+    padding: 0 0.5rem
+               
+.circle-b
+    @include align-center-middle
+    // @include wh(20px,20px)
+    padding: .2rem
+    position: relative
+    @media screen and (max-width: $width-medium)
+        &:nth-child(4)
+            display: none
+    .circle
+        @include wh(40px,40px)
+        background: rgba(0,0,0,0.2)
+        position: absolute
+        border-radius: 100%
+        transform: scale(0)
+        transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms
+    &:hover
+        .circle
+            transform: scale(1)
+        .opicon
+            transform: scale(1.2)
+            transition: all 1s ease
+.chooseListDown
+    display: flex
+    border: 1px solid $angle-map
+    border-radius: 1rem
+    flex-flow: row nowrap
+    min-width: 6rem
+    min-height: 1rem
+    height: 1.5rem
+    padding: 0 .2rem
+    margin: .2rem
+
+.dlg-head-container
+    display: flex
+    flex-flow: column
+
+.icon-container
+    display: flex
+    .icon
+        fill: $btn-active-bg
+        @media screen and (max-width: $width-medium)
+            fill: $icon-fill
+
+
+.cesium-viewer-bottom
+    @extend .hide
+
+//lable text color
+.float-above
+    color: $fill-color
+    font-size: $fontsize-xs
+
+.choose-file
+    margin-top: 1rem
+    cursor: pointer
+    color: $fill-color
+    font-size: $fontsize-xl !important
+    text-decoration: underline
+    &:hover
+        color: $btn-active-bg
+
+.back-homepage
+    @include wh(3rem,1.5rem)
+    @include align-center
+    @include absolute(1rem,.5rem)
+    border-radius: 3px
+    background: linear-gradient(#def, #09f)
+

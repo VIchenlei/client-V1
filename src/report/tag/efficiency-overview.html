@@ -1,0 +1,454 @@
+<efficiency-overview>
+  <div class="overview">
+    <div class="top">
+      <span class="top-title">高河概况</span>
+      <div class="top-charts">
+        <div class="charts-warp" style="height:200px;" each={list in overViewLists}>
+            <div class={list} data-dept={list} style="width:100%;height:100%;"></div>
+        </div>
+      </div> 
+    </div>
+    <div class="bottom">
+      <span class="bottom-title">高河队组</span>
+      <div class="bottom-charts">
+        <div class="charts-warp" style="height:200px;" each={list in lists}>
+            <div class={"dept"+list.dept_id} data-dept={list.dept_id} style="width:100%;height:100%;" onclick={getDeptDetail}></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="detail hide" data-is="efficiency-detail"></div>
+  <script>
+    import echarts from 'echarts'
+    import '../sass/efficiency-overview.sass'
+    import reptQuery from '../../js/def/graph_query.js'
+    import { efficiencyLineDept, efficiencyDeptY } from "../../js/def/graph_def.js"
+    import {getMonth, clone, getDeptID} from '../../js/utils/utils.js'
+    
+    let self = this
+    const LEGENDNAME = {'dept_boot': '开机率', 'dept_worktime': '工时利用率', 'dept_rugular': '正规循环率', 'overview-boot': '开机率概况', 'overview-worktime': '工时利用率概况', 'overview-rugular': '正规循环率概况'}
+    const FALSEERR = ['dept_boot','dept_worktime','dept_rugular']
+    const CM = 1 // 采煤面
+    const JJ = 2 // 掘进面
+
+    this.query = (name, sqlString, value, deptID) => {
+      let message = {
+        cmd: 'query',
+        data: {
+          name: name,
+          sql: sqlString,
+          searchTime: this.time || new Date(new Date().getTime()).format('yyyy-MM'),
+          termTime: value,
+          deptid: deptID
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: name
+        }
+      })
+      window.xhint.showLoading()
+    }
+
+    this.searchTime = (type, time) => {
+      let y = new Date().getFullYear()
+      let m = new Date().getMonth() + 1
+      let d = new Date().getDate()
+      let shift = xdata.metaStore.data.shift && xdata.metaStore.data.shift.get(1)
+      let shiftime = shift ? shift.start_time : '23:59:59'
+      let currtTime = new Date().format('hh:mm:ss')
+      this.time = this.time ? this.time : `${new Date(new Date().getTime()).format('yyyy-MM')}`
+      let stime = type ? `${new Date(new Date(y, Number(m) - 1, 0).getTime()).format('yyyy-MM-dd')} ${shiftime}` : `${new Date(new Date(y, Number(m) - 1, 1).getTime()).format('yyyy-MM-dd')} 00:00:00`
+      let ltime = `${new Date(new Date(y, Number(m) - 1, d).getTime()).format('yyyy-MM-dd')} ${currtTime}`
+      if (new Date().getDate() === 1 && !time) {
+        stime = type ? `${new Date(new Date(y, Number(m) - 2, 0).getTime()).format('yyyy-MM-dd')} ${shiftime}` : `${new Date(new Date(y, Number(m) - 1, 0).getTime()).format('yyyy-MM')}-01 00:00:00`
+        ltime = `${new Date(new Date(y, Number(m) - 2, d).getTime()).format('yyyy-MM-dd')} ${currtTime}`
+      }
+      return `between '${stime}' and '${ltime}'`
+    }
+
+    this.doQuery = (tabDef, time) => {
+      this.overViewMap = new Map()
+      this.deptVehicle = {}
+      this.name = tabDef.name
+      this.time = time
+      if (new Date().getDate() === 1 && !time) {
+        this.time = this.getBeforeMonth()
+      }
+      let sqlString = null
+      sqlString = clone(tabDef.sqlTmpl)
+      let value = time && new Date(new Date().getTime()).format('yyyy-MM') != time ? getMonth(time) : this.searchTime(null, time)
+      let valuetime = time && new Date(new Date().getTime()).format('yyyy-MM') != time ? getMonth(time, 'worktime') : this.searchTime('worktime', time)
+      for (let i = 0; i < Object.keys(sqlString).length; i++) {
+        let name = Object.keys(sqlString)[i]
+        sqlString[name] = sqlString[name].replace('{exprString}', value)
+        if (name.includes('worktime')) {
+          sqlString[name] = sqlString[name].replace('{exprString}', valuetime)
+        }
+      }
+      console.log(sqlString)
+      this.query(this.name, sqlString, valuetime)
+      sqlString = null
+    }
+
+    this.splitDeptData = (rows, name) => {
+      let accessResult = xdata.depts
+      let showAllDept = accessResult == '' ? true : false
+      rows && rows.forEach(row => {
+        if (name === 'dept_worktime' || name === 'dept_boot') {
+          row['dept_id'] = getDeptID(row)
+        }
+        if((accessResult.includes(row['dept_id']) || showAllDept) && row.need_display == 1){
+          if (!this.sortMap.get(row.dept_id)){
+            this.sortMap.set(row.dept_id,{
+              dept_id: row.dept_id,
+              rank: row.rank,
+              workfaceID: row.workface_id,
+              workfaceType: row.workface_type
+            })
+          }
+          if (!this.deptMap.get(row.dept_id)) {
+            let ret = new Map()
+            this.deptMap.set(row.dept_id, ret)
+          }    
+          let deptmap = this.deptMap.get(row.dept_id)     
+          if (!deptmap.get(name)) {
+            let ret = new Map()
+            deptmap.set(name, ret)
+          } 
+          let data = deptmap.get(name)      
+          let stime = new Date(row.stime).getDate()
+          if (isNaN(stime)) return
+          if (name === 'dept_worktime') {
+            if (!deptmap.get('wholeworktime')) {
+              let ret = new Map()
+              deptmap.set('wholeworktime', ret)
+            }
+            deptmap.get('wholeworktime').set(stime, row)
+          }
+          // if (!row.worktime && row.overWorktime) {
+          //   row['worktime'] = Number(((row.overWorktime - row.overChecktime) / row.overWorktime * 100).toFixed(2))
+          // }
+          data.set(stime, [stime, row.worktime])
+          if (name === 'dept_rugular' && row.work_face_type) {
+            if (!deptmap.get('rugular')) {
+              let ret = new Map()
+              deptmap.set('rugular', ret)
+            }
+            let rugular = deptmap.get('rugular')
+            rugular.set(stime, {
+              sumnum: row.sumnum,
+              workfaceID: row.work_face_id,
+              vehicleTypeID: row.work_face_type
+            })
+          }
+        }else {
+          console.warn('该队组已被过滤:', row.dept_id)
+        }
+
+        
+      })
+    }
+
+    this.getBeforeMonth = () => {
+      let y = new Date().getFullYear()
+      let m = new Date().getMonth()
+      let d = new Date().getDate()
+      let beforeMonth = new Date(y, m-1, d).format('yyyy-MM')
+      return beforeMonth
+    }
+    
+    this.splitOverviewData = (rows, name) =>{
+      let accessResult = xdata.depts
+      let showAllDept = accessResult == '' ? true : false
+      rows && rows.forEach(row => {
+        
+        if (name === 'overview_worktime' || name === 'overview_boot') {
+          row['dept_id'] = getDeptID(row)
+        }
+        if((accessResult.includes(row['dept_id']) || showAllDept) && row.need_display == 1){
+          if (!this.overViewMap.get(name)){
+            let ret = new Map()
+            this.overViewMap.set(name, ret)
+          }
+          let data = this.overViewMap.get(name)
+          let stime = new Date(row.stime).getDate()
+          if (isNaN(stime)) return
+          // if (!row.worktime && row.overWorktime) {
+          //   row['worktime'] = Number(((row.overWorktime - row.overChecktime) / row.overWorktime * 100).toFixed(2))
+          // }
+          data.set(stime, [stime, row.worktime])
+        }
+      })
+    }
+    
+    this.initoverviewcharts = () => {
+      let time = this.time.split('-')[1]
+      // if (new Date().getDate() === 1) {
+      //   time = this.getBeforeMonth()
+      //   console.log(time)
+      // }
+      for (let i = 0; i < this.overViewLists.length; i++) {
+        let series = []
+        let data = []
+        let overViewName = this.overViewLists[i]
+        let initdom = this.root.querySelector('.'+overViewName)
+        if (!initdom) return
+        echarts.dispose(initdom)
+        let chart = echarts.init(initdom)
+        let rows = Array.from(this.overViewMap.get(overViewName).values())
+        rows.sort(function(a,b){return a[0]-b[0]})
+        let dataArr = rows.map( item=> item[1])
+        let max = Math.ceil(Math.max.apply(Math, dataArr))
+        let min = Math.floor(Math.min.apply(Math, dataArr))
+        let color = '#ff0000'
+        switch (overViewName) {
+          case 'overview-boot':
+            color = '#ff0000'
+            break;
+          case 'overview-worktime':
+            color = '#00ff00'
+            break;
+          case 'overview-rugular':
+            color = '#000099'
+            break;
+          default:
+            break;
+        }
+        // max = max < 100 ? 100 : Math.ceil(max)
+        // min = min < 70 ? Math.floor(min) : 70
+        series.push({
+          name: LEGENDNAME[overViewName],
+          id: overViewName,
+          data: rows,
+          type: 'line',
+          smooth: true,
+          showAllSymbol: true,
+          itemStyle:{
+            normal: {
+                color: color,
+                lineStyle: {color: color}
+            }
+          },
+        })
+        let msg = {
+          title: LEGENDNAME[overViewName],
+          time :  time,
+          series: series,
+          max : max,
+          min : 0
+        }
+        let option = efficiencyLineDept(msg)
+        chart.setOption(option)
+      }
+    }
+
+    this.getDeptName = (row) => {
+      let workfaceType = row.workfaceType
+      let workfaceID = row.workfaceID
+      let vehicles = workfaceType === CM ? xdata.metaStore.data.coalface_vehicle : xdata.metaStore.data.drivingface_vehicle
+      let vehicle = vehicles && vehicles.get(workfaceID)
+      vehicle = vehicle && vehicle.vehicle_id
+      let vehicleExtend = xdata.metaStore.data.vehicle_extend
+      let dept = vehicle && vehicleExtend && vehicleExtend.get(vehicle)
+      dept = dept && dept.dept_id
+      let faces = xdata.metaStore.data.work_face
+      let face = faces && faces.get(workfaceID) && faces.get(workfaceID).name
+      let deptname = dept ? xdata.metaStore.getNameByID('dept_id', dept) : ''
+      return face && `${face}-${deptname}`
+    }
+
+    // this.getDeptName = (deptID) => { 
+    //   let deptname = xdata.metaStore.getNameByID('dept_id', deptID)
+    //   // let rugulars = this.deptMap.get(deptID).get('rugular')
+    //   // let vehicleID = rugulars && Array.from(rugulars.values())
+    //   let vehicleID = xdata.metaStore.data.vehicle_extend.values() && Array.from(xdata.metaStore.data.vehicle_extend.values()).filter(item => item.dept_id == deptID)
+    //   vehicleID = vehicleID && vehicleID[0] && vehicleID[0].vehicle_id
+    //   let vehicleTypeID = xdata.metaStore.data.vehicle.values() && Array.from(xdata.metaStore.data.vehicle.values()).filter(item => item.vehicle_id == vehicleID)
+    //   vehicleTypeID = vehicleTypeID && vehicleTypeID[0] && vehicleTypeID[0].vehicle_type_id
+    //   let face = vehicleTypeID === 26 ? xdata.metaStore.data.drivingface_vehicle : xdata.metaStore.data.coalface_vehicle
+    //   face = face && Array.from(face.values()).filter(item => item.vehicle_id == vehicleID)
+    //   if (face && face.length > 0) {
+    //     let faceID = vehicleTypeID === 26 ? face[0].drivingface_id : face[0].coalface_id
+    //     let faces = xdata.metaStore.data.work_face
+    //     faces = faces && faces.get(faceID) && faces.get(faceID).name
+    //     // deptname = faces && (deptID === 12  ? faces : `${faces}-${deptname}`) 
+    //     deptname = faces && `${faces}-${deptname}`
+    //   }
+    //   return deptname
+    // }
+
+    this.initdeptcharts = () => {
+      let time = this.time.split('-')[1]
+      // if (new Date().getDate() === 1) {
+      //   time = this.getBeforeMonth()
+      // }
+      for (let i = 0; i < this.lists.length; i++) {
+        let series = []
+        let legend = []
+        let deptID = this.lists[i].dept_id
+        let deptname = this.getDeptName(this.lists[i])
+        let initdom = this.root.querySelector('.dept'+ deptID)
+        let deptmax = 0
+        let deptmin = 0
+        let usemax = 100
+        let usemin = 70
+        let worktimeMax = 14
+        for(let i=0; i < FALSEERR.length; i++ ) {
+          if(!this.deptMap.get(deptID).get(FALSEERR[i])){
+            let ret = new Map()
+            this.deptMap.get(deptID).set(FALSEERR[i], ret)
+          }
+        }
+
+        if (!initdom) return
+        echarts.dispose(initdom)
+        let chart = echarts.init(initdom)
+        let rows = Array.from(this.deptMap.get(deptID).keys())
+        rows.forEach(row => {
+          if (row === 'rugular' || row === 'wholeworktime') return
+          let color = '#e66c3f'
+          if (row === 'dept_worktime') color = '#0ca875'
+          if (row === 'dept_rugular') color = '#241d67'
+          if (row === 'dept_boot' || row === 'dept_rugular'){
+            let len =0
+            if(self.time != new Date(new Date().getTime()).format('yyyy-MM')){
+              len = new Date(new Date(self.time).getFullYear(), new Date(self.time).getMonth() + 1, 0).getDate()
+            }else if(self.time == new Date(new Date().getTime()).format('yyyy-MM')){
+              len = new Date().getDate()
+            }
+
+            for(let i=1; i<=len; i++){
+              if(!self.deptMap.get(deptID).get(row).get(i)){
+                self.deptMap.get(deptID).get(row).set(i,[i,0])
+              }
+            }
+          }
+          let data = Array.from(self.deptMap.get(deptID).get(row).values())
+          data.sort(function(a,b){return a[0]-b[0]})
+          let deptdataArr = data.map(item=> item[1] ? item[1] : 0)
+          if (row === 'dept_worktime') {
+            let max = Math.max.apply(Math, deptdataArr)
+            worktimeMax = max < worktimeMax ? worktimeMax : Math.ceil(max)
+          } else {
+            deptmax = Math.max.apply(Math, deptdataArr)
+            deptmin = Math.min.apply(Math, deptdataArr)
+            deptmax = deptmax < usemax ? usemax : Math.ceil(deptmax)
+            deptmin = deptmin < usemin ? Math.floor(deptmin) : usemin
+            usemax = deptmax
+            usemin = deptmin
+          }  
+          legend.push(LEGENDNAME[row])
+          series.push({
+            name: LEGENDNAME[row],
+            id: row,
+            yAxisIndex: row === 'dept_worktime' ? 1 : 0,
+            data: data,
+            type: 'line',
+            smooth: true,
+            showAllSymbol: true,
+            itemStyle: {
+              normal: {
+                color: color
+              }
+            }
+          })
+        })
+        let msg = {
+          time :  time,
+          legend: legend,
+          title: deptname,
+          series: series,
+          max : usemax,
+          min : 0,
+          worktimeMax: worktimeMax
+        }
+        let option = efficiencyDeptY(msg)
+        chart.setOption(option)
+      }
+    }
+
+    xbus.on('REPT-SHOW-RESULT', (ds) => {
+      if (ds.def.name === this.name) {
+        let rows = ds.rows
+        if (!rows) return
+        this.rows = ds.rows
+        this.sortfun()
+      } else if (ds.def.name === 'efficiency-detail') {
+        window.xhint.close()
+        let rows = ds.rows
+        // if (!rows) return
+        this.tags['efficiency-detail'] && this.tags['efficiency-detail'].splitData(rows)
+      }
+    })
+    
+    this.sortfun = ()=> {
+      this.deptMap = new Map()
+      this.sortMap = new Map()
+      let deptBoot = this.splitDeptData(this.rows['dept_boot'], 'dept_boot')
+      let deptWorktime = this.splitDeptData(this.rows['dept_worktime'], 'dept_worktime')
+      let deptRugular = this.splitDeptData(this.rows['dept_rugular'], 'dept_rugular')
+      let overviewBoot = this.splitOverviewData(this.rows['overview-boot'], 'overview-boot')
+      let overviewWorktime = this.splitOverviewData(this.rows['overview-worktime'], 'overview-worktime')
+      let overviewRugular = this.splitOverviewData(this.rows['overview-rugular'], 'overview-rugular') 
+      this.overViewLists = Array.from(this.overViewMap.keys())
+      this.lists = Array.from(this.sortMap.values()).sort(function(a,b) {
+        return a.rank - b.rank
+      })
+      this.deptID && this.getDeptDetail()
+      this.update()
+      this.initoverviewcharts()
+      this.initdeptcharts()
+      !this.deptID && window.xhint.close()
+    }
+
+
+    // this.getVehcileID = (deptID) => {
+    //   if (this.deptMap.size <= 0) return
+    //   let workface = this.deptMap.get(deptID).get("rugular") && Array.from(this.deptMap.get(deptID).get("rugular").values())[0]
+    //   let workfaceID = workface && workface.workfaceID
+    //   let workfaceType = workface && workface.vehicleTypeID
+    //   let name = workfaceType && workfaceType === 1 ? 'coalface_vehicle' : 'drivingface_vehicle'
+    //   let datas = xdata.metaStore.data[name]
+    //   let data = workfaceID && datas && datas.get(workfaceID)
+    //   return {
+    //     vehicleID: data && data.vehicle_id,
+    //     workfaceID: workfaceID
+    //   }
+    // }
+
+    this.getVehcileID = (deptID) => { 
+      let deptname = xdata.metaStore.getNameByID('dept_id', deptID)
+      let vehicleID = xdata.metaStore.data.vehicle_extend.values() && Array.from(xdata.metaStore.data.vehicle_extend.values()).filter(item => item.dept_id == deptID)
+      vehicleID = vehicleID && vehicleID[0] && vehicleID[0].vehicle_id
+      let vehicleTypeID = xdata.metaStore.data.vehicle.values() && Array.from(xdata.metaStore.data.vehicle.values()).filter(item => item.vehicle_id == vehicleID)
+      vehicleTypeID = vehicleTypeID && vehicleTypeID[0] && vehicleTypeID[0].vehicle_type_id
+      let face = vehicleTypeID === 26 ? xdata.metaStore.data.drivingface_vehicle : xdata.metaStore.data.coalface_vehicle
+      face = face && Array.from(face.values()).filter(item => item.vehicle_id == vehicleID)
+      let faceID = 0
+      if (face && face.length > 0) {
+        faceID = vehicleTypeID === 26 ? face[0].drivingface_id : face[0].coalface_id
+      }
+      return {
+        vehicleID: vehicleID,
+        workfaceID: faceID
+      }
+    }
+
+    this.getDeptDetail = (evt) => {
+      if (!this.root.querySelector('.overview')) return
+      this.root.querySelector('.overview').classList.add('hide')
+      this.root.querySelector('.detail').classList.remove('hide')
+      let target = evt && evt.currentTarget
+      let deptID = target ? parseInt(target.getAttribute('data-dept'), 10) : this.deptID 
+      this.deptID = deptID
+      let data = this.getVehcileID(deptID)
+      let vehicleID = data && data.vehicleID
+      let workfaceID = data && data.workfaceID
+
+      // vehicleID = vehicleID && vehicleID.vehicleID
+      this.tags['efficiency-detail'].init(deptID, vehicleID, workfaceID)
+    }
+  </script>
+</efficiency-overview>

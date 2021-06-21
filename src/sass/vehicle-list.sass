@@ -1,0 +1,63 @@
+@import defs
+
+.vehicle-area-list
+    
+    .vehicle-area
+        @include line-height(1.5rem,1.5rem)
+        font-size: .9rem
+        display: flex
+        justify-content: space-between
+        padding: 0 1rem
+        border-bottom: 1px solid $main-mapbgcolor
+
+        span:nth-child(1)
+            text-align: start
+            flex: auto
+        span:nth-child(2)
+            text-align: end
+            flex: 0 0 5rem
+    .vehicle-area-title,.vehicle-list-title
+        background: $map-right-title
+        font-weight: bold
+    .vehicle-area-title
+        @include line-height(2.4rem,2.4rem)
+        cursor: auto
+
+    .vehicle-area-item
+        margin: 1px
+        cursor: pointer
+        @include line-height(2.2rem,2.2rem)
+
+    .vehicle-list
+        margin: 0 3px    
+        display: flex
+        padding: 5px
+        font-size: .8rem
+
+        span
+            text-align: center
+        span:nth-child(1)
+            flex: auto
+        span:nth-child(2)
+            flex: 0 0 5rem
+        span:nth-child(3)
+            flex: 0 0 4rem
+            text-align: end
+        span:nth-child(4)
+            flex: 0 0 3rem
+
+    .vehicle-list-item
+        background: $angle-map
+        color: $content-bgcolor
+
+
+    .dlg-vehicle
+        background: #282828
+        font-size: .8rem
+        color: #fff
+        p
+            display: flex
+            justify-content: space-around
+            margin: 10px 0
+            .icon
+                color: #009fff

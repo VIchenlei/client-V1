@@ -1,0 +1,263 @@
+<player-map class="map-canvas" onclick={ preventBubble }>
+  <div class="map-tool-bar">
+      <span ref="tracktime" class='track-timestamp'></span>
+      <span onclick={ printMap } class="print-button hint--bottom-left" aria-label="打印" ref="printTrack">
+        <svg class="icon black-icon">
+          <use xlink:href="/icons/icons.svg#icon-printer"></use>
+        </svg>
+      </span>
+      <span if={ window.isPC } class="back-button hint--bottom-left" aria-label="关闭" onclick={ backHistoryIndex }>
+        <svg class="icon">
+          <use xlink:href="/icons/icons.svg#icon-close"></use>
+        </svg>
+      </span>
+  </div>
+  <div data-is="player-alarm"></div>
+  <div id="{MAP_CONTAINER_NAME}" class="map"></div>
+
+  <script>
+    import { needDisplay } from '../../js/utils/utils.js'
+
+    import OlMapService from '../../js/service/OlMapService.js'
+    // import OlMapWorkspace from '../../js/map/OlMapWorkspace.js'
+    import Ticker from '../Ticker.js'
+    import './player-alarm.html'
+    xbus.on('REPT-SHOW-RESULT', this.processPatrolData)
+
+    this.MAP_CONTAINER_NAME = 'trackmap'
+
+    this.mapID = opts.mapid   // eslint-disable-line
+    this.mapType = 'HISTORY'
+
+    // work space on map
+    this.workspace = null
+    this.cardLayer = null
+    this.trackLayer = null
+    this.trackAlarms = null
+    // time node
+    this.trackTimeNode = null
+
+    this.backHistoryIndex = () => {
+      this.parent.parent.tagQuery.root.classList.remove('hide')
+      xbus.trigger('CHANGE-SHOW-LIST')
+    }
+
+    this.preventBubble = (evt) => {
+      evt.stopPropagation()
+    }
+
+    this.on('mount', () => {
+      this.ticker = new Ticker(this)
+      this.trackTimeNode = this.refs.tracktime
+      this.loadMap(this.mapID)
+    })
+
+    this.on('unmount', () => {
+      this.workspace = null
+    })
+
+    xbus.on('RESET-MAP-HISTORY', (mapID) => {//历史的地图切换只控制历史地图
+      this.initMap(mapID)
+    })
+
+    this.initMap = (mapID) => {
+      if (mapID !== this.mapID) {
+        let trackmap = this.root.querySelector('#trackmap')
+        if (trackmap && trackmap.childNodes[0]) {
+          trackmap.removeChild(trackmap.childNodes[0])
+        }
+        this.loadMap(mapID)
+      }
+    }
+
+    // load the map
+    this.loadMap = async (mapID) => {
+      let map = null
+
+      if (!this.mapService) {
+        this.mapService = new OlMapService(this.mapType)
+      }
+      // let defaultMapID = xdata.metaStore.defaultMapID
+      let currnetMap = xdata.mapStore.maps && xdata.mapStore.maps.get(mapID)
+      let row = xdata.mapStore.defaultMapData
+      console.log(currnetMap)
+      map = this.mapService && await this.mapService.loadMap(this.MAP_CONTAINER_NAME, mapID, currnetMap, row)
+      if (map) {
+        this.cardLayer = this.mapService.workspace.cardLayer
+        this.trackLayer = this.mapService.workspace.trackLayer
+
+        this.mapID = mapID
+      }
+
+      return map
+    }
+
+    xbus.on('MAP-UPDATE-SIZE', () => {
+      this.mapService.map && this.mapService.map.updateSize()
+    })
+
+    xbus.on('TRACK-ALARM-UPDATE', (msg) => {
+      this.trackAlarms = this.dealTrackAlarms(msg.rows)
+    })
+    
+    // tick or goto, called by the ticker
+    this.doTick = (rec) => {
+      this.moveCard(rec)
+    }
+
+    /**
+     * Called by the outside player
+     * 当用户点击一条轨迹、停止一条轨迹的播放时，调用本函数
+     */
+    this.initTrack = (msg) => {
+      this.trackTimeNode && (this.trackTimeNode.innerHTML = '')
+
+      this.mapService.resetCardLayers()
+
+      if (msg) {
+        // console.log(' this.PatrolData', this.PatrolData)
+        this.mapService.resetTrackLayers()
+        // redraw the new whole track
+        this.trackLayer && this.trackLayer.drawWholeTrack(msg, 'PatrolPath')
+      }
+
+      this.update()
+    }
+
+      xbus.on('REPT-SHOW-RESULT', (msg) => { // 接受数据库数据
+        let defCmd = ['patrolData']
+        if (defCmd.includes(msg.def.name)) {
+          switch (msg.def.name) {
+            case 'patrolData':
+              this.trackLayer && this.trackLayer.drawWholeTrack(msg)
+              break
+          }
+        }
+      })
+
+    // called by ticker
+    this.moveCard = (rec) => {
+      this.cardLayer && this.cardLayer.drawCard({ cmd: 'POSITION', card: rec })
+    }
+
+    /**
+    * 初始化卡图标, called by ticker
+    */
+    this.drawCardIcon = (rec) => {
+      this.cardLayer && this.cardLayer.drawCard({ cmd: 'DOWNMINE', card: rec })
+    }
+
+    // 拖动时，让图标跳到指定位置
+    this.jumpCard = (rec, type) => {
+      this.cardLayer && this.cardLayer.drawCardJump({ cmd: 'POSITION', card: rec, type: type })
+    }
+
+    // --------------- scene player ---------- begin
+    // this.deleteCards = (cards) => {
+    //   let msg = {
+    //     cards: cards,
+    //     mapID: this.mapID
+    //   }
+    //   this.cardLayer.deleteCardsInHisPlayer(msg)
+    //   xdata.historyStore.clearCardsList()
+    // }
+
+    // 播放一批卡，用于场景回放
+    xbus.on('CARD-MOVE', (rows) => {
+      this.moveCards(rows)
+    })
+
+    this.moveCards = (rows) => {
+      console.log('rows', rows)
+      for (let i = 0, len = rows.length; i < len; i++) {
+        let row = rows[i]
+        row['card_id'] = row['cid']
+        if (xdata.historyStore.cards.length === 0 || !xdata.historyStore.cards.includes(row['card_id'])) {
+          let isNeedDisplay = needDisplay(row['card_id'])
+          if (!isNeedDisplay) { // 判断是否需要显示
+            return
+          }
+
+          xdata.historyStore.cards.push(row['card_id'])
+          row = this.ticker.buildCardMoveRec(row)
+          this.drawCardIcon(row)        // 新卡，画图标
+        } else {
+          let rec = this.ticker.buildCardMoveRec(row)
+          this.moveCard(rec)
+        }
+      }
+    }
+    // --------------- scene player ---------- end
+
+    // update track time by tick
+    this.updateTrackTime = (time) => {
+      this.trackTimeNode.innerHTML = new Date(time).format('yyyy-MM-dd hh:mm:ss')
+      this.getTrackAlarms(time)
+    }
+
+    this.getTrackAlarms = (time) => {
+      let trackAlarms = this.trackAlarms && this.trackAlarms.filter(item => {
+        let startTime = new Date(item.start_time).getTime()
+        let endTime = item.end_time ? new Date(item.end_time).getTime() : new Date().getTime()
+        let isreturn = (time >= startTime && time <= endTime) ? true : false
+        return isreturn
+      })
+      this.tags['player-alarm'] && this.tags['player-alarm'].updateDatas(trackAlarms)
+    }
+
+    this.dealTrackAlarms = (rows) => {
+      if (!rows) return null
+      let datas = []
+      let eventType = xdata.metaStore.data.event_type
+      let objRange = xdata.objRange
+      for(let i = 0, len = rows.length; i < len; i++) {
+        let row = rows[i]
+        let disTypeId = parseInt(row.dis_type, 10)
+        let eventTypeId = parseInt(row.event_type_id, 10)
+        let getIsShow = eventType && eventType.get(eventTypeId) && eventType.get(eventTypeId).is_show
+        if (getIsShow !== 1) {
+          if (objRange === 0 && disTypeId != 2) {
+            datas.push(row)
+          } else if (objRange === 1 && disTypeId != 1) {
+            datas.push(row)
+          }  
+        }
+      }
+      return datas
+    }
+
+    // reset the map
+    this.reset = () => {
+      this.trackTimeNode && (this.trackTimeNode.innerHTML = '')
+      this.mapService && this.mapService.reset()
+    }
+
+    this.printMap = (evt) => {
+      //remove
+      let h = document.querySelector('.page-head')
+      h && h.classList.add('hide')
+      let f = document.querySelector('.page-foot')
+      f && f.classList.add('hide')
+      let q = document.querySelector('.history-query-container')
+      q && q.classList.add('hide')
+      let c = document.querySelector('.player-controlbar')
+      c && c.classList.add('hide')
+      let l = document.querySelector('track-list')
+      l && l.classList.add('hide')
+      let v = document.querySelector('foot-nav')
+      v && v.classList.add('hide')
+      this.refs.printTrack.classList.add('hide')
+
+      window.print()
+
+      // recover
+      h && h.classList.remove('hide')
+      f && f.classList.remove('hide')
+      q && q.classList.remove('hide')
+      c && c.classList.remove('hide')
+      this.parent.parent.tags['history-querypc'].curTheme === 'queryTrack' ? l && l.classList.remove('hide') : ''
+      v && v.classList.remove('hide')
+      this.refs.printTrack.classList.remove('hide')
+    }
+  </script>
+</player-map>

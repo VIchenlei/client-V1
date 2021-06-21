@@ -1,0 +1,689 @@
+@import defs
+
+.track-indicator
+  @include wh(30px,6px)
+  margin: 0 5px
+  border-radius: 5px
+  display: hidden
+
+.track-line
+  stroke-width: 3px
+  vector-effect: non-scaling-stroke
+  marker-start: url(#marker_point)
+  marker-end: url(#marker_arrow)
+  // marker-mid: url(#marker_circle)
+  fill: none
+
+  &:hover
+    stroke: #F00
+    // stroke-dasharray: none
+
+.track-whole
+  stroke: #666
+  stroke-width: 8px
+  marker-start: none
+  marker-mid: none
+  marker-end: none
+  fill: none
+
+.shadow-path
+  stroke: none
+  fill: none
+
+.track-here
+  stroke: #F00
+  stroke-width: 4px
+  marker-start: url(#marker_point)
+  marker-end: url(#marker_arrow)
+  fill: none
+
+
+.track0
+  stroke: #000
+.track1
+  stroke: #C00
+.track2
+  stroke: #0C0
+.track3
+  stroke: #00C
+.track4
+  stroke: #FA0
+.track5
+  stroke: #66F
+.track6
+  stroke: #F66
+.track7
+  stroke: #966
+.track8
+  stroke: #0FF
+.track9
+  stroke: #909
+.posdataTips
+    @include wh(100%,38.6rem)
+    position: absolute
+    line-height: 38.6rem
+    text-align: center
+    color: #ccc
+    background: #191a1b
+.track-map-canvas
+  flex: 1 1 auto
+  background: #FFF
+  display: flex
+  position: relative
+  @media screen and (max-width: $width-medium)
+    background: none
+
+.vehicle_time
+  @include absolute(77%,7px)
+  color: #fff
+  font-size: 0.875rem
+.track-player
+  flex: auto
+  display: flex
+  flex-flow: column nowrap
+  #TRACK_MAP_CONTAINER
+    position: relative
+    background: #191a1b
+    #olmap
+      width: 100%
+    .vehicle-path
+        fill: none
+        stroke: #00ff00
+        stroke-width: 3px 
+        stroke-linecap: round
+        stroke-miterlimit: 10
+    .staff-path
+        fill: none
+        stroke-width: 3px
+        stroke: #0000ff
+        stroke-miterlimit: 10
+        stroke-linecap: round
+    .green-path
+        fill: none
+        stroke-width: 3px
+        stroke-linecap: round
+        stroke: #00ff00
+        stroke-miterlimit: 10
+    .circle-path
+        display: none
+    path
+        stroke-linejoin: round
+    .st0
+        fill: none
+        stroke: #C9C9C9
+        stroke-width: 0.2
+    .st1
+        fill: none
+        stroke: #000000
+        stroke-width: 0.2
+    .st2
+        fill:none
+        stroke: #000000
+        stroke-width: 0.1
+    .st3
+        fill: #C9C9C9
+    .st4
+        fill: #C9C9C9
+        stroke: #C9C9C9
+        stroke-width: 0.2
+    .st5
+        fill: #F2C19F
+    .st6
+        fill :#231815
+    .st7
+        font-family: &apos MicrosoftYaHei&apos
+    .st8
+        font-size: 10.8474px
+    .st9
+        fill: #B5B5B5
+    .st10
+        font-size: 6.7796px
+    .st11
+        font-size: 8.1356px
+    .st12
+        font-size: 5.4237px
+    .st13
+        font-size: 8.1357px
+        glyph-orientation-vertical: 0
+        writing-mode: tb
+    .st14
+        fill: none
+        stroke: #BFBEBF
+        stroke-miterlimit: 10
+    .st15
+        font-size: 8.3518px
+    .st16
+        font-size: 5.4238px
+        glyph-orientation-vertical: 0
+        writing-mode: tb
+    .st17
+        font-size: 8.1354px
+    .st18
+        font-size: 8.1355px
+    .st19
+        font-size: 6.2639px
+    .st20
+        font-size: 7.3079px
+  @media screen and (max-width: $width-medium)
+    border: 0
+
+  .player-canvas
+    flex: auto
+    display: flex
+
+  .player-controlbar
+    @include align-middle-between
+    font-size: .8rem
+    flex: 0 0 4rem
+    order: 0
+    flex-flow: row nowrap
+    background: #F4F4F4
+    position: relative
+    @media screen and (max-width: $width-medium)
+      justify-content: flex-start
+      background: #000
+    //   &:hover
+    //     border: 1px solid #0C0
+    @media screen and (max-width: $width-medium) and (orientation: landscape)
+      margin-left: 8rem
+      position: relative
+      bottom: 3rem
+      //display: none
+    .play-pause
+      @include align-middle-between
+      flex: 0 0 13rem
+      fill: #000
+      padding-left: .5rem
+      @media screen and (max-width: $width-medium)
+        padding-left: 0
+
+      .player-button
+        @include align-center-middle
+        @include wh(2rem,2rem)
+        border: 2px solid #333
+        border-radius: 50%
+        cursor: pointer
+        margin-left: .5rem
+        margin-right: .5rem
+        @media screen and (max-width: $width-medium)
+          border: 2px solid #808080
+
+        &:hover
+          border: 2px solid #009fff
+          @media screen and (max-width: $width-medium)
+            border: 2px solid #009fff
+          .icon
+            fill: #009fff
+            @media screen and (max-width: $width-medium)
+              fill: #009fff
+        .icon
+          @include wh(1rem,2rem)
+          fill: #333
+          @media screen and (max-width: $width-medium)
+              fill: #808080
+
+      .time-bar
+        @include line-height(2rem)
+        display: flex
+        color: #333
+        font-size: 1rem
+        margin-left: .5rem
+        @media screen and (max-width: $width-medium)
+          font-size: 12px
+
+        span:last-child
+          color:#333333
+
+    .speed-controler
+      flex: 0 0 13rem
+      display: flex
+      justify-content: space-between
+      padding-right: 1rem
+      @media screen and (max-width: $width-medium)
+        margin-left: 0.4rem
+        padding-left: 0
+        flex: 0 0 9rem
+        .select-tag
+          width: 2.4rem
+          border: 1px solid #808080
+          color: #808080
+          &.active
+            background: #009fff
+            color: #fff
+            border: 1px solid #009fff
+      @media screen and (max-width: $width-medium) and (orientation: landscape)
+        margin-left: 3rem
+    .process-container
+      @include absolute(0px,0px)
+      flex: auto
+      display: flex
+      width: 100%
+      .whole-process
+        flex: auto
+        height: 4px
+        position: relative
+        overflow: hidden
+        cursor: pointer
+        background: #d5d0d0
+        @media screen and (max-width: $width-medium)
+          background: #333
+
+      .active-process
+        @include wh(100%,4px)
+        background: #009fff
+        border-radius: 3px
+        position: absolute
+
+      .process-indicator
+        @include wh(15px,15px)
+        @include absolute(0px,-4px)
+        background: #fff
+        border: 5px solid #009fff
+        border-radius: 8px
+        cursor: pointer
+        @media screen and (max-width: $width-medium)
+          border: 5px solid #009fff
+
+
+.search-tag
+    display: flex
+    flex-flow: row
+    margin: 1rem
+    justify-content: space-between
+    .search-input
+      padding: 0
+      height: 2.5rem
+      border: 1px solid #cecdcd
+      color: #666
+      @media screen and (max-width: $width-medium)
+        border: 1px solid #fff
+        color: #bdbdbd
+    .search-icon
+      @include wh(3rem,2.5rem)
+      padding: .5rem
+      fill: #fff
+      background: #00cc00
+      border-radius: 20%
+
+.track-tag
+  span:nth-child(1)
+    width: 50px
+
+  cursor: pointer
+  border-bottom: 1px dashed #CCC
+  // border-radius: 1rem
+  margin: .3rem
+  padding: .5rem 1rem
+  @include align-middle-between
+  flex: 0 0 2rem
+  &.activated
+    background: #ccc
+  @media screen and (max-width: $width-medium)
+    border-bottom: 0
+    color: #fff
+    width: 100%
+
+  &.active
+    background: #0C0
+    border: none
+    color: #FFF
+    @media screen and (max-width: $width-medium)
+      background: none
+      color: #009fff
+
+  &:hover
+    background: #CCC
+
+.history-tittle
+  text-align: center
+  font-weight: bolder
+  font-size: 1rem
+  padding: .5rem
+  @media screen and (max-width: $width-medium)
+    font-size: 1rem
+    opacity: 0.9
+.history-compose-tittle
+  text-align: center
+  font-weight: bold
+  font-size: 0.875rem
+  padding: .2rem
+  @media screen and (max-width: $width-medium)
+    font-size: 0.875rem
+    opacity: 0.8
+.history-compose-detail
+  display: flex
+  flex-flow: row
+  font-size: 0.875rem
+  justify-content: space-around
+  padding: .2rem
+  @media screen and (max-width: $width-medium)
+    font-size: 0.875rem
+    opacity: 0.7
+  p
+    width: 50%
+    text-align: left
+    padding-left: 17%
+    @media screen and (max-width: $width-medium)
+      padding-left: 21%
+.select-tag
+  @include wh(3rem,2rem)
+  text-align: center
+  font-size: .8rem
+  cursor: pointer
+  color: #333
+  border: 1px solid #333333
+  padding: 0 .5rem
+  line-height: 2rem
+  @media screen and (max-width: $width-medium)
+    @include wh(4.4rem,1.67rem)
+    margin-top: 0.67rem 0.93rem 0.67rem 0
+    display: inline-block
+    line-height: 1.67rem
+    border: none
+    border-radius: 0
+
+  &.active
+    background: #009fff
+    border: none
+    color: #FFF
+
+
+.vehicle_indent
+  margin-left: 17px
+  height: 1.4rem
+.query-panel
+  color: #000
+  flex: 0 0 20rem
+  order: 1
+  display: flex
+  flex-flow: column nowrap
+  margin: 5px
+  // background: #e3e3e3
+  // background: #FFF
+
+  @media screen and (max-width: $width-medium)
+    background: none
+    border: none
+    padding: 0
+    flex: 0 0 100%
+    margin-top: 1rem
+    .tag
+      display: none
+      &.active
+        display: block
+    button
+      width: 19.5rem
+      margin: 0.8rem 0.33rem 0.33rem
+  @media screen and (max-width: $width-medium)
+    .phoneClose
+      @include absolute(.9rem,.8rem)
+      .icon
+        fill: #fff
+  @media screen and (max-width: $width-medium) and (orientation: landscape)
+    flex: 0 0 100%
+    justify-content: center
+    flex-flow: row nowrap
+    button
+      width: 18.5rem
+      margin-left: 0.5rem
+    .query-panel-land
+      display: flex
+
+  .expr-panel
+    @media screen and (max-width: $width-medium) and (orientation: landscape)
+      padding-right: 1%
+      margin-right: 0.67rem
+      width: 23.67rem
+    @media screen and (max-width: $width-medium)
+      padding: 1rem 0
+      background: #242424
+      color: #fff
+      //height: 18.64rem
+      .tstart_time_phone
+        border: 1px solid #ebebeb
+        width: 19.5rem
+        margin-top: 0.67rem
+        margin-bottom: 1.67rem
+        input
+          border: none
+          margin: 0
+    .plate_number
+      margin-left: 9px
+      ul
+        max-height: 210px
+        background: #e3e3e3
+        overflow-y: auto
+        width: 20.5rem
+        li
+          @include line-height(20px,20px)
+          font-size: 12px
+          list-style: none
+          text-align: center
+          cursor: pointer
+          &:hover
+            color: #009fff
+      #card_id
+        @include wh(20.5rem,2.5rem)
+        font-size: 12px
+        border: 1px solid #cecdcd
+        text-align: left
+        padding-left: .8rem
+        margin: 0
+        text-align: center
+    .his-expr-tag-page
+      @include wh(100%,2.5rem)
+      line-height: 2.5rem
+      @media screen and (max-width: $width-medium)
+        @include absolute(0,0)
+        background: #141414
+        color: #fff
+
+
+      ul
+        list-style: none
+        display: flex
+        flex-flow: row
+        @media screen and (min-width: $width-medium)
+          justify-content: space-around
+        @media screen and (max-width: $width-medium)
+          @include wh(100%,100%)
+          justify-content: center
+          text-align: center
+
+        li
+          cursor: pointer
+          color: #333
+          @media screen and (max-width: $width-medium)
+            @include wh(6.07rem,1.84rem)
+            border: 1px solid #009fff
+            margin-top: 0.44rem
+            line-height: 1.84rem
+            color: #fff
+            &.active
+              background: #009fff
+              color: #fff
+        .active
+          color: #009fff
+
+    .expr-input-tag
+      display: flex
+      flex-flow: row
+      justify-content: space-between
+      height: 3.5rem
+      padding: .6rem
+      cursor: pointer
+      span
+        @include wh(19rem,2.5rem)
+        position: absolute
+        line-height: 2.5rem
+        text-align: center
+      #mapID
+        background: none
+        text-align: center
+      .option
+        @include wh(100%,15rem)
+        text-align: center
+        margin-top: 2.5rem
+        font-size: 0.875rem
+        background: #e3e3e3
+        opacity: 1
+        position: relative
+        @media screen and (max-width: $width-medium)
+          background: #242424
+          color: #fff
+          width: 98%
+        div
+          @include line-height(24px,24px)
+          cursor: pointer
+          &:hover
+            background: #009fff
+            opacity: 0.8
+            color: #fff
+
+      .expr-input-label
+        @include line-height(2.5rem,2.5rem)
+        font-size: 0.875rem
+        text-align: center
+      &.active
+        .expr-input-label
+          position: absolute
+        input
+          width: 20.5rem
+
+      .expr-input-area
+        @include wh(19rem,2.5rem)
+        font-size: 1rem
+        border: 1px solid #cecdcd
+        text-align: left
+        padding-left: .8rem
+        margin: 0
+      @media screen and (max-width: $width-medium)
+        .expr-input-area
+          @include wh(20.5rem,2.5rem)
+          font-size: 12px
+          border: 1px solid #cecdcd
+          text-align: center
+          padding-left: .8rem !important
+          margin-right: 0.5rem
+
+    .duration-select-tag
+      display: flex
+      justify-content: flex-end
+      padding: .6rem
+      @media screen and (max-width: $width-medium)
+        background: none
+        padding-right: 1.1rem
+        justify-content: space-between
+        &.active
+          //justify-content: space-between
+          padding-top: 0
+          span
+            width: 4rem
+
+      span:last-child
+        margin-right: 0
+      span
+        @include wh(3rem,1.5rem)
+        font-size: 12px
+        padding: 0
+        line-height: 1.5rem
+        margin-left: .2rem
+        margin-right: .2rem
+        border: 1px solid #ebebeb
+        @media screen and (max-width: $width-medium)
+          border: 1px solid #ebebeb
+          color: #a7a7a7
+          font-size: 8px
+          width: 4rem
+          &.active
+            border: 1px solid #009fff
+            color: #fff
+    .button-area
+      text-align: center
+      padding-left: .6rem
+      padding-right: .6rem
+      @media screen and (max-width: $width-medium)
+        background: none
+      .expr-builder__button
+        width: 18.5rem
+        background: #009fff
+        color: #fff
+        margin-bottom: .5rem
+        @media screen and (max-width: $width-medium)
+          background: #009fff
+          color: #fff
+          border-radius: 0
+          width: 20.5rem
+          margin: 0.8rem 0.33rem 0.33rem 0
+        &:hover
+          background: #0096f0
+
+  .result-tittle
+    @include wh(100%,2.5rem)
+    line-height: 2.5rem
+    @media screen and (max-width: $width-medium)
+      color: #fff
+      background: none
+      border: none
+      margin-top: 0.5rem
+
+    span
+      padding-left: 1rem
+
+  .result-panel
+    flex: auto
+    // align-items: center
+    order: 2
+    overflow: scroll
+    // background: #ddd
+    display: flex
+    flex-flow: column nowrap
+    @media screen and (max-width: $width-medium)
+      //margin-top: 0.5rem
+      border: none
+      background: #242424
+      color: #fff
+      //margin-bottom: 0.5rem
+    @media screen and (max-width: $width-medium) and (orientation: portrait)
+      width: 98%
+    @media screen and (max-width: $width-medium) and (orientation: landscape)
+      width: 50%
+      margin-top: 0
+
+  .message-box
+    @include align-center-middle
+    color: #999
+    flex: auto
+    text-align: center
+
+.track-map-container
+  position: relative
+  flex: auto
+  display: flex
+  flex-flow: row nowrap
+  // background: #FFF
+  padding: 5px
+
+  @media screen and (max-width: $width-medium) and (orientation: portrait)
+    flex-direction: column
+    padding: 0
+  @media screen and (max-width: $width-medium) and (orientation: landscape)
+    height: 19rem
+
+  .back-to-expr
+    writing-mode: vertical-lr
+    text-align: center
+    background: #F4F4F4
+    height: 90%
+    opacity: 0.2
+    @media screen and (max-width: $width-medium)
+      @include absolute(0.7rem,0.9rem)
+      height: 6rem
+      background: none
+      height: 1rem
+      opacity: 1
+    .icon-back
+      @include wh(1rem,1rem)
+      fill: #fff
+      display: inline-block
+

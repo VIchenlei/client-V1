@@ -1,0 +1,218 @@
+<shortcut-operation>
+  <span each={item in badgeItems} class="shortcut-item hint--bottom-left {isShow(item)}" aria-label={item.label}>
+    <icon-badge id={item.name} data-is="icon-badge" iconname={item.iconName} mark={ alarmCount } onclick={switchItem}></icon-badge>
+  </span>
+  <span id={ item.name } class="shortcut-item hint--bottom-left {item.onmobile ? '' : 'hide-on-mb'} {isShow(item)}" each={ item in shortcut } aria-label={ item.label } onclick={ switchItem }>
+    <span class="icon {item.iconName}"></span>
+  </span>
+  <span id="fullScreen" class="shortcut-item hint--bottom-left hide-on-mb" aria-label="全屏" onclick={ switchItem }>
+    <span class="icon"></span>
+  </span>
+
+  <script>
+    import shortcutItems from '../shortcut_def.js'
+    import {getMenus} from '../../js/utils/utils.js'
+    import '../sass/shortcut.sass'
+
+    import './aboutus.html'
+    import '../../tags/icon-badge.html'
+    import '../../monitor/tag/call-leave.html'
+    import '../../monitor/tag/call-person.html'
+    import '../../monitor/tag/hand-upmine.html'
+    import '../../monitor/tag/people-status.html'
+    import '../../monitor/tag/person-cards-alarm.html'
+    import '../../monitor/tag/staff-curve.html'
+    import '../../monitor/tag/geo-fault.html'
+
+    const ADMIN = 1
+    // this.alarmCount = 0
+    this.badgeItems = shortcutItems.slice(0, 2)
+    this.shortcut = shortcutItems.slice(2)
+
+    // 是否全屏
+    this.isFullScreen = false
+
+    xbus.on('USERINFO-UPDATE', (msg) => {
+      if (msg.roleId !== ADMIN) {
+        this.shortcut.pop()
+        this.update()
+      }
+    })
+
+    this.isShow = (row) => {
+      if (this.roleRankID !== 2) return ''
+      let menuID = row.menuID
+      if (this.checkedMenu.includes(menuID)) return ''
+      return 'hide'
+    }
+
+    this.on('mount', () => {
+      console.log('Mount shortcut-operation tag.', this)
+      // this.getMenus()
+    })
+
+    this.switchItem = (evt) => {
+      let target = evt.currentTarget
+      let tagName = target.getAttribute('id')
+      switch (tagName) {
+        case 'alarm':
+          xbus.trigger('ALARM-LIST-SHOW')
+          break
+        case 'personCards':
+          xbus.trigger('PERSON-CARDS-ALARM-SHOW')
+          break
+        case 'handupMine':
+          if (xdata.maptype === 'HISTORY') return window.hintip.open({
+            value: 'nochange',
+            tip: '请到实时界面操作！'
+          })
+          if (this.activePanel) {
+            this.activePanel.unmount(true)
+          }
+          this.activePanel = riot.mount('hand-upmine')[0]
+          break
+        case 'staffcurve':
+          if (this.activePanel) {
+            this.activePanel.unmount(true)
+          }
+          this.activePanel = riot.mount('staff-curve')[0]
+          break
+        case 'callList':
+        case 'leave':
+        case 'rule':
+          if (this.activePanel) {
+            this.activePanel.unmount(true)
+          }
+          this.activePanel = riot.mount('call-leave', { name: tagName })[0]
+          break
+        case 'geowarn':
+          if (this.activePanel) {
+            this.activePanel.unmount(true)
+          }
+          this.activePanel = riot.mount('geo-fault')[0]
+          break
+        case 'location':
+          this.cancelAllLocating()
+          break
+        case 'sendcall':
+          if (this.activePanel) {
+            this.activePanel.unmount(true)
+          }
+          this.activePanel = riot.mount('call-person')[0]
+          break
+        case 'spread':
+          this.queryTime()
+          break
+        case 'fullScreen':
+          this.fullScreen()
+          break
+        case 'aboutus':
+          if (this.activePanel) {
+            this.activePanel.unmount(true)
+          }
+          this.activePanel = riot.mount('aboutus')[0]
+          break
+      }
+    }
+
+    // 一键取消定位
+    this.cancelAllLocating = () => {
+      let keys = xdata.locateStore.getInArray()
+      if (keys.length > 0) {
+        window.cardStopLocating({ cards: keys })
+      }
+      let areas = Array.from(xdata.locateStore.locateAreas.keys())
+      if (areas.length > 0) {
+        let message = {
+          type: 'type',
+          mapType: 'MONITOR',
+          isVisible: false,
+          mapID: 5,
+          areas: areas
+        }
+        xbus.trigger('MAP-SHOW-AREA', message)
+      }
+      xbus.trigger('InitIcon')
+    }
+
+    // 判断各种浏览器，找到正确的进入全屏的方法
+    // element : 需要全屏的 node
+    function requestFullScreen (element) {
+      let requestMethod = element.requestFullScreen || // W3C
+        element.webkitRequestFullScreen || // Chrome等
+        element.mozRequestFullScreen || // FireFox
+        element.msRequestFullScreen // IE11
+      if (requestMethod) {
+        requestMethod.call(element)
+      }
+    }
+
+    // 判断各种浏览器，找到正确的退出全屏的方法
+    function exitFullScreen () {
+      let exitMethod = document.cancelFullScreen || // W3C
+        document.webkitCancelFullScreen || // Chrome等
+        document.mozCancelFullScreen || // FireFox
+        document.msExitFullscreen // IE11
+      if (exitMethod) {
+        exitMethod.call(document)
+      }
+    }
+
+    this.fullScreen = () => {
+      this.isFullScreen = !this.isFullScreen
+      if (this.isFullScreen || window.document.body.clientHeight !== window.screen.height) {
+        requestFullScreen(document.documentElement)
+      } else {
+        exitFullScreen()
+      }
+    }
+
+    this.queryTime = () => { // 时点查询
+      let msg = {
+        type: 'real',
+        choice: 'dept'
+      }
+      if (!window.tagMineStatus) {
+        window.tagMineStatus = riot.mount('people-status')[0]
+      }
+      let dialog = window.tagMineStatus
+      if (dialog) {
+        dialog.updateData(msg)
+      }
+    }
+
+    this.updateAlarmCount = () => {
+      let tagAlarmBadge = this.tags['icon-badge'][0]
+      let tagPersonAlarm = this.tags['icon-badge'][1]
+      let defaultMapID = xdata.metaStore.defaultMapID
+      if (tagAlarmBadge) {
+        this.alarmCount = xdata.alarmStore.DistinguishMapAlarm.get(defaultMapID) ? xdata.alarmStore.DistinguishMapAlarm.get(defaultMapID).size : 0
+        this.alarmCount += Array.from(xdata.alarmStore.cateAlarm.values()).length
+        tagAlarmBadge.updateMark(this.alarmCount)
+      }
+      if (tagPersonAlarm) {
+        let personCount = xdata.alarmStore.personCardsMapAlarm.get(defaultMapID) ? xdata.alarmStore.personCardsMapAlarm.get(defaultMapID).size : 0
+        tagPersonAlarm.updateMark(personCount)
+      }
+    }
+
+    xbus.on('ALARM-LIST-CHANGED', (msg) => {
+      this.updateAlarmCount()
+    })
+
+    xbus.on('SHOW-ALARM-CHANGE', () => {
+      this.updateAlarmCount()
+    })
+
+    this.init = () => {
+      let opts = this.parent.opts
+      let roleID = opts.roleId
+      if (roleID) {
+        let menuRes = getMenus(roleID)
+        this.roleRankID = menuRes.roleRankID
+        this.checkedMenu = menuRes.checkedMenu
+      }
+    }
+    this.init()
+  </script>
+</shortcut-operation>

@@ -1,0 +1,91 @@
+<drivingface-monthTrend>
+  <p>
+    <span>月份: {curTrendMonth}</span>
+    <input type="month" id='queryTime' value="请选择查询时间"></input>
+    <button class="query-button" onclick={ doQuerytrend }>查询</button>
+  </p>
+  <div class="svgDom" style="width: 660px;height:350px;"></div>
+
+  <script>
+    import { drawLineChart } from '../../js/map/OlMapUtils.js'
+
+    this.curTrendMonth = new Date(new Date().getTime()).format('yyyy-MM')
+
+    this.on('mount', () => {
+      this.init(this.curTrendMonth)
+    })
+
+    this.init = (time) => {
+      //             let sql = `SELECT card_id, MAX(cur_time), MAX(Y) AS Y, cur, drivingface_id
+      // FROM (SELECT card_id, cur_time, CASE WHEN DATE_FORMAT(cur_time, '%i') >=30 THEN DATE_FORMAT(cur_time, '%Y-%m-%d %H:30') ELSE DATE_FORMAT(cur_time, '%Y-%m-%d %H:00') END AS cur, Y, drivingface_id FROM his_drivingface_real) hd WHERE cur_time >='2017-08-01' and cur_time<'2017-09-01' GROUP BY card_id, cur, drivingface_id
+      // order by cur; `
+      let sql = `SELECT card_id, MAX(cur_time), MAX(Y) AS Y, cur, drivingface_id
+        FROM (SELECT card_id, cur_time, CASE WHEN DATE_FORMAT(cur_time, '%i') >=30 THEN DATE_FORMAT(cur_time, '%Y-%m-%d %H:30') ELSE DATE_FORMAT(cur_time, '%Y-%m-%d %H:00') END AS cur, Y, drivingface_id FROM his_drivingface_real) hd WHERE DATE_FORMAT(cur_time, '%Y-%m') = "${time}"  GROUP BY card_id, cur, drivingface_id
+        order by cur; `
+      this.queryDb('query', 'monthTrend', sql)
+    }
+
+    this.queryDb = (cmd, name, sql) => {
+      let msg = {
+        cmd: cmd,
+        data: {
+          name: name,
+          sql: sql
+        }
+      }
+
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: msg,
+        def: {
+          name: name
+        }
+      })
+    }
+
+    xbus.on('REPT-SHOW-RESULT', (msg) => { // 接受数据库数据
+      switch (msg.def.name) {
+        case 'monthTrend':
+          console.log('rows---', msg.rows)
+          msg.rows && this.render(msg.rows)
+          break
+        default: console.warn('无相关数据！')
+      }
+    })
+
+    this.doQuerytrend = (evt) => {
+      this.curTrendMonth = this.root.querySelector('#queryTime').value
+      this.init(this.curTrendMonth)
+    }
+
+    this.render = (data) => {
+      let canvaCharts = this.root.querySelector('.svgDom')
+      let drivingface = xdata.metaStore.data.drivingface.get(this.parent.driverFace)
+      let basePointy = drivingface && drivingface.base_point_y
+
+      let datay = []
+      let datax = []
+      let length = data.length > 0 ? data.length : 0
+      // let startTime = this.getStartTime()
+      for (let i = 0; i < length; i++) {
+        let day = new Date(data[i].cur).format('yyyy-MM-dd: hh:mm:ss')
+        let dis = (data[i].Y - basePointy) * 2
+        let y = Math.round((dis) * 1000) / 1000
+        let arr = []
+        arr.push(new Date(day))
+        arr.push(y)
+        datax.push(day)
+        datay.push(arr)
+      }
+      let minTime = this.curTrendMonth + '-01 00:00'
+      let maxTime = this.curTrendMonth + '-30 00:00'
+      let titleText = '掘进进度(按月)'
+      let name = '掘进长度'
+      drawLineChart(canvaCharts, datax, datay, titleText, name, minTime, maxTime)
+    }
+
+    this.getStartTime = () => {
+      let begainTime = this.curTrendMonth + '-01 00:00'
+      console.log(new Date(new Date(begainTime).getTime() + 1000 * 30 * 60).format('yyyy-MM-dd: hh:mm:ss'))
+    }
+  </script>
+</drivingface-monthTrend>

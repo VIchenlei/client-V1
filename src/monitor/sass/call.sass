@@ -1,0 +1,80 @@
+@import '../../sass/defs'
+
+.call-dialog
+  width: 600px
+
+  .op-panel
+    background: $ctrl-bg
+
+  .content-panel
+    display: flex
+    flex-flow: column nowrap
+
+    div
+      margin: 5px
+      @include align-middle
+      height: $unit-height
+
+      input[type="radio"]
+        width: 1.5rem
+      input[type="number"]
+        width: 6rem
+        text-align: center
+        margin: 0
+
+      .radio-item
+        width: 7rem
+        @include align-middle
+
+    .item-title
+      width: 5rem
+      color: #666
+
+
+  .tag-list
+    // width: 100%
+    flex: 1 1 auto
+    height: 2.5rem
+    @include align-middle
+    padding: 0 1rem
+    border: 1px dashed rgba(0,0,0,.3)
+    background: $color-white
+
+.call-cards
+    display: flex
+    @media screen and (min-width: $width-medium)
+        flex-flow: row nowrap
+    @media screen and (max-width: $width-medium)
+        flex-flow: column nowrap
+        align-items: center
+    // flex-flow: row wrap
+    // justify-content: space-between
+
+    .call-card
+        @include wh(30%,5rem)
+        @include font-color($fontsize-m,$color-white)
+        @include align-middle-between
+        min-width: 15rem
+        border-radius: 3px
+        padding: 1rem
+        margin: 1rem
+        cursor: pointer
+        transition: $transition
+
+        .card-icon
+            @include wh(3rem,2rem)
+            fill: rgba(255,255,255,.5)
+            margin-right: 2rem
+        .card-label
+            width: 4rem
+        .card-value
+            width: 4rem
+            @include justify-middle
+
+    .blue
+        background: #2090F0
+    .green
+        background: #22CC33
+    .gray
+        background: #666666
+

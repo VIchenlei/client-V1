@@ -1,0 +1,74 @@
+<three-bottom-rate>
+  <div class="overview-rate" style="width: 850px;height: 270px;"></div>
+  <script>
+    import echarts from 'echarts'
+    import {efficiencyDept} from '../../js/def/graph_def.js'
+    const LEGENDNAME = {'overviewBoot': '开机率', 'overviewWorktime': '工时利用率', 'overviewRugular': '正规循环率'}
+    this.initCharts = () => {
+      let initdom = this.root.querySelector('.overview-rate')
+      if (!initdom) return
+      echarts.dispose(initdom)
+      let chart = echarts.init(initdom)
+      let keys = this.threeMap && Array.from(this.threeMap.keys())
+      let series = []
+      let legend = []
+      for (let i = 0; i < keys.length; i++) {
+        legend.push(LEGENDNAME[keys[i]])
+        let row = this.threeMap.get(keys[i])
+        row = row && Array.from(row.values())
+        series.push({
+          name: LEGENDNAME[keys[i]],
+          id: keys[i],
+          data: row,
+          type: 'line',
+          smooth: true,
+          areaStyle: {normal: {}}
+        })
+      }
+      let max = Math.max.apply(Math, this.dataArr)
+      max = max < 100 ? 100 : Math.ceil(max)
+      let msg = {
+        legend: legend,
+        title: '',
+        series: series,
+        axisLine: {
+          lineStyle: {
+            color: '#fff'
+          }
+        },
+        textStyle: {
+          color: '#fff'
+        },
+        max: max
+      }
+      let option = efficiencyDept(msg)
+      chart.setOption(option)
+    }
+
+    this.splitData = (rows, name) => {
+      rows.forEach(row => {
+        if (!this.threeMap.get(name)) {
+          let ret = new Map()
+          this.threeMap.set(name, ret)
+        }
+        let threeMap = this.threeMap.get(name)
+        let stime = new Date(row.stime).getDate()
+        if (!row.worktime && row.overWorktime) {
+          row['worktime'] = Number((row.overWorktime / row.overChecktime * 100).toFixed(2))
+        }
+        threeMap.set(stime, [stime, row.worktime])
+        this.dataArr.push(row.worktime)
+      })
+    }
+
+    this.initDate = (rows) => {
+      this.threeMap = new Map()
+      this.dataArr = []
+      if (!rows) return
+      let overviewBoot = this.splitData(rows['overview-boot'], 'overview-boot')
+      let overviewWorktime = this.splitData(rows['overview-worktime'], 'overview-worktime')
+      let overviewRugular = this.splitData(rows['overview-rugular'], 'overview-rugular')
+      this.initCharts()
+    }
+  </script>
+</three-bottom-rate>

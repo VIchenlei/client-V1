@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Print DEMO</title>
+	<link type="text/css" rel="stylesheet" href="../css/lprint.css" media="print">
+</head>
+
+<body>
+	<div style="text-align:center">
+		<h1>这里是标题</h1>
+	</div>
+	<div id="query_result" class="" style="">
+		<table id="rept-table" ds="his_op_log">
+			<thead>
+				<tr>
+					<th>编号</th>
+					<th>用户</th>
+					<th>时间</th>
+					<th>IP</th>
+					<th>操作类型</th>
+					<th>内容</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>1330</td>
+					<td>hank</td>
+					<td>2016-02-27T13:21:40.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>update dat_occupation set rank=8 where occupation_id=7</td>
+				</tr>
+				<tr>
+					<td>1337</td>
+					<td>hank</td>
+					<td>2016-02-29T07:19:41.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>update dat_occupation set rank=0 where occupation_id=7</td>
+				</tr>
+				<tr>
+					<td>1340</td>
+					<td>hank</td>
+					<td>2016-02-29T07:28:49.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>update dat_staff set pic="1.png" where staff_id=1</td>
+				</tr>
+				<tr>
+					<td>1342</td>
+					<td>hank</td>
+					<td>2016-02-29T11:50:13.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>update dat_occupation set rank=8 where occupation_id=7</td>
+				</tr>
+				<tr>
+					<td>1343</td>
+					<td>hank</td>
+					<td>2016-02-29T11:50:24.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT INTO dat_occupation (occupation_id,name,rank) VALUES(8,"hg",6)</td>
+				</tr>
+				<tr>
+					<td>1344</td>
+					<td>hank</td>
+					<td>2016-02-29T11:50:42.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT INTO dat_occupation (occupation_id,name,rank) VALUES(9,"ggjhg",7)</td>
+				</tr>
+				<tr>
+					<td>1349</td>
+					<td>hank</td>
+					<td>2016-02-29T11:54:47.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>update dat_staff set pic="2.png" where staff_id=2</td>
+				</tr>
+				<tr>
+					<td>1351</td>
+					<td>hank</td>
+					<td>2016-02-29T12:41:53.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT INTO dat_occupation (occupation_id,name,rank) VALUES(10,"是是是",2)</td>
+				</tr>
+				<tr>
+					<td>1352</td>
+					<td>hank</td>
+					<td>2016-02-29T12:45:18.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT INTO dat_occupation (occupation_id,name,rank) VALUES(11,"等待",2)</td>
+				</tr>
+				<tr>
+					<td>1353</td>
+					<td>hank</td>
+					<td>2016-02-29T12:46:16.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT INTO dat_occupation (occupation_id,name,rank) VALUES(12,"是多少",1)</td>
+				</tr>
+				<tr>
+					<td>1355</td>
+					<td>hank</td>
+					<td>2016-02-29T12:50:54.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>delete from dat_occupation where occupation_id=12</td>
+				</tr>
+				<tr>
+					<td>1356</td>
+					<td>hank</td>
+					<td>2016-02-29T12:51:00.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT INTO dat_occupation (occupation_id,name,rank) VALUES(12,"地方",3)</td>
+				</tr>
+				<tr>
+					<td>1357</td>
+					<td>hank</td>
+					<td>2016-02-29T12:51:06.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>delete from dat_occupation where occupation_id=10</td>
+				</tr>
+				<tr>
+					<td>1371</td>
+					<td>hank</td>
+					<td>2016-03-01T08:59:36.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>delete from dat_occupation where occupation_id=12</td>
+				</tr>
+				<tr>
+					<td>1912</td>
+					<td>hank</td>
+					<td>2016-03-11T07:34:21.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(5,"sss")</td>
+				</tr>
+				<tr>
+					<td>1914</td>
+					<td>hank</td>
+					<td>2016-03-11T07:36:08.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(6,"dddd")</td>
+				</tr>
+				<tr>
+					<td>1916</td>
+					<td>hank</td>
+					<td>2016-03-11T07:54:38.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(7,"dddd")</td>
+				</tr>
+				<tr>
+					<td>1920</td>
+					<td>hank</td>
+					<td>2016-03-11T08:32:27.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(8,"sfsdsf")</td>
+				</tr>
+				<tr>
+					<td>1922</td>
+					<td>hank</td>
+					<td>2016-03-11T08:45:27.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(9,"sfsf")</td>
+				</tr>
+				<tr>
+					<td>1926</td>
+					<td>hank</td>
+					<td>2016-03-11T08:47:55.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(10,"ddddd")</td>
+				</tr>
+				<tr>
+					<td>1929</td>
+					<td>hank</td>
+					<td>2016-03-11T08:52:26.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(11,"sdfsdf")</td>
+				</tr>
+				<tr>
+					<td>1933</td>
+					<td>hank</td>
+					<td>2016-03-11T08:57:57.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(12,"sdfsdf")</td>
+				</tr>
+				<tr>
+					<td>1935</td>
+					<td>hank</td>
+					<td>2016-03-11T09:02:30.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(13,"sdfsdf")</td>
+				</tr>
+				<tr>
+					<td>1937</td>
+					<td>hank</td>
+					<td>2016-03-11T12:43:22.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(14,"dfd")</td>
+				</tr>
+				<tr>
+					<td>1939</td>
+					<td>hank</td>
+					<td>2016-03-11T12:46:25.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(15,"sdfsdf")</td>
+				</tr>
+				<tr>
+					<td>1941</td>
+					<td>hank</td>
+					<td>2016-03-11T12:50:40.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(16,"sdfsdf")</td>
+				</tr>
+				<tr>
+					<td>1943</td>
+					<td>hank</td>
+					<td>2016-03-11T12:56:02.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(17,"fdgfd")</td>
+				</tr>
+				<tr>
+					<td>1948</td>
+					<td>hank</td>
+					<td>2016-03-11T13:56:17.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(22,"sdfsdfd")</td>
+				</tr>
+				<tr>
+					<td>1951</td>
+					<td>hank</td>
+					<td>2016-03-11T14:28:29.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(25,"undefined")</td>
+				</tr>
+				<tr>
+					<td>1956</td>
+					<td>hank</td>
+					<td>2016-03-11T15:00:54.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(36,"hgjgh")</td>
+				</tr>
+				<tr>
+					<td>1961</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:11.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=8</td>
+				</tr>
+				<tr>
+					<td>1962</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:13.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=10</td>
+				</tr>
+				<tr>
+					<td>1963</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:18.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=16</td>
+				</tr>
+				<tr>
+					<td>1964</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:20.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=17</td>
+				</tr>
+				<tr>
+					<td>1965</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:22.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=15</td>
+				</tr>
+				<tr>
+					<td>1966</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:24.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=14</td>
+				</tr>
+				<tr>
+					<td>1967</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:26.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=13</td>
+				</tr>
+				<tr>
+					<td>1968</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:28.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=12</td>
+				</tr>
+				<tr>
+					<td>1969</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:30.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=18</td>
+				</tr>
+				<tr>
+					<td>1970</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:32.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=19</td>
+				</tr>
+				<tr>
+					<td>1971</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:34.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=11</td>
+				</tr>
+				<tr>
+					<td>1972</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:36.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=9</td>
+				</tr>
+				<tr>
+					<td>1973</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:38.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=20</td>
+				</tr>
+				<tr>
+					<td>1974</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:47.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=22</td>
+				</tr>
+				<tr>
+					<td>1975</td>
+					<td>hank</td>
+					<td>2016-03-11T15:08:50.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>DELETE from dat_shift_type where shift_type_id=23</td>
+				</tr>
+				<tr>
+					<td>1983</td>
+					<td>hank</td>
+					<td>2016-03-11T15:19:54.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(23,"dfa")</td>
+				</tr>
+				<tr>
+					<td>1984</td>
+					<td>hank</td>
+					<td>2016-03-11T15:20:02.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(24,"sdfasdf")</td>
+				</tr>
+				<tr>
+					<td>1985</td>
+					<td>hank</td>
+					<td>2016-03-11T15:20:09.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(12,"sdfasdf")</td>
+				</tr>
+				<tr>
+					<td>1986</td>
+					<td>hank</td>
+					<td>2016-03-11T15:20:15.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(13,"sdfadsf")</td>
+				</tr>
+				<tr>
+					<td>1987</td>
+					<td>hank</td>
+					<td>2016-03-11T15:20:21.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(14,"sdfadsf")</td>
+				</tr>
+				<tr>
+					<td>1988</td>
+					<td>hank</td>
+					<td>2016-03-11T15:20:32.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(15,"dfasdf")</td>
+				</tr>
+				<tr>
+					<td>1989</td>
+					<td>hank</td>
+					<td>2016-03-11T15:20:40.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>INSERT into dat_shift_type (shift_type_id,name) VALUES(16,"asfasdf")</td>
+				</tr>
+				<tr>
+					<td>1997</td>
+					<td>hank</td>
+					<td>2016-03-11T16:01:35.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>UPDATE dat_shift_type set name="aaaaa" where shift_type_id=13</td>
+				</tr>
+				<tr>
+					<td>2162</td>
+					<td>hank</td>
+					<td>2016-03-15T13:39:29.000Z</td>
+					<td>127.0.0.1</td>
+					<td>2</td>
+					<td>UPDATE dat_shift_type set name="hello" where shift_type_id=6</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</body>
+
+</html>

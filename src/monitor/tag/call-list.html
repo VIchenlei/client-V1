@@ -1,0 +1,175 @@
+<call-list>
+  <div class="op-panel">
+    <span class="op-title"><grip type="grip-horizontal"></grip>我的呼叫</span>
+    <!--
+    <span class="printButton" onclick="{print}">
+      <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-printer"></use></svg>
+    </span>
+    <span class="printButton" onclick="{outCSV}">
+      <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-file-excel"></use></svg>
+    </span>
+    -->
+  </div>
+  <div class="call-cards">
+    <div class="call-card green hover-it">
+      <svg class="card-icon"><use xlink:href="/icons/icons.svg#icon-phone_in_talk"></use></svg>
+      <span class="card-label">呼叫中：</span>
+      <span class="card-value">{ callStats.calling }</span>
+    </div>
+    <div class="call-card gray hover-it">
+      <svg class="card-icon"><use xlink:href="/icons/icons.svg#icon-call_end"></use></svg>
+      <span class="card-label">已取消：</span>
+      <span class="card-value">{ callStats.canceled }</span>
+    </div>
+    <div class="call-card gray hover-it">
+      <svg class="card-icon"><use xlink:href="/icons/icons.svg#icon-phone_missed"></use></svg>
+      <span class="card-label">已超时：</span>
+      <span class="card-value">{ callStats.timeout }</span>
+    </div>
+  </div>
+  <div class="content-panel" if={hasdata}>
+    <table id={ tableID }>
+      <thead>
+        <tr>
+          <th each={label in def.fields.labels}>{label}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr each={row in rows}>
+          <td each={name in names} if={name != 'device_type_id'}>{ name == names[def.keyIndex] ? row[name] : xdata.metaStore.formatField(name, row[name], types[names.indexOf(name)]) }</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div if={!hasdata} class="tips">
+		没有符合条件的记录！请确认您的查询条件后再试。
+  </div>
+
+  <script>
+    import callDef from '../../js/def/call_def.js'
+
+    this.callStats = xdata.callStore.stats
+    this.def = callDef
+    this.data = xdata.callStore.callInstructs.values()
+    this.types = this.def.fields.types
+    this.tableID = 'call-list'
+    this.blockedIndex = 'device_type_id'
+    this.rows = []
+    this.hasdata = (this.rows && this.rows.length > 0) || false
+
+    this.OutCSV = (evt) => {
+      if (!this.hasdata) return
+      let csvDef = this.def
+      let csvLabels = csvDef.fields.labels
+      let csvNames = csvDef.fields.names
+      let csvRows = this.rows
+      let now = new Date().format('yyyy-MM-dd hh:mm:ss')
+      let filename = this.tableID + '_' + now + '.csv'
+      let csvStr = null
+
+      for (let i = 0; i < csvRows.length; i++) {
+        let j = 0
+        for (let item in csvNames) {
+          let name = csvNames[item]
+          if (!this.blockedIndex.includes(j)) {
+            csvRows[i][name] = name === csvNames[this.def.keyIndex] ? csvRows[i][name] : xdata.metaStore.formatField(name, csvRows[i][name], this.types[csvNames.indexOf(name)])
+          }
+          j++
+        }
+      }
+
+      for (let i = 0; i < csvLabels.length; i++) {
+        if (!this.blockedIndex.includes(i)) {
+          if (i === 0) {
+            csvStr = `${csvLabels[i]}`
+          } else {
+            csvStr += `${csvLabels[i]}`
+          }
+          if (i !== (csvLabels.length - 1)) {
+            csvStr += `,`
+          }
+        }
+      }
+      csvStr += '\n'
+      for (let j = 0; j < csvRows.length; j++) {
+        let csvRow = csvRows[j]
+        for (let k = 0; k < csvLabels.length; k++) {
+          if (!this.blockedIndex.includes(k)) {
+            csvStr += `${(csvNames[k] === 'lastUpdate') ? new Date(csvRow[ csvNames[k] ]).format('yyyy-MM-dd hh:mm:ss') : csvRow[ csvNames[k] ]}`
+            if (k !== (csvLabels.length - 1)) {
+              csvStr += `,`
+            }
+          }
+        }
+        csvStr += '\n'
+      }
+      let sys = this.getBrowserInfo()
+      console.log(sys.browser + '的版本是：' + sys.ver)
+      if (sys.browser === 'ie' && Number(sys.ver.split('.')[0]) < 10) {
+        let oWin = window.top.open('about:blank', '_blank')
+        oWin.document.write('sep=,\r\n' + csvStr)
+        oWin.document.close()
+        oWin.document.execCommand('SaveAs', true, filename)
+        oWin.close()
+      } else if (sys.browser === 'ie' && Number(sys.ver.split('.')[0]) > 10) {
+        let BOM = '\uFEFF'
+        let csvData = new Blob([BOM + csvStr], { type: 'text/csv' })
+        navigator.msSaveBlob(csvData, filename)
+      } else {
+        let link = document.createElement('a')
+        link.setAttribute('href', this._getDownloadUrl(csvStr))
+        link.setAttribute('target', '_blank')
+        link.setAttribute('download', filename)
+        if (sys.browser === 'safari') {
+                    // # First create an event
+          let click_ev = document.createEvent('MouseEvents')
+                    // # initialize the event
+          click_ev.initEvent('click', true /* bubble */, true /* cancelable */)
+                // # trigger the evevnt/
+          link.dispatchEvent(click_ev)
+        } else {
+          link.click()
+        }
+      }
+    }
+
+    this.getBrowserInfo = () => {
+      let Sys = {}
+      let ua = navigator.userAgent.toLowerCase()
+      let re = /(msie|firefox|chrome|opera|version).*?([\d.]+)/
+      let m = ua.match(re)
+      Sys.browser = m[1].replace(/version/, "'safari")
+      Sys.ver = m[2]
+      return Sys
+    }
+
+    this._getDownloadUrl = (text) => {
+      let BOM = '\uFEFF'
+        // Add BOM to text for open in excel correctly
+      if (window.Blob && window.URL && window.URL.createObjectURL) {
+        var csvData = new Blob([BOM + text], { type: 'text/csv' })
+        return URL.createObjectURL(csvData)
+      } else {
+        return 'data:attachment/csv;charset=utf-8,' + BOM + encodeURIComponent(text)
+      }
+    }
+
+    this.print = (evt) => {
+      if (!this.hasdata) return
+      let def = this.def
+      let printLabels = Def.fields.labels
+      let printNames = Def.fields.names
+      let printRows = this.rows
+  xbus.trigger('PRINT-AREA', {
+    tag_id: this.tableID,
+    title: '呼叫列表',
+        labels: printLabels,
+        names: printNames,
+        rows: printRows,
+        types: this.types,
+        def: this.def,
+        blockedIndex: this.blockedIndex
+  })
+}
+  </script>
+</call-list>

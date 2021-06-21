@@ -1,0 +1,214 @@
+<materiel-table>
+  <p>
+    <span class="printButton hint--bottom-left" aria-label="导出CSV" name="csv" onclick="{askFile}" data-value="his_special_vehicle_transport">
+            <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-file-excel"></use></svg>
+        </span>
+    <span class="printButton hint--bottom-left" aria-label="打印" name="printPDF" onclick={askFile} data-value="his_special_vehicle_transport">
+            <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-printer"></use></svg>
+        </span>
+    <span class="hint--bottom-left" aria-label="添加信息" onclick={ insert }>
+            <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-add"></use></svg>
+        </span>
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th each={ title in tableTitle }>{title}</th>
+        <th if={ inputAuthority || selectAuthority }>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr each={ row in firstArr } name={ row && row.toUpdate } value={ row && row.id } data-type={ row && row.id }>
+        <td each={ i in showDef[0].fields } onclick={ editInput }>
+          <span if={ i==='work_property' && (name==='materiel_bar' || name==='special_vehicle_plan' ) } data-value='0' data-type={
+            i ? i : '' }>日常工作</span>
+          <span if={ i !=='work_property' && i !=='complate_situation' } data-value={ row ? row[i] : '' } data-type={ i ? i : '' }>{ !row || row[i] === 'null' || row[i] === 0 ? ' ' : row[i] }</span>
+          <span if={ i==='complate_situation' } data-value={ row ? row[i] : '' } data-type={ i ? i : '' }>{ row && row[i] === 0 ? '完成' : '' }</span>
+          <input type="text" if={ i !=='work_property' && i !=='complate_situation' } class="hide" onblur={ giveSpanText } onfocus={ giveinput } readonly={
+            inputAuthority ? '' : 'readonly' }>
+          <select if={ i==='complate_situation' && selectAuthority } class="hide" onchange={ change }>
+                        <option value="1">所有</option>
+                        <option value="1">未完成</option>
+                        <option value="0">完成</option>
+                    </select>
+        </td>
+        <td class="storage" type='0' onclick={ saveDB } if={ inputAuthority || selectAuthority }>保存</td>
+      </tr>
+      <tr if={ needLayered } each={ row in secondArr } name={ row && row.toUpdate } value={ row && row.id }>
+        <td each={ i in showDef[0].fields } onclick={ editInput }>
+          <span if={ i==='work_property' && (name==='materiel_bar' || name==='special_vehicle_plan' ) } data-value='1' data-type={
+            i ? i : '' }>重点工作</span>
+          <span if={ i !=='work_property' && i !=='complate_situation' } data-value={ row ? row[i] : '' } data-type={ i ? i : '' }>{ !row || row[i] === 'null' || row[i] === 0 ? ' ' : row[i] }</span>
+          <span if={ i==='complate_situation' } data-value={ row ? row[i] : '' } data-type={ i ? i : '' }>{ row && row[i] === 0 ? '完成' : '' }</span>
+          <input type="text" if={ i !=='work_property' && i !=='complate_situation' } class="hide" onblur={ giveSpanText } onfocus={ giveinput } readonly={
+            inputAuthority ? '' : 'readonly' }>
+          <select if={ i==='complate_situation' && selectAuthority } class="hide" onchange={ change }>
+                        <option value="1">所有</option>
+                        <option value="1">未完成</option>
+                        <option value="0">完成</option>
+                    </select>
+        </td>
+        <td class="storage" type='1' onclick={ saveDB } if={ inputAuthority || selectAuthority }>保存</td>
+      </tr>
+    </tbody>
+  </table>
+  <script>
+    import {materielDef} from '../../js/def/materiel_def.js'
+    this.inputAuthority = true
+    this.selectAuthority = true
+    // console.log(opts)
+    this.roleID = xdata.metaStore.data.user.get(xdata.userName).role_id
+    // switch (this.roleID) {
+    //     case 2:
+    //         this.inputAuthority = true
+    //         break
+    //     case 3:
+    //         this.selectAuthority = true
+    //         break
+    // }
+    this.needShift = true
+    this.name = opts.name
+    let parentTag = opts.self
+    this.time = parentTag.sqltime
+
+    if (this.name === this.materielDef) {
+      this.needShift = false
+    }
+    this.materielDef = materielDef
+    this.showDef = this.materielDef.filter(item => item.nameTitle === this.name)
+    this.needLayered = this.showDef[0].needLayered
+    this.tableTitle = this.showDef[0].names
+
+    this.showContent = (rows, specialRows) => {
+      console.log(rows)
+      this.firstArr = []
+      this.secondArr = []
+      let len = rows ? rows.length : 0
+      for (let i = 0; i < len; i++) {
+        let row = rows[i]
+        row['toUpdate'] = 'toUpdate'
+        if (this.name === 'materiel_bar' || this.name === 'special_vehicle_plan') {
+          if (row.work_property == 0) {
+            this.firstArr.push(row)
+          } else {
+            this.secondArr.push(row)
+          }
+        } else {
+          this.firstArr.push(row)
+        }
+      }
+
+      if (this.firstArr.length < this.showDef[0].pageIndexDaily) {
+        this.firstArr.length = this.showDef[0].pageIndexDaily
+      }
+      if (this.secondArr.length < this.showDef[0].pageIndexKeynote) {
+        this.secondArr.length = this.showDef[0].pageIndexKeynote
+      }
+      window.xhint.close()
+    }
+    this.showContent(opts.rows, opts.specialRows)
+
+    this.editInput = (evt) => {
+      evt.preventUpdate = true
+      let target = evt.currentTarget
+      let dataType = target.firstElementChild.getAttribute('data-type')
+      //  && this.roleID === 3 开通权限
+      if (dataType === 'complate_situation') {
+        target.firstElementChild.classList.add('hide')
+        target.lastElementChild.classList.remove('hide')
+        target.lastElementChild.onchange = function () {
+          target.firstElementChild.innerHTML = target.lastElementChild.options[target.lastElementChild.selectedIndex].innerHTML
+          target.firstElementChild.setAttribute('data-value', target.lastElementChild.options[target.lastElementChild.selectedIndex].value)
+          target.lastElementChild.classList.add('hide')
+          target.firstElementChild.classList.remove('hide')
+        }
+      } else if (dataType !== 'complate_situation') {
+        target.firstElementChild.classList.add('hide')
+        target.lastElementChild.classList.remove('hide')
+        target.lastElementChild.value = target.firstElementChild.innerText
+      }
+    }
+
+    this.giveSpanText = (evt) => {
+      let target = evt.currentTarget
+      let span = target.previousElementSibling
+      let dataType = span.getAttribute('data-type')
+      span.innerHTML = target.value
+      span.setAttribute('data-value', target.value)
+      target.classList.add('hide')
+      span.classList.remove('hide')
+      evt.preventUpdate = true
+    }
+
+    this.giveinput = (evt) => {
+      evt.preventUpdate = true
+    }
+
+    this.on('update', (evt) => {
+      console.log(evt)
+    })
+
+    this.insert = (evt) => {
+      this.firstArr.length += 5
+      this.secondArr.length += 5
+      // this.update()
+    }
+
+    this.saveDB = (evt) => {
+      let target = evt.currentTarget
+      let operationDB = target.parentElement.getAttribute('name')
+      if (operationDB) {
+        this.cmd = 'UPDATE'
+      } else {
+        this.cmd = 'INSERT'
+      }
+      parentTag.saveDB(evt)
+      target.parentElement.setAttribute('name', 'toUpdate')
+    }
+
+    this.askFile = (evt) => {
+      let target = evt.currentTarget
+      let targetValue = target.getAttribute('data-value')
+      let name = target.getAttribute('name')
+      parentTag.askFile(name, targetValue)
+    }
+
+    this.on('mount', () => {
+      this.registerGlobalEventHandlers()
+    })
+
+    this.registerGlobalEventHandlers = () => {
+      xbus.on('META-UPDATE-DB-RES', (res) => {
+        // console.log(res)
+        if (res.code == 0) {
+          let resultText = null
+          switch (this.cmd) {
+            case 'INSERT':
+              resultText = '添加成功'
+              break
+            case 'UPDATE':
+              resultText = '修改成功'
+              break
+            case 'DELETE':
+              resultText = '删除成功'
+              break
+          }
+          this.dlg_tips = resultText
+        } else {
+          this.dlg_tips = res.msg
+        }
+        parentTag.queryCriteria()
+        let msg = {
+          value: res.code === 0 ? 'success' : 'failure',
+          tip: this.dlg_tips
+        }
+        window.hintip.open(msg)
+      })
+    }
+
+    this.on('unmount', () => {
+      parentTag = null
+      xbus.off('META-UPDATE-DB-RES')
+    })
+  </script>
+</materiel-table>

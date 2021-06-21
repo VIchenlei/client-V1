@@ -1,0 +1,108 @@
+<icon-input>
+  <div class="icon-input">
+    <input id={opts.idname} type={opts.type} size={opts.size} placeholder={opts.placeholder} value={opts.riotValue} ref={opts.idname} data-type={opts.dataType} onkeydown={ enterForLogin } onfocus={ changeHr } onblur={ changeHrOrigin } readonly={opts.readonly}/>
+    <svg class="icon">
+      <use xlink:href="/icons/icons.svg#{opts.icon}"></use>
+    </svg>
+    <hr class="input_bottom {opts.idname}" ref="hr">
+    <span class="illegal-tips" if={isIllegal}>{illeageText}</span>
+  </div>
+  <script>    
+    // console.log(opts)   
+    import {trim} from '../js/utils/utils.js'
+    let self = this
+    this.isIllegal = false
+    this.enterForLogin = (evt) => {
+      let id = evt.currentTarget.id
+      let keyCode = evt.keyCode
+
+      if (keyCode === 13 && id === 'userpwd') {
+        xbus.trigger('enter-login')
+      } else {
+        return true
+      }
+    }
+
+    this.changeHr = (evt) => {
+      if(this.refs.hr) this.refs.hr.style.transform = `scale(1)`
+      this.root.getElementsByTagName('svg')[0].style = `fill: #09f;`
+      this.opts.onfocus && this.opts.onfocus()
+    }
+
+    this.changeHrOrigin = (evt) => {
+      if(this.refs.hr) this.refs.hr.style.transform = `scale(0)`
+      this.root.getElementsByTagName('svg')[0].style = `fill: #999;`
+      if (opts.blurname) {
+        this.parent[opts.blurname](evt)
+      }
+      this.checkInput(evt)
+    }
+
+    /**
+    * reg-type值
+    * NER: 数字、字母、-
+    * NC: 数字、汉字
+    * N: 数字
+    * CENR: 汉字、字母、数字、-
+    */
+    this.checkInput = (evt) => {
+      let target = evt.currentTarget
+      let type = opts.regType
+      let now = new Date().getTime()
+      let tip = this.root.querySelector('.tips')
+      let value = trim(target.value)
+      switch (type) {
+        case 'CARD':
+          value = String(value)
+          if ((/^\d{1,}$/g).test(value) || value === '') {
+            this.isIllegal = false
+          } else {
+            this.illeageText = '请输入数字' 
+            this.isIllegal = true
+          }
+          break
+        case 'NER':
+          if ((/^[\dA-Za-z-]{1,}$/g).test(value) || value === '') {
+            this.isIllegal = false
+          } else {
+            this.illeageText = '请输入数字、字母或-' 
+            this.isIllegal = true
+          }
+          break
+        case 'NC':
+          if ((/^[0-9\u4e00-\u9fa5]{1,}$/g).test(value) || value === '') {
+            this.isIllegal = false
+          } else {
+            this.illeageText = '请输入数字或汉字'
+            this.isIllegal = true
+          }
+          break
+        case 'N':
+          if ((/^[0-9]{1,}$/g).test(value) || value === '') {
+            this.isIllegal = false
+          } else {
+            this.illeageText = '请输入数字'
+            this.isIllegal = true
+          }
+          break
+        case 'CE':
+          if ((/^[A-Za-z\u4e00-\u9fa5]{1,}$/g).test(value) || value === '') {
+            this.isIllegal = false
+          } else {
+            this.illeageText = '请输入字母或汉字'
+            this.isIllegal = true
+          }
+          break
+        case 'CENR':
+          if ((/^[A-Za-z-（）()\d\u4e00-\u9fa5]{1,}$/g).test(value) || value === '') {
+            this.isIllegal = false
+          } else {
+            this.illeageText = '请输入汉字、字母、数字或-'
+            this.isIllegal = true
+          }
+          break
+      }
+      this.update()
+    }
+  </script>
+</icon-input>

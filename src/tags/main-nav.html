@@ -1,0 +1,144 @@
+<main-nav>
+  <ul>
+    <li each={ items } id={ id } ref={ name } onclick={ switchItem }>
+      <span>{ label }</span>
+    </li>
+  </ul>
+
+  <script>
+    import './side-bar.html'
+    import { DEFAULT_MAP_ID } from '../js/def/map_def.js'
+
+    this.items = opts.menuitems
+    this.activeItem = null
+
+    // the module tags
+    let spMonitor = null
+    let spTrack = null
+    let spReport = null
+    let spManage = null
+    let spConfig = null
+    let sp3dGis = null
+
+    xbus.on('REPORT-FAST-OPEN', (msg) => {
+      this.gotoPage('sp_report', msg)
+      xbus.trigger('SHOW-REPORT', (msg))
+    })
+
+    xbus.on('TRACK-FAST-OPERATE', (msg) => {
+      msg && this.gotoPage('sp_track', msg)
+    })
+
+    xbus.on('LOGOUT', () => {
+      spMonitor && spMonitor.unmount('true')
+      spTrack && spTrack.unmount('true')
+      spReport && spReport.unmount('true')
+      spManage && spManage.unmount('true')
+      spConfig && spConfig.unmount('true')
+      sp3dGis && sp3dGis.unmount('true')
+    })
+
+    // main menu item switch logic
+    this.switchItem = (evt) => {
+      let node = evt.currentTarget
+      if (node === this.activeItem) {
+        return
+      }
+
+      let spName = node.getAttribute('ref')
+      this.gotoPage(spName, null)
+    }
+
+    // subpage goto
+    this.gotoPage = (spName, msg) => {
+      let fromSpName = this.activeItem && this.activeItem.getAttribute('ref')
+
+      this.setActiveItem(spName)
+      xbus.trigger('HIDE-ALL-POPUP')// 切换的时候隐藏card-tips
+    
+      switch (spName) {
+        case 'sp_monitor':
+          break
+        case 'sp_track':
+          if (!spTrack) {
+            spTrack = riot.mount('sp-history', {})[0]
+          }
+
+          if (msg && msg.id) {
+            spTrack.update({cardID: msg.id,numberId: msg.numberId,name: msg.name, time: msg.start_time, endTime: msg.end_time})
+          }
+          break
+        case 'sp_report':
+          if (!spReport) {
+            spReport = riot.mount('sp-report', {msg: msg})[0]
+          }
+          break
+        case 'sp_manage':
+          if (!spManage) {
+            spManage = riot.mount('sp-manage', {})[0]
+          }
+          break
+        case 'sp_config':
+          if (!spConfig) {
+            spConfig = riot.mount('sp-config', {})[0]
+          }
+          break
+        case 'sp_3dgis':
+          if (!sp3dGis) {
+            sp3dGis = riot.mount('sp-3dgis', {})[0]
+          }
+          break
+        default:
+          break
+      }
+
+      window.transer.spTransfer(spName)
+      // if (spName === 'sp_monitor') {
+      //   window.xhint.showLoading()
+      //   window.setTimeout(function(){
+      //     window.xhint.close()
+      //   }, 1000)
+      // }
+      this.name = spName
+
+      this.sendChangeRoomReq(fromSpName, spName)
+    }
+
+     // 切换 room
+    this.sendChangeRoomReq = (fromSpName, toSpName) => {
+      let op = null
+
+      if (toSpName === fromSpName) {
+        return
+      }
+
+      if (fromSpName === 'sp_monitor') {
+        op = 'enter'
+      } else if (toSpName === 'sp_monitor') {
+        op = 'leave'
+        xdata.needMove = true
+      }
+
+      if (op) {
+        xbus.trigger('USER', {
+          cmd: 'STANDBY',
+          op: op
+        })
+        console.log('Send change room request: ' + op + ' standby room.')
+      }
+    }
+
+    // main menu switch to
+    this.setActiveItem = (name) => {
+      this.activeItem && this.activeItem.classList.remove('active')
+      this.activeItem = this.refs[name]
+      this.activeItem && this.activeItem.classList.add('active')
+    }
+
+    this.on('mount', () => {
+      console.log('111111111111')
+      spMonitor = riot.mount('sp-monitor', { mapID: DEFAULT_MAP_ID })[0]
+      this.setActiveItem('sp_monitor')
+    })
+  </script>
+</main-nav>

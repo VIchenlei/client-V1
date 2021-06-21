@@ -1,0 +1,737 @@
+<query-newexprs id='query-newexprs'>
+    <button id='select-button' onclick={ showList }>筛选</button>
+    <div class="query-list query-list1 { isShow ? '' : 'hide'}" if={ showQueryList }>
+        <nav>筛选</nav>
+        <section>
+            <div each={ i in queryList } ident={ i.name.indexOf( '.') === -1 ? i.name : i.name.split( '.')[1] } type={ i.type } condition={
+                i.name } name={ i.label } class={ i.forbid ? 'list-title' : (name === 'person_month' ?'forbid list-title':'list-title') } onclick={ chooseCondition }>
+                <div>
+                    <span>
+                        <svg class="icon">
+                            <use xlink:href="/icons/icons.svg#icon-angle-left"></use>
+                        </svg>
+                    </span>
+                    <span>{ i.label }</span>
+                </div>
+                <div class={ setType(i.type) }><span>{ setValue(i.label) }</span></div>
+            </div>
+            <div class="tips">{ tips }</div>
+        </section>
+        <footer>
+            <button onclick={ doquery }>查询</button>
+            <button onclick={ hide }>取消</button>
+        </footer>
+    </div>
+    <div class="query-list" if={ showQueryList && ischooseCondition }>
+        <nav>{ label }</nav>
+        <fuzzy-search2 typeDef={ typeDef } dataSet={ dataSet } searchType= false searchIcon= true if={ showsearch }></fuzzy-search2>
+        <section>
+            <div each={ i in secondMenuData } class="list-title">
+                <label><input type="checkbox"  key={ i[ident] } name={ getName(i) } value = { getClassName(i) } onclick={ insertLabel } >{ getName(i) }</label>
+            </div>
+            <input type="datetime-local" class="query-option" if= { showDateCondition } value={ getDate(label) }  onblur={ insertTime }/>
+            <input type='month' class="query-option" if={ showMonthCondition } onblur={ insertTime }/> <!-- todo: 根据不同的查询条件，设置默认查询时间 -->
+            <input type="date" class="query-option" if={ showDayCondition } onblur={ insertTime }>
+            <div  if={ showRadioCondition } class="list-title" >
+                <label><input type="checkbox" onclick={ insertLabel } value="zuban" key = "1" name="足班">足班</label>
+                <label><input type="checkbox" onclick={ insertLabel } value="buzuban" key = "2" name="不足班">不足班</label>
+            </div>
+        </section>
+    </div>
+    <script>
+        import '../sass/query-newexprs.sass' 
+        import { needDisplay , getMonthDate, getAccessSql, getDisplaySql, dealMonth } from '../../js/utils/utils.js'
+        this.showQueryList = false
+        this.ischooseCondition = false
+        this.queryList = opts.def.exprFields
+        
+        for (let i = 0; i < this.queryList.length; i++) {
+            let obj=this.queryList[i]
+            if(obj.type==='DAY'){
+                obj['forbid']=false
+            }else{
+                obj['forbid']=true 
+            }  
+                         
+        }
+        this.def = opts.def
+        this.name = opts.def.name
+        this.exprList = opts.def.exprList
+        this.sqlTmpl = opts.def.sqlTmpl
+        this.sign = opts.def.sign
+        this.needDisplay = opts.def.needDisplay
+        this.resultFields = opts.def.fields.names
+        let PAGESIZE = PAGE_SIZE
+        let noexprs = ''
+        const ABSENCEARR = ['vehicle_no_updown_mine', 'person_absence']
+        const UNREPTABLE = ['person_s_dept_month', 'regular_cycle', 'person_s_dept_day']
+        const EFFICIENCY = ['efficiency_overview']
+        const MANAGE = ['efficiency_manage', 'rugular_total']
+        // this.sqlString = null
+        this.reptNames = ['v_vehicle_month', 'person_month', 'v_vehicle_day', 'driver_dept_month', 'whole_status']
+        const TIMEDETAIL = ['person_time']
+        const DAYARR = ['operation_rate', 'time_rate', 'regular_cycle', 'worktime_dept_shift', 'rugular_total']
+        const MONTHRP=['person_month']
+        this.forbid=true
+        this.showList = (evt) => {
+            this.store = new Map()
+            this.showQueryList = true
+            this.tips = ''
+            this.def.name !== 'person_month' && this.update()
+            this.setValue()
+            for (let i = 0; i < this.queryList.length; i++) {
+                let obj=this.queryList[i]
+                if(obj.type==='DAY'){
+                    obj['forbid']=false
+                }else{
+                    obj['forbid']=true 
+                }           
+            }
+            this.isShow = evt ? true : false
+        }
+
+        this.getDate = (label) =>{
+            return new Date(this.node.innerText).format('yyyy-MM-ddThh:mm')
+            // return this.setValue(label,'local-time')
+        }
+
+        this.setType = (type) => {
+            this.type = type 
+            return this.type
+        }
+
+        this.setValue = (label, type) => {
+            let n = 1
+            if(opts.def && opts.def.name === 'v_vehicle_day'){
+              n = 1
+            }
+            if(MONTHRP.includes(opts.def.name)){
+                var day=getMonthDate(new Date().format('yyyy-MM'),type)
+            }    
+            let curDate = type ? (MONTHRP.includes(opts.def.name) ? '' : new Date().format('yyyy-MM-ddThh:mm')) : (MONTHRP.includes(opts.def.name) ? '' : new Date().format('yyyy-MM-dd hh:mm'))
+            if (label === '开始时间' || label === '开始告警时间') {
+              let date = new Date(new Date(curDate).getTime() - n * 24 * 60 * 60 * 1000)
+              date = type ?(MONTHRP.includes(opts.def.name) ? '' : date.format('yyyy-MM-ddThh:mm') ):(MONTHRP.includes(opts.def.name) ? '' : date.format('yyyy-MM-dd hh:mm'))
+              return date
+            }else if(label === '结束时间' || label === '结束告警时间'){
+                return curDate 
+            }else if(label === '月份'){
+                return new Date().format('yyyy-MM')
+            }else if(label === '查询日期' || label === '充电日期'){
+                return new Date().format('yyyy-MM-dd')
+            }else if(this.root.querySelectorAll('.MONTH').innerText!=='' ){
+                this.root.querySelectorAll('.DAY').innerText===''
+            }
+        }
+
+        this.getMonth = () => {
+            return new Date().format('yyyy-MM')
+        }
+
+        this.insertTime = (evt) => {
+            let mvalue=this.root.querySelector('.MONTH span') && this.root.querySelector('.MONTH span').innerHTML
+            let dvalue=this.root.querySelector('.DAY span') && this.root.querySelector('.DAY span').innerHTML
+            if(mvalue==='' && dvalue===''){
+                for (let i = 0; i < this.queryList.length; i++) {
+                    let obj = this.queryList[i]
+                    obj.forbid=true
+                }
+            }
+            this.node.innerHTML = ''
+            let ospan = document.createElement('span'),type = evt.currentTarget.getAttribute('type'),time,stime,etime
+            switch (type) {
+                case 'datetime-local':
+                    ospan.innerText = evt.currentTarget.value ? new Date(evt.currentTarget.value).format('yyyy-MM-dd hh:mm') : ''
+                    this.node.appendChild(ospan)
+                    time = this.root.querySelectorAll('.DATE') 
+                    stime = time[0].innerText
+                    etime = time[1].innerText
+                    this.tips = stime && !etime ? '请选择结束时间...' : ''
+                    this.tips = etime && !stime ? '请选择开始时间...' : this.tips
+                    this.tips = stime && etime ? '' : this.tips
+                    this.type = 'DATE'
+                    break
+                case 'month':
+                    ospan.innerText = evt.currentTarget.value ? new Date(evt.currentTarget.value).format('yyyy-MM') : ''
+                    this.node.appendChild(ospan)
+                    time = this.root.querySelector('.MONTH').innerText 
+                    if(!time){
+                        for (let i = 0; i < this.queryList.length; i++) {
+                            let obj = this.queryList[i]
+                            obj.forbid=true
+                        }
+                    }else{
+                        for (let i = 0; i < this.queryList.length; i++) {
+                            let obj = this.queryList[i]
+                            if(obj.type==='DAY'){
+                                obj.forbid=false
+                            }else{
+                                obj.forbid=true
+                            }
+                        }
+                    }
+                    this.type = 'MONTH'
+                    this.tips =  time ? '' : '请选择查询时间...'
+                    break
+                case 'date':
+                ospan.innerText = evt.currentTarget.value ? new Date(evt.currentTarget.value).format('yyyy-MM-dd') : ''
+                    this.node.appendChild(ospan)
+                    time = this.root.querySelector('.DAY').innerText 
+                    if(!time){
+                        for (let i = 0; i < this.queryList.length; i++) {
+                            let obj = this.queryList[i]
+                            obj.forbid=true
+                        }
+                    }else{
+                        for (let i = 0; i < this.queryList.length; i++) {
+                            let obj = this.queryList[i]
+                            if(obj.type==='MONTH'){
+                                obj.forbid=false
+                            }else{
+                                obj.forbid=true
+                            }
+                        }
+                    }
+                    this.type = MONTHRP.includes(opts.def.name) ? 'MONTH' : 'DAY'
+                    this.tips =  time ? '' : '请选择查询时间...'
+                default:
+                    break
+            }
+
+            if (new Date(stime).getTime() > new Date().getTime) {
+                window.xhint.showHint('开始时间不能大于当前时间')
+                return
+            }
+
+            if (new Date(stime).getTime() > new Date(etime).getTime()) {
+                window.xhint.showHint('开始时间不能大于结束时间')
+                return
+            }
+        }
+
+        this.getName = (i) => {// deal special name
+            if (!i) return
+            if(this.label !== '员工编号'){
+                switch (this.tableKeyName) {
+                    case 'card':
+                        return i.card_id
+                        break
+                    case 'user':
+                        return i.user_id
+                        break
+                    case 'reader':
+                        return `${i.name}[${i.reader_id}]`
+                        break
+                    default:
+                        return i.name
+                        break
+                }
+            }else{
+                return i.staff_id
+            }
+            
+        }
+
+        this.getClassName = (i) => {// deal special name
+            if (!i) return
+            switch (this.tableKeyName) {
+                case 'staff':
+                    return 'staff' + i.staff
+                    break
+                case 'reader':
+                    return 'reader' + i.reader
+                    break
+                case 'battery':
+                    return 'battery' + i.battery_id
+                    break
+                case 'card':
+                    return 'card' + i.card_id
+                    break
+                case 'user':
+                    return i.user_id
+                    break
+                case 'vehicle_type':
+                    return 'vehicle_type' + i.vehicle_type_id
+                    break
+                default:
+                    return i.name
+                    break
+            }
+        }
+
+        let self = this
+
+        this.on('PAGEINDEX-CHANGE-REPT', (msg) => {
+          if(msg.name && this.def.name){
+            if (msg.name === this.def.name) {
+              self.doquery('',msg)
+           }
+          }
+        })
+
+        this.setTableSort = () => {
+            if (!UNREPTABLE.includes(this.def.name) && this.parent.tags["rept-table"]) {
+                if (this.parent.tags["rept-table"] && this.parent.tags["rept-table"].length) {
+                    let tag = this.parent.tags["rept-table"].filter(item => item.reptName === this.def.name)[0]
+                    tag ? tag.sortControl = false : ''
+                } else if (this.parent.tags["rept-table"]) {
+                    this.parent.tags["rept-table"].sortControl = false
+                }
+                // this.parent.tags["rept-table"] && this.parent.tags["rept-table"].length ? this.parent.tags["rept-table"].filter(item => item.reptName === this.def.name)[0].sortControl = false : this.parent.tags["rept-table"].sortControl = false
+            }
+        }
+
+        this.doquery = (evt, msg) => {
+            this.setTableSort()
+            if(!msg){
+                let accessSql = getAccessSql(this.def.name)
+                let displaySql = getDisplaySql(this.def.name)
+                let objRange = xdata.objRange
+                // let noexprs = ''
+                if(MONTHRP.includes(this.def.name)){
+                    var mvalue=this.root.querySelector('.MONTH span') ? this.root.querySelector('.MONTH span').innerHTML: new Date().format('yyyy-MM')
+                    if(mvalue!==''){
+                        this.type='MONTH'                  
+                    }
+                }
+                                
+                var eles = this.root.querySelectorAll('.query-list1 .list-title'),str = '',scondition,econdition,className = '.' + this.type,searchtime = '', lessSearchtime = ''
+                var time = this.root.querySelectorAll(className) 
+                this.stime = time && time[0] && time[0].childNodes && time[0].childNodes[0] && time[0].childNodes[0].innerHTML
+                this.etime = time && time[1] && time[1].childNodes && time[1].childNodes[0] && time[1].childNodes[0].innerHTML
+                scondition = this.stime && time[0].parentNode.getAttribute('condition')
+                econdition = this.etime && time[1].parentNode.getAttribute('condition')
+                // 获取前一小时的
+                if (this.def.name === 'person_hour'){
+                    str += this.getHour()
+                }
+
+                for(let i=0,len=eles.length;i<len;i++){
+                    let keyName = eles[i].getAttribute('ident')
+                    if(keyName && keyName !== 'start_time' && keyName !== 'is_enough'){
+                        let conditionData = this.store.get(keyName)
+                        if(conditionData && conditionData.length>0){
+                            for(let j=0,leng=conditionData.length;j<leng;j++){
+                                let concatstr = conditionData.length > 1 ? ' and (' : ' and '
+                                j === 0 ? str += concatstr + conditionData[j].condition + '=' + conditionData[j].key :  str += ' OR '+ conditionData[j].condition + '=' + conditionData[j].key 
+                            }
+                            str += conditionData.length > 1 ? ')' : ''
+                        }
+                    }else if(keyName == 'is_enough'){
+                        let conditionData = this.store.get(keyName)
+                        if(conditionData && conditionData.length === 1){
+                            str += conditionData[0].name === '足班' ? ' and TIMESTAMPDIFF(MINUTE, IFNULL(ras.start_time, CURRENT_TIMESTAMP()),ras.end_time) >= da.min_minutes*60' : ' and TIMESTAMPDIFF(MINUTE, IFNULL(ras.start_time, CURRENT_TIMESTAMP()),ras.end_time) < da.min_minutes*60'
+                        }
+                    }
+                }
+
+                if(this.sign && this.sign == 1){
+                    str += accessSql
+                }
+                if(objRange === 1 && this.needDisplay && this.needDisplay == 1){
+                    str += displaySql
+                }
+
+                if (ABSENCEARR.includes(this.def.name)) {
+                    noexprs = str
+                    str = scondition ? ' AND ' + scondition + '>= "' + this.stime + '"': ''
+                    str += econdition ? ' AND ' + econdition + '<= "' + this.etime + '"' : ''
+                } else if (TIMEDETAIL.includes(this.def.name)) {
+                    str += ` and (raf.start_time > '${this.stime}' and raf.start_time < '${this.etime}') or (raf.start_time < '${this.stime}' AND raf.end_time > '${this.etime}') or (raf.end_time > '${this.stime}' AND raf.end_time < '${this.etime}')`
+                } else if (DAYARR.includes(this.def.name)) {
+                    scondition ? str += ' AND ' + scondition + '= "' + this.stime + '"': ''
+                } else if (this.def.name === 'worktime_detail_table') {
+                    let beforeTime = this.stime ? new Date(this.stime) - 24 * 60 * 60 * 1000 : new Date() - 24 * 60 * 60 * 1000
+                    beforeTime = new Date(beforeTime).format('yyyy-MM-dd')
+                    let shift = xdata.metaStore.data.shift && xdata.metaStore.data.shift.get(1)
+                    let shiftime = shift ? shift.start_time : '23:59:59'
+                    searchtime = this.stime ? `between '${beforeTime} ${shiftime}' and '${this.stime} 23:59:59'` : `between '${beforeTime} ${shiftime}' and '${new Date().format('yyyy-MM-dd')} 23:59:59'`
+
+                    let theDay = this.stime ? this.stime : new Date().format('yyyy-MM-dd')
+                    searchtime = `(start_work_time between '${beforeTime} ${shiftime}' and '${beforeTime} 23:59:59' and shift_id = 1) or (start_work_time between '${theDay} 00:00:00' and '${theDay} ${shiftime}') or (start_work_time between '${theDay} ${shiftime}' and '${theDay} 00:00:00' and shift_id != 1)`
+                    lessSearchtime = `(start_time between '${beforeTime} ${shiftime}' and '${beforeTime} 23:59:59' and shift_id = 1) or (start_time between '${theDay} 00:00:00' and '${theDay} ${shiftime}') or (start_time between '${theDay} ${shiftime}' and '${theDay} 00:00:00' and shift_id != 1)`
+                } else if (this.def.name === 'v_vehicle_month' || this.def.name === 'person_month' || this.def.name === 'driver_dept_month' || this.def.name === 'person_s_dept_month'){   
+                    if(MONTHRP.includes(opts.def.name) && mvalue===''){
+                        opts.def.stime=this.stime
+                        opts.def.etime=this.etime
+                    }
+                    let cmonth= dealMonth(this.stime)
+                    let month= `"${this.stime}" and "${this.etime}"`
+                    scondition ? str += ` and ${scondition} between ${mvalue==='' ? month : cmonth}`: ''
+                } else {
+                    scondition ? str += ' AND ' + scondition + '>= "' + this.stime + '"': ''
+                    econdition ? str += ' AND ' + econdition + '<= "' + this.etime + '"' : ''
+                }
+                if (!TIMEDETAIL.includes(this.def.name)) {
+                    if(this.type === 'DATE'){ // test tips
+                        this.tips = !scondition ? '请选择开始时间...' : this.tips
+                        this.tips = !econdition ? '请选择结束时间...' : this.tips
+                        if(!scondition && !econdition) return this.tips = '请选择查询时间...'
+                        if(!scondition || !econdition) return this.tips
+                    }else if(this.type === 'MONTH'){
+                        if(!scondition) return this.tips = '请选择查询时间...'
+                    }else if(this.type === 'DAY' && MONTHRP.includes(this.def.name)){
+                        if(!scondition) return this.tips = '请选择查询时间...'
+                    }else{
+                        console.warn('unknown type!')
+                    }
+                }
+
+                if (EFFICIENCY.includes(this.def.name)) {
+                    this.parent.tags["efficiency-overview"] && this.parent.tags["efficiency-overview"].doQuery(this.def, this.stime)
+                    this.hide()
+                    return
+                }
+
+                if (MANAGE.includes(this.def.name)) {
+                    if (this.def.name === 'efficiency_manage'){
+                        this.parent.tags["efficiency-manage"] && this.parent.tags["efficiency-manage"].doQuery(this.def, this.stime)
+                    } else if(this.def.name === 'rugular_total'){
+                        this.parent.tags["rugular-total"] && this.parent.tags["rugular-total"].doQuery(this.def, this.stime)
+                    }            
+                    this.hide()
+                    return
+                }
+
+                if (this.def.name === 'worktime_dept_shift') {
+                    this.parent.tags['worktime-dept-shift'] && this.parent.tags['worktime-dept-shift'].doQuery(this.def, this.stime)
+                    this.hide()
+                    return
+                }
+                
+                if (this.def.name === 'worktime_detail_table') {
+                    this.sqlString = this.sqlTmpl.replace('{resultFields}', this.resultFields.join(',')).replace('{exprString}', searchtime).replace('{exprStringLess}', lessSearchtime)
+                    this.countSql = this.sqlTmpl.replace('{resultFields}', 'count(1) as total').replace('{exprString}', searchtime).replace('{exprStringLess}', lessSearchtime)
+                    this.sqlString = str ? this.sqlString.replace('{exprStringDept}', str) : this.sqlString.replace('{exprStringDept}', '')
+                    this.countSql = str ? this.countSql.replace('{exprStringDept}', str) : this.countSql.replace('{exprStringDept}', '')
+                } else {
+                    this.sqlString = this.sqlTmpl.includes('{resultFields}') ? this.sqlTmpl.replace('{resultFields}', this.resultFields.join(',')).replace('{exprString}', str) : this.sqlTmpl.split('where 1=1')[0] +'where 1=1' + str //解决快捷跳转后父标签未刷新问题
+                    this.countSql = this.sqlTmpl.includes('{resultFields}') ? this.sqlTmpl.replace('{resultFields}', 'count(1) as total').replace('{exprString}', str) : this.sqlTmpl.split('where 1=1')[0] +'where 1=1' + str
+                }
+                
+                
+                if (ABSENCEARR.includes(this.def.name)) {
+                    this.sqlString = this.sqlString.replace('{noexprString}', noexprs)
+                    this.countSql = this.countSql.replace('{noexprString}', noexprs)
+                }
+
+                if(this.def.name === 'v_vehicle_day' || this.def.name === 'person_s_dept_month' || this.def.name === 'worktime_dept_shift' || this.def.name === 'person_s_dept_day'){
+                    PAGESIZE = 10000
+                }else{
+                    PAGESIZE = PAGE_SIZE
+                }
+            }
+            
+            let pageIndex = msg ? msg.pageIndex : 0
+            let total = msg ? msg.total : -1
+            this.message = {
+                cmd: 'query',
+                data: {
+                name: this.def.name,
+                pageSize: PAGESIZE,
+                pageIndex: pageIndex,
+                total: total, // 默认
+                sql: this.sqlString ? this.sqlString : this.parent.sqlString,
+                countSql: this.countSql ? this.countSql : this.parent.countSql
+                }
+            }
+            this.graphMsg = {   
+                name: this.def.name,
+                time: [String(this.stime),String(this.etime)]
+            }
+            
+            if (this.reptNames.includes(this.graphMsg.name)) {
+                let name = 'QGraph_' + this.graphMsg.name
+                let childtag = this.parent.refs[name]
+                if(MONTHRP.includes(opts.def.name) && mvalue===''){
+                    childtag.opts.stime=this.stime
+                    childtag.opts.etime=this.etime
+                }
+                this.showGraph(this.graphMsg)
+            }
+            xbus.trigger('REPT-FETCH-DATA', {
+                req: this.message,
+                def: this.def
+            })
+
+            xbus.trigger('SEND-START-TIME',{sTime:this.stime,eTime:this.etime})
+            this.hide()
+            window.xhint.showLoading()
+            if (this.parent.tags["rept-table"]) this.parent.tags["rept-table"].sortControl = false
+        }
+
+        xbus.on('ASK-FILE', (msg) => {
+            if (msg.name === this.def.name && msg.reptIndex === this.def.reptIndex) {
+                this.doQueryFile(msg)
+            }
+        })
+
+        this.doQueryFile = (msg) =>{
+            let arr = ['vehicle_no_updown_mine', 'person_absence']
+            let sqlString // 未出勤
+            if(arr.includes(msg.name)){
+                sqlString= this.sqlString.replace('{noexprString}',noexprs)
+            }else{
+                sqlString = this.sqlString || this.parent.sqlString
+            }
+            if (msg.name === 'worktime_dept_shift') {
+                let time = this.graphMsg.time[0]
+                msg.title = `${time}${msg.title}`
+            }
+            if (msg.name === 'efficiency_manage'){
+                sqlString = msg.sql
+            }
+            msg.sql = sqlString
+            msg.userName = xdata.userName
+            msg.exprList = this.exprList.slice(1)
+            xbus.trigger('REPT-FETCH-FILE', msg)
+        }
+
+        this.showGraph = (graphMsg) => {
+            let name = 'QGraph_' + graphMsg.name
+            let childtag = this.parent.refs[name]
+            childtag.getGraphData(graphMsg)
+            childtag.existgraph = true
+            childtag.update()
+        }
+
+        this.insertLabel = (evt,names,keys) =>{
+            let name = names ? names : evt.currentTarget.getAttribute('name')
+            let className = keys ? `classname${keys}` : evt.currentTarget.getAttribute('value')
+            let key = evt && isNaN(evt.currentTarget.getAttribute('key')) ? `'${evt.currentTarget.getAttribute('key')}'` : evt && Number(evt.currentTarget.getAttribute('key'))
+            key = keys ? keys : key
+            let getData = this.store.get(this.ident)
+            let getName = getData.filter(item => item.name === name)
+            if(this.root.querySelector('.'+ className)) {
+                this.root.querySelector('.'+ className).parentNode.removeChild(this.root.querySelector('.'+ className))
+                let getDatas = getData.filter(item =>{
+                    return item.key !== key ? item : ''
+                })
+                this.store.delete(this.ident)
+                this.store.set(this.ident,getDatas)
+                return
+            }
+            let outSpan = document.createElement('span'),contSpan = document.createElement('span'),closeSpan = document.createElement('span')
+            outSpan.setAttribute('class',className)
+            contSpan.innerText = name        
+            closeSpan.innerText = 'x'
+            closeSpan.setAttribute('ident',this.ident)
+            if(getName && getName[0] && getName[0].name && this.root.querySelector('.'+ name)){
+                return
+            }else{
+                contSpan.appendChild(closeSpan)
+                outSpan.appendChild(contSpan)
+                this.node.appendChild(outSpan)
+                if(getName && getName[0] && getName[0].name){
+
+                }else{
+                    if(this.ident==='staff_id' && Array.isArray(this.result)){
+                        for (let i = 0; i < this.result.length; i++) {
+                            getData.push({'name':name,'key':this.result[i].staff_id ,'condition': this.condition})
+                        }
+                    }else{
+                        getData.push({'name':name,'key': key,'condition': this.condition})
+                    }
+                }
+                if (document.getElementsByName(name)[0]) document.getElementsByName(name)[0].checked = true            
+            } 
+            let self = this
+            closeSpan.onclick = function(evt){
+                    this.parentNode.parentNode.parentNode.removeChild(this.parentNode.parentNode)//避免this.node 没更新
+                    document.getElementsByName(name)[0].checked = false
+                    let ident = this.getAttribute('ident')
+                    let data =  self.store.get(ident)
+                    if(ident==='staff_id'){
+                        let getDatas = data.filter(item =>{
+                            return item.name !== name ? item : ''
+                        })
+                        self.store.delete(ident)
+                        self.store.set(ident,getDatas)
+      
+                    }else{
+                        let getDatas = data.filter(item =>{
+                            return item.key !== key ? item : ''
+                        })
+                        self.store.delete(ident)
+                        self.store.set(ident,getDatas)
+                    }
+                    evt.stopPropagation()
+            }
+        }
+
+        this.showSearchBox = () =>{
+            let arr = ['staff_id','dept_id','vehicle_id', 'card_id']
+            this.showsearch = arr.includes(this.ident)  ? true : false
+            if(this.showsearch){
+                if(this.ident === 'staff_id' && this.label !== '员工编号'){
+                    let staffArr = Array.from(xdata.metaStore.staffs.values())
+                    this.typeDef = {
+                        name: 'staff',
+                        label: '人员',
+                        placeholder: '姓名,姓名首字母,员工编号或卡号',
+                        cb: this.getResult  // the callback when select an item.
+                    }
+                    this.dataSet = {
+                        desc: 'name',  // 显示结果集时，显示的字段：一般为描述字段
+                        keys: ['name', 'spy', 'staff_id','card_id'],  // 参与搜索的列名称
+                        data: staffArr
+                    }
+                }else if(this.ident === 'staff_id' && this.label === '员工编号'){
+                    let staffArr = Array.from(xdata.metaStore.staffs.values())
+                    this.typeDef = {
+                        name: 'staff',
+                        label: '员工编号',
+                        placeholder: '员工编号',
+                        cb: this.getResult  // the callback when select an item.
+                    }
+                    this.dataSet = {
+                        desc: 'staff_id',  // 显示结果集时，显示的字段：一般为描述字段
+                        keys: ['staff_id', 'name', 'spy'],  // 参与搜索的列名称
+                        data: staffArr
+                    }
+                }else if(this.ident === 'dept_id'){
+                    let deptArr = Array.from(xdata.metaStore.data.dept.values())
+                    this.typeDef = {
+                        name: 'dept',
+                        label: '部门',
+                        placeholder: '部门或部门首字母',
+                        cb: this.getResult  // the callback when select an item.
+                    }
+                    this.dataSet = {
+                        desc: 'name',  // 显示结果集时，显示的字段：一般为描述字段
+                        keys: ['name', 'spy'],  // 参与搜索的列名称
+                        data: deptArr
+                    }
+                }else if(this.ident === 'vehicle_id'){
+                    let vehicleArr = Array.from(xdata.metaStore.data.vehicle.values())
+                    this.typeDef = {
+                        name: 'vehicle',
+                        label: '车辆',
+                        placeholder: '车牌号',
+                        cb: this.getResult  // the callback when select an item.
+                    }
+                    this.dataSet = {
+                        desc: 'name',  // 显示结果集时，显示的字段：一般为描述字段
+                        keys: ['name', 'spy', 'vehicle_id','card_id'],  // 参与搜索的列名称
+                        data: vehicleArr
+                    }
+                }else if(this.ident === 'card_id'){
+                    let vehicleArr = Array.from(xdata.metaStore.data.card.values())
+                    this.typeDef = {
+                        name: 'card',
+                        label: '卡号',
+                        placeholder: '卡号',
+                        cb: this.getResult  // the callback when select an item.
+                    }
+                    this.dataSet = {
+                        desc: 'card_id',  // 显示结果集时，显示的字段：一般为描述字段
+                        keys: ['card_id'],  // 参与搜索的列名称
+                        data: vehicleArr
+                    }
+                }
+                this.tags['fuzzy-search2'] ?  this.tags['fuzzy-search2'].updateData({ typeDef: this.typeDef, dataSet: this.dataSet, searchType: false, searchIcon: false }) : ''
+            }
+        }
+
+        this.getResult = (result) => {
+            this.result = result
+            let desc=this.dataSet.desc
+            if(this.root.querySelector('#searchinput').value){ 
+              if(desc!=='name'){                  
+                  this.insertLabel('', result[desc], result[this.ident])
+              }else{            
+                  if (Array.isArray(result)) result = result[0] 
+                  this.insertLabel('', result.name, result[this.ident])   
+              }
+              this.root.querySelector('#searchinput').value = ''
+            }
+         }
+
+        this.chooseCondition = (evt) => {
+            this.label = evt.currentTarget.getAttribute('name')
+            this.ident = evt.currentTarget.getAttribute('ident')
+            this.showSearchBox()
+            let type = evt.currentTarget.getAttribute('type')
+            let mvalue=this.root.querySelector('.MONTH span') && this.root.querySelector('.MONTH span').innerHTML
+            let dvalue=this.root.querySelector('.DAY span') && this.root.querySelector('.DAY span').innerHTML
+            
+            this.ischooseCondition = true
+            this.secondMenuData = []
+            this.showChildContain(evt.currentTarget)
+            let arr = ['staff_id', 'vehicle_id', 'map_id', 'dept_id', 'occupation_id', 'area_id', 'shift_id', 'vehicle_type_id', 'battery_id', 'card_id', 'checkpartsitem_id', 'checkparts_id', 'reader_id', 'op_type_id', 'user_id', 'name']
+            if (arr.includes(this.ident)) {
+                this.showDateCondition = false
+                this.showMonthCondition = false
+                this.showDayCondition = false
+                this.showRadioCondition = false
+                this.tableKeyName = this.ident.split('_id')[0]
+
+                this.secondMenuData = Array.from(xdata.metaStore.data[this.tableKeyName].values())
+                if(this.tableKeyName === 'dept'){
+                    let accessResult = xdata.depts
+                    this.secondMenuData = this.secondMenuData.filter(item => accessResult.includes(item.dept_id))
+                }else if(this.tableKeyName === 'staff' || this.tableKeyName === 'vehicle'){
+                    this.secondMenuData = this.secondMenuData.filter(item => needDisplay(item.card_id))
+                }
+            } else {
+                switch (type) {
+                    case 'DATE':
+                        this.showDateCondition = true
+                        break
+                    case 'MONTH':
+                        this.showMonthCondition = true
+                        this.showDayCondition=false
+                        break
+                    case 'DAY': 
+                        this.showDayCondition = true
+                        this.showMonthCondition = false
+          
+    
+                        this.showDayCondition = true
+                        this.showMonthCondition = false
+                        break
+                    case 'RADIO':
+                        this.showRadioCondition = true
+                        break
+                }
+            }
+            this.update()
+        }
+
+        this.showChildContain = (ele) =>{
+            this.node = ele.children[1]
+            this.condition = ele.getAttribute('condition')
+            !this.store.get(this.ident) && this.store.set(this.ident,[]) //store have choosed data
+        }
+
+        this.hide = () => {
+            this.showQueryList = false
+            this.ischooseCondition = false
+        }
+        
+        this.getHour = () => {
+            let now = new Date()
+            let time =new Date(now.getTime() - 1*60*60*1000).format('yyyy-MM-dd hh:mm:ss');
+            return ` between '${time}' and '${now.format('yyyy-MM-dd hh:mm:ss')}'`
+        }
+
+        this.sortResult = (condition, isAscending) => {
+            let isContains = /order by/ig.test(this.sqlString)
+            condition = condition.split(' as ')[0]
+            if (isContains) {
+                this.sqlString = this.sqlString.split('order by')[0]
+            }
+            this.message = this.message ? this.message : this.parent.message
+            this.sqlString = this.sqlString ? this.sqlString : this.message.data.sql
+            this.message.data.sql = isAscending ? `${this.sqlString} order by ${condition}` : `${this.sqlString} order by ${condition} desc`
+            this.sqlString = this.message.data.sql
+            this.message.data.pageIndex = 0
+            this.message.data.total = -1
+            xbus.trigger('REPT-FETCH-DATA', {
+                req: this.message,
+                def: this.def
+            })
+            window.xhint.showLoading()
+        }
+    </script>
+</query-newexprs>

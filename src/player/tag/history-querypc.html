@@ -1,0 +1,346 @@
+<history-querypc>
+  <nav>
+    <img src="../img/historyLogo.png">
+    <h4>历史查询</h4>
+  </nav>
+  <div class="search-content">
+    <ul class="user-dropmenu">
+      <!-- <li each={ i in changeList} class={ i.class } name={ i.name } onclick={ changeSence }>
+        <span>{ i.label }</span>
+      </li> -->
+      <li each={ i in changeList} class={ i.class } name={ i.name }>
+        <span>{ i.label }</span>
+      </li>
+    </ul>
+    <!-- <img src="/img/{hasList ? 'angle-up.png' : 'angle-down.png'}" alt=""> -->
+    <div class="search-change" if={ curTheme==='queryTrack' }>
+      <svg class="icon" name="cardtypeid" ref="cardtypeid" value="2" onclick={ setCardTypeID }>
+        <use href='/icons/icons.svg#icon-vehicle-big'></use>
+      </svg>
+      <span>|</span>
+      <svg class="icon active" name="cardtypeid" ref="cardtypeid" value="1" onclick={ setCardTypeID }>
+        <use href='/icons/icons.svg#icon-staff-big'></use>
+      </svg>
+    </div>
+    <div class="identify-staff" if={ curTheme==='queryTrack' }></div>
+    <div class="scene-mappc" data-is="scene-mappc" if={ curTheme==='querySence' }></div>
+    <div class="search-img" onclick={ doQueryList }>
+      <img src="./img/serachWhite.png">
+    </div>
+  </div>
+  <div class="checkout-work" ref="checkout-work">
+    <input type="checkbox" name="" id="checkout">
+    <label for="checkout">按考勤查询历史轨迹</label>
+  </div>
+  <div class="search-more duration-select-panel" data-is="duration-selectpc">高级筛选功能</div>
+  <track-list class="search-result"></track-list>
+  <scene-info class="search-result hide"></scene-info>
+  <script>
+    import '../sass/history-queryindex.sass'
+    import '../sass/track-listpc.sass'
+    import './duration-selectpc.html'
+    import './track-list.html'
+    import './scene-info.html'
+    import './scene-mappc.html'
+    import { getAccessSql } from '../../js/utils/utils.js'
+
+    this.curTheme = 'queryTrack'
+    this.cardTypeID = 1
+    this.currentQuery = 'track-querypc'
+    // this.changeList = [{ name: 'queryTrack', class: 'queryTrack', label: '历史轨迹' }, { name: 'querySence', class: 'hide querySence', label: '场景重现' }]
+    this.changeList = [{ name: 'queryTrack', class: 'queryTrack', label: '历史轨迹' }]
+
+    this.getResult = (result) => {
+      let desc=this.dataSet.desc
+      if(this.root.querySelector('#searchinput').value){
+        if(desc!=='name' || this.dataSet.keys.includes('staff_id')){     
+          this.root.querySelector('#searchinput').value = result[desc]
+        }else{
+          this.result = result
+          this.root.querySelector('#searchinput').value = result[0][desc]
+        }
+      }else{  
+        this.root.querySelector('#searchinput').value = ''
+      }     
+    }
+
+    this.init = (value) => {
+      let data, placeholder, label
+      let keys = []
+      if (value === 'staff') {
+        if (!xdata.depts) {
+          data = Array.from(xdata.metaStore.staffs.values())
+        } else {
+          data = Array.from(xdata.metaStore.staffs.values()).filter(item => xdata.depts.includes(item.dept_id))
+        }   
+        // if (xdata.userDept != 0) {
+        //   data = data.filter(item => item.dept_id == xdata.userDept)
+        // }
+        placeholder = '请输入姓名/简拼'
+        label = '人员'
+        keys = ['name', 'spy', 'staff_id', 'card_id']
+        this.connect = true
+      } else if (value === 'vehicle') {
+        if (!xdata.depts) {
+          data = Array.from(xdata.metaStore.data.vehicle.values())
+        } else {
+          data = Array.from(xdata.metaStore.data.vehicle.values()).filter(item => xdata.depts.includes(item.dept_id))
+        } 
+        placeholder = '请输入车牌号'
+        label = '车辆'
+        keys = ['name', 'vehicle_id', 'card_id']
+        this.connect = false
+      }
+      this.typeDef = {
+        name: value,
+        label: label,
+        placeholder: placeholder,
+        cb: this.getResult,  // the callback when select an item.
+        connect: this.connect,
+        pageName: 'history-querypc'
+      }
+      this.dataSet = {
+        desc: 'name',  // 显示结果集时，显示的字段：一般为描述字段
+        keys: keys,  // 参与搜索的列名称
+        data: data
+      }
+    }
+    this.init('staff')
+
+    this.on('mount', () => {
+      this.bindTag()
+    })
+
+    this.bindTag = () =>{
+      this.tagTrackList = this.tags['track-list']
+      this.player = this.parent ? this.parent.tagPlayer : this.root.parentElement._tag.tagPlayer
+      this.fuzz = riot.mount('div.identify-staff', 'fuzzy-search2', { typeDef: this.typeDef, dataSet: this.dataSet })[0]
+    }
+
+    this.hasList = false
+    this.changeSence = (evt) => {//可屏蔽场景重现
+      let target = evt.currentTarget, querySenceDom = this.root.querySelector('.querySence'), queryTrackDom = this.root.querySelector('.queryTrack'),name = target.getAttribute('name')
+      if (!this.hasList) {
+        this.hasList = true
+        querySenceDom.classList.remove('hide')
+        queryTrackDom.classList.remove('hide')
+      } else {
+        this.hasList = false
+        if (name === 'querySence') {
+          queryTrackDom.classList.add('hide')
+          querySenceDom.style.top = '0'
+          queryTrackDom.style.top = '100%'
+          this.curTheme = 'querySence'
+          this.queryMore = true
+          this.tags['track-list'].root.classList.add('hide')
+          this.tags['scene-info'].root.classList.remove('hide')
+        } else {
+          querySenceDom.classList.add('hide')
+          queryTrackDom.style.top = '0'
+          querySenceDom.style.top = '100%'
+          this.curTheme = 'queryTrack'
+          this.queryMore = false
+          this.update()
+          this.bindTag()
+          this.tags['scene-info'].root.classList.add('hide')
+          this.tags['track-list'].root.classList.remove('hide')
+        }
+      }
+    }
+
+    this.setCardTypeID = (evt, cardTypeID) => {
+      xbus.trigger('MAP-HISTORY-RESET')
+      let v = evt && evt.currentTarget.getAttribute('value')
+      this.cardTypeID = v ? parseInt(v, 10) : cardTypeID
+      if (this.cardTypeID === 1) {
+        this.init('staff')
+        this.refs.cardtypeid[0].classList.remove('active')
+        this.refs.cardtypeid[1].classList.add('active')
+      } else if (this.cardTypeID === 2) {
+        this.init('vehicle')
+        this.refs.cardtypeid[0].classList.add('active')
+        this.refs.cardtypeid[1].classList.remove('active')
+      }
+      if (this.fuzz) {
+        this.fuzz.unmount(true)
+      }
+      this.fuzz = riot.mount('div.identify-staff', 'fuzzy-search2', { typeDef: this.typeDef, dataSet: this.dataSet })[0]
+      this.update()
+    }
+
+    this.switchMore = (evt) => { // 点击高级查询
+      this.queryMore = !this.queryMore
+    }
+
+    this.doQueryList = (time, endtime) => {
+      if(this.curTheme === "querySence"){
+        return this.tags['scene-mappc'].doQueryHistoryScene()
+      }
+      this.root.classList.remove('hide')
+      this.tagTrackList.reset()
+      this.player.reset()
+      let objID = this.fuzz.tags["icon-input"].refs['searchinput'].getAttribute('data-type')
+      let inputValue = this.fuzz.tags["icon-input"].refs['searchinput'].value
+      if (!objID && inputValue) {//用户不选择列表直接输入名字时处理
+        if (this.cardTypeID === 1) {
+          let inputData = xdata.metaStore.dataInArray.get('staff').filter(item => item.name === inputValue)[0]
+          objID = inputData && inputData.staff_id
+        } else {
+          let inputData = xdata.metaStore.dataInArray.get('vehicle').filter(item => item.name === inputValue)[0]
+          objID = inputData && inputData.vehicle_id
+        }
+      }
+      if (!inputValue) {
+        return window.xhint.showHint('请输入查询的人员或车辆。')
+      }
+      let duration = this.getQueryDuration(time, endtime)
+      if (!duration) {
+        let msg = {
+          value: 'nochange',
+          tip: '输入的时间有误，请检查后重新输入！'
+        }
+        window.hintip.open(msg)
+        return
+      }
+      window.xhint.showLoading()
+      this.queryTrackList(this.cardTypeID, objID, duration)
+    }
+
+    this.queryTrackListTime = (typeID, objID, duration) => {
+      let sql = '',countSql = '',timeExpr = ''
+      let accessSql = getAccessSql('TrackList')
+      if (typeID === 2) { // vehicle
+        timeExpr = ` and begin_time >= "${duration.startTime}" and last_time < "${duration.endTime}"`
+        sql = `select dve.vehicle_id, dve.card_id, begin_time, ifnull(last_time, current_timestamp()) last_time, speed, begin_pt, area_id,direction, location_flag from his_location_vehicle_ hlv, dat_vehicle_extend dve where hlv.obj_id = dve.vehicle_id and dve.vehicle_id = ${objID} and begin_time >= "${duration.startTime}" and begin_time <= "${duration.endTime}" order by begin_time;`
+      } else if (typeID === 1) { // staff
+        sql = `SELECT bt.staff_id, bt.card_id, begin_time, ifnull(last_time, current_timestamp()) last_time, speed, begin_pt, hl.area_id, direction, location_flag FROM his_location_staff_ hl,dat_staff_extend bt WHERE hl.obj_id=bt.staff_id AND bt.staff_id= ${objID} AND begin_time >= "${duration.startTime}" AND begin_time <= "${duration.endTime}" ORDER BY begin_time;`
+      } else {
+        console.warn('UNKNOWN search type : ', typeID)
+      }
+      return {
+        sql: sql,
+        countSql: countSql
+      }
+    }
+
+    this.queryTrackListCheckout = (typeID, objID, duration) => {
+      let sql = '',countSql = '',timeExpr = ''
+      let result = this.result
+      if (typeID === 2) { // vehicle
+        let vehicleAssociation = `left join dat_landmark dl1 on rav.landmark_id_start = dl1.landmark_id left join dat_landmark dl2 on rav.landmark_id_end = dl2.landmark_id left join dat_direction_mapper ddm1 on rav.landmark_direction_start = ddm1.direction_mapper_id left join dat_direction_mapper ddm2 on rav.landmark_direction_end = ddm2.direction_mapper_id) rav left join dat_driver_arrange dda on rav.vehicle_id =dda.vehicle_id and rav.att_date=dda.driver_date and rav.shift_id=dda.shift_id order by rav.start_time desc;`
+        timeExpr = ` and start_time >= "${duration.startTime}" and end_time <= "${duration.endTime}" and TIMESTAMPDIFF(SECOND, start_time, end_time) >= 10`
+        sql = `select rav.* from (
+            select rav.card_id, date_format(rav.start_time, "%Y-%m-%d %H:%i:%s") as start_time, date_format(rav.end_time, "%Y-%m-%d %H:%i:%s") as end_time,rav.vehicle_id,rav.name,rav.att_date,rav.shift_id,ifnull(dl1.name,'') as sname,ddm1.name as sdir,rav.landmark_distance_start as sdis,ifnull(dl2.name,'') as ename,ddm2.name as edir,rav.landmark_distance_end as edis from(
+              select rav.*, v.name from rpt_att_vehicle rav, dat_vehicle v where rav.vehicle_id=v.vehicle_id and rav.vehicle_id=${objID}${timeExpr}) rav ${vehicleAssociation}`
+        countSql = `select count(vehicle_id) as total from rpt_att_vehicle where vehicle_id=${objID}${timeExpr};`
+      } else if (typeID === 1) {
+        let staffAssociation = `left join dat_landmark dl1 on ras.landmark_id_start = dl1.landmark_id left join dat_landmark dl2 on ras.landmark_id_end = dl2.landmark_id left join dat_direction_mapper ddm1 on ras.landmark_direction_start = ddm1.direction_mapper_id left join dat_direction_mapper ddm2 on ras.landmark_direction_end = ddm2.direction_mapper_id order by ras.start_time desc;`
+        timeExpr = ` and ras.start_time >= "${duration.startTime}" and ras.end_time <= "${duration.endTime}" and TIMESTAMPDIFF(SECOND, start_time, end_time) >= 10`
+        sql = `select ras.card_id, ras.staff_id,date_format(ras.start_time, "%Y-%m-%d %H:%i:%s") as start_time, date_format(ras.end_time, "%Y-%m-%d %H:%i:%s") as end_time,ifnull(dl1.name,'') as sname,ddm1.name as sdir,ras.landmark_distance_start as sdis,ifnull(dl2.name,'') as ename,ddm2.name as edir,ras.landmark_distance_end as edis from (
+          select ras.* from rpt_att_staff ras where ras.staff_id=${objID}${timeExpr}) ras ${staffAssociation}`
+        countSql = `select count(staff_id) as total from rpt_att_staff as ras where staff_id=${objID}${timeExpr};`
+      } else {
+        console.warn('UNKNOWN search type : ', typeID)
+      }
+      return {
+        sql: sql,
+        countSql: countSql
+      }
+    }
+
+    this.queryTrackList = (typeID, objID, duration) => {
+      if (!duration && !objID) {
+        return window.xhint.showHint('请输入查询条件后再点击查询！')
+      }
+      let sqlMsg = ''
+      this.checkoutWork = this.refs["checkout-work"].querySelector('input').checked	
+      if (this.checkoutWork) { // 按考勤查询
+        sqlMsg = this.queryTrackListCheckout(typeID, objID, duration)
+      } else { // 按时间查询
+        sqlMsg = this.queryTrackListTime(typeID, objID, duration)
+      }
+      let sql = sqlMsg.sql
+      console.log(sql)
+      let countSql = sqlMsg.countSql
+      this.requestFirstPageOfTrackList(sql, countSql, PAGE_SIZE)
+    }
+
+    this.getQueryDuration = (time, endtime) => {
+      let ret = null
+      let tagDuration = this.tags['duration-selectpc']
+      // time:开始时间 必须有; endtime:结束时间 可以没有
+      if (time && typeof time != 'object') {
+        tagDuration && tagDuration.setTime(time, endtime)
+      }
+      // time && tagDuration && tagDuration.setTime(time, endtime)
+      ret = tagDuration && tagDuration.getDuration()
+
+      return ret
+    }
+
+    this.requestFirstPageOfTrackList = (sql, countSql, pageSize) => {
+      let message = this.checkoutWork ? {
+        cmd: 'query',
+        data: {
+          name: 'TrackList',
+          pageSize: pageSize,
+          pageIndex: 0,  // the first time: must be
+          total: -1,  // the first time: must be
+          sql: sql,
+          countSql: countSql
+        }
+      } : {
+        cmd: 'query',
+        data: {
+          name: 'TrackList',
+          // pageSize: pageSize,
+          // pageIndex: 0,  // the first time: must be
+          // total: -1,  // the first time: must be
+          sql: sql
+          // countSql: countSql
+        }
+      }
+
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: { name: 'TrackList' }
+      })
+
+      this.sql = sql// save the sql for later using
+    }
+
+    this.fastQuery = (cardID, numberId, name, time, endtime) => {
+      let cardTypeID = xdata.metaStore.getCardTypeID(cardID)
+
+      this.setCardType(cardTypeID)
+      this.setQueryKey(cardTypeID, cardID, numberId, name)  // set the query key input value
+      this.doQueryList(time, endtime)
+    }
+
+    this.setCardType = (cardTypeID) => {
+      this.cardTypeID = cardTypeID
+      let value = this.cardTypeID === 1 ? 'staff' : 'vehicle'
+      this.init(value)
+      this.update()
+    }
+
+    this.setQueryKey = (cardTypeID, cardID, numberId, preName) => {
+      let name = ''
+      let objID = -1
+
+      let obj = xdata.metaStore.getCardBindObjectInfo(cardID)
+      if (obj) {
+        name = obj.name
+        if (numberId) {//处理报表跳转
+          objID = numberId
+          name = preName
+        } else {
+          objID = cardTypeID === 1 ? obj.staff_id : obj.vehicle_id
+        }
+        this.setCardTypeID('', cardTypeID)
+        this.fuzz.tags["icon-input"].refs['searchinput'].value = name
+        this.fuzz.tags["icon-input"].refs['searchinput'].setAttribute('data-type', objID)
+      }
+    }
+  </script>
+</history-querypc>

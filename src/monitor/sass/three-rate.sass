@@ -1,0 +1,127 @@
+.three-rate-hide
+  width: 0 !important
+.three-rate
+  position: absolute
+  // z-index: 999
+  right: 0
+  width: 24rem
+  height: 100%
+  color: #fff
+  display: flex
+  flex-direction: column
+  .panel-switcher
+    position: absolute
+    right: 0
+    top: .2rem
+    z-index: 1
+    .icon-caret-left
+      background-image: url('/img/icon.png')
+      background-size: 11.0625rem 15.25rem
+      background-position: -0.25rem -12.375rem
+      cursor: pointer
+    .icon-caret-right
+      background-image: url('/img/icon.png')
+      background-size: 11.0625rem 15.25rem
+      background-position: -0.25rem -10.625rem
+      cursor: pointer
+  .rate-top-title
+    background: url("/img/tixing.png") no-repeat
+    background-size: 8rem 1.3rem
+    position: absolute
+    width: 8rem
+    height: 1.3rem
+    font-size: .9rem
+    top: 0.5rem
+    text-align: center
+  .three-rate-top
+    background: url("/img/border1.png") no-repeat 23% 33% 
+    background-size: 26rem 11.5rem
+    height: 10rem
+    padding-top: 1rem
+    display: flex
+    flex-direction: column
+    align-items: center
+    position: relative
+    .top-alarm
+      display: flex
+      justify-content: center
+      div
+        display: flex
+        flex-direction: column
+        align-items: center
+        width: 25%
+        font-size: .9rem
+        &:nth-child(1),&:nth-child(2)
+          flex: 0 0 6rem
+        &:nth-child(3),&:nth-child(4)
+          flex: 0 0 4rem
+        span:nth-child(1)
+          opacity: 0.6
+        span:nth-child(2)
+          color: #0167ff
+    .overview-echarts
+      display: flex
+      width: 100%
+      .overviewBD, .overviewWD, .overviewRD
+        position: relative
+        width: 33.3%
+        display: flex
+        flex-direction: column
+        span
+          position: absolute
+          bottom: 1.5rem
+          font-size: .8rem
+          width: 100%
+          text-align: center
+          // font-weight: 600
+  .three-rate-bottom
+    display: flex
+    flex-wrap: wrap
+    .dept-rate
+      &:nth-child(1),&:nth-child(3)
+        background: url("/img/border4.png") no-repeat 44% 45%
+        background-size: 12.5rem 18rem
+      &:nth-child(2),&:nth-child(4)
+        background: url("/img/border5.png") no-repeat 71% 43%
+        background-size: 12rem 19rem
+      width: 50%
+      height: 15rem
+      position: relative
+      display: flex
+      flex-direction: column
+      justify-content: center
+      align-items: center
+      .rate-top-title
+        top: 0
+        left: 3rem
+        background-size: 6rem 1.3rem
+        width: 6rem
+  .three-rate-dept
+    font-size: .8rem
+    text-align: center
+    flex: 1
+    background: url("/img/border6.png") no-repeat
+    background-size: 100% 103.5%
+    padding: 0 0 2rem 1rem
+    overflow-y: auto
+    overflow-x: hidden
+    .rate-dept
+      height: 12rem
+      position: relative
+      .rate-dept_boot
+        canvas
+          top: -23px
+      span
+        position: absolute
+        bottom: -0.2rem
+        left: 9.5rem
+    .rate-dept:nth-child(1)
+      margin-top: 1rem
+.three-bottom-rate
+  position: absolute
+  z-index: 999
+  bottom: 0
+  left: 22%
+  // width: 100%
+  display: flex
+  justify-content: center

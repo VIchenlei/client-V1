@@ -1,0 +1,19 @@
+<network-status>
+  <span class="page-footer__network-status hint--top-left" aria-label="{ connected ? '于 ' + lastChangeTime + ' 连接至 WEB 服务器' : '于 ' + lastChangeTime + ' 与 WEB 服务器断开' }">
+    <svg class="icon {connected ? 'connected' : 'disconnected'}">
+      <use xlink:href="/icons/icons.svg#icon-network"></use>
+    </svg>
+  </span>
+
+  <script>
+    this.connected = opts.connected || true
+    this.lastChangeTime = opts.lastChangeTime || (new Date()).format('hh:mm:ss')
+
+    xbus.on('NETWORK-STATUS-CHANGE', (msg) => {
+      this.connected = msg.connected
+      this.lastChangeTime = msg.lastChangeTime
+
+      this.update()
+    })
+  </script>
+</network-status>

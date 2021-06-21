@@ -1,0 +1,69 @@
+<main-nav>
+  <ul>
+    <li each={ items } id={ id } ref={ name } onclick={ switchItem }>
+      <span>{ label }</span>
+    </li>
+  </ul>
+
+  <script>
+    import '../sass/main-nav.sass'
+    import {judgeURL} from '../../js/utils/utils.js'
+
+    this.items = opts.menuitems
+    this.mainPage = this.parent.parent
+
+    // the active item node
+    this.activeItem = null
+
+    // main menu item switch logic
+    this.switchItem = (evt) => {
+      let node = evt.currentTarget
+      let spName = node.getAttribute('ref')
+      if (spName === 'sp_3d') {
+        let isInnerIP = judgeURL()
+        if (isInnerIP) {
+          window.open('http://localhost:18080', '_blank')
+        } else {
+          window.open('http://localhost:18080', '_blank') // 外网需要启动代理，根据代理配置端口
+        }
+        return
+      }
+      if (node === this.activeItem) {
+        return
+      }
+      this.setActiveItem(node)
+
+      if (spName !== 'sp_track') {
+        xbus.trigger('STOP-PLAYER-PLAY')
+      }
+      if (spName !== 'sp_monitor') {
+        xbus.trigger('SHOW-WORK-FACE', {
+          isShow: false
+        })
+        xbus.trigger('HIDE-POP-DRIVERING')
+      }
+      this.mainPage.gotoPage(spName, null)  // call the page-main's function
+      
+    }
+
+    this.setActiveItemByName = (nodeName) => {
+      let node = this.refs[nodeName]
+      node && this.setActiveItem(node)
+    }
+
+    // main menu switch to
+    this.setActiveItem = (node) => {
+      this.activeItem && this.activeItem.classList.remove('active')
+
+      node && node.classList.add('active')
+      this.activeItem = node
+    }
+
+    this.on('mount', () => {
+      // spMonitor = riot.mount('sp-monitor', { mapID: DEFAULT_MAP_ID })[0]
+      let nodeName = this.opts.menuitems[0].name
+      let node = this.refs[nodeName]
+      this.setActiveItem(node)
+    })
+  </script>
+</main-nav>

@@ -1,0 +1,44 @@
+<three-rate>
+  <span class="panel-switcher" onclick={switchPanel}>
+    <!-- <svg class="icon">
+      <use xlink:href="/icons/icons.svg#{ isShowPanel ? 'icon-caret-right' : 'icon-caret-left'}"></use>
+    </svg> -->
+    <span class="icon { isShowPanel ? 'icon-caret-left' : 'icon-caret-right'} "></span>
+  </span>
+  <div data-is="three-rate-top" class="three-rate-top"></div>
+  <!-- <div data-is="three-rate-bottom" class="three-rate-bottom"></div> -->
+  <div data-is="three-rate-dept" class="three-rate-dept"></div>
+  <script>
+    this.isShowPanel = true
+
+    this.switchPanel = () => {
+      let rateRight = this.tags['three-rate-top'].root
+      let rateBottom = this.tags['three-rate-dept'].root
+      let root = this.root.classList
+      if (this.isShowPanel) {
+        rateRight.classList.add('hide')
+        rateBottom.classList.add('hide')
+        root.add('three-rate-hide')
+        // root.remove('three-rate')
+      } else {
+        rateRight.classList.remove('hide')
+        rateBottom.classList.remove('hide')
+        root.remove('three-rate-hide')
+        // root.add('three-rate')
+      }
+      this.isShowPanel = !this.isShowPanel
+    }
+    this.initDate = (rows) => {
+      if (!rows) return
+      let overviewBD = rows['overview-boot']
+      let overviewWD = rows['overview-worktime']
+      let overviewRD = rows['overview-rugular']
+      this.tags['three-rate-top'] && this.tags['three-rate-top'].initDate(overviewBD, overviewWD, overviewRD)
+
+      let deptB = rows['dept_boot']
+      let deptW = rows['dept_worktime']
+      let deptR = rows['dept_rugular']
+      this.tags['three-rate-dept'] && this.tags['three-rate-dept'].initDate(deptB, deptW, deptR)
+    }
+  </script>
+</three-rate>

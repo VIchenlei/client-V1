@@ -1,0 +1,40 @@
+<light-detail>
+  <div id="light-detail" class="hide tabBarDetail">
+    <div class="content-panel" if={ lightHasData }>
+      <div class="totleDetail">
+        红绿灯总计<span>{ xdata.deviceStore.stateCount[0].sum }</span>个, 正常
+        <span>{ xdata.deviceStore.stateCount[0].normalCount }</span>个, 异常
+        <span>{ xdata.deviceStore.stateCount[0].unnormalCount }</span>个
+      </div>
+      <div name="all" class="all" onclick={ controlTrifficLight }>控制全部</div>
+      <table id="symbol-table" class="symbolTableLight">
+        <tbody>
+          <tr each={ light in lights } class={ 'light' + light.device_id + 'tr' }>
+            <td id={ 'light' + light.device_id }>{ xdata.metaStore.getNameByID('light_id',light.device_id) }</td>
+            <td class="lightColor">
+              <span class={ light.color } if={ light.color==='redsolid' || light.color==='redhollow' || light.color==='breakdown' }></span>
+              <span class="redfork" if={ light.color==='redfork' }>
+                <svg class="icon"><use xlink:href="/icons/icons.svg#icon-circle-cross"></use></svg>
+              </span>
+              <span class="greenup" if={ light.color==='greenup' }>↑</span>
+              <span class="greendown" if={ light.color==='greendown' }>↓</span>
+              <span class="greenleft" if={ light.color==='greenleft' }>←</span>
+              <span class="greenright" if={ light.color==='greenright' }>→</span>
+              <span class="redblink" if={ light.color==='redblink' }></span>
+              <span class="greenblink" if={ light.color==='greenblink' }></span>
+            </td>
+            <td name={ light.device_id + '+' + light.state } onclick={ controlTrifficLight }>
+              <svg class="icon">
+                <use xlink:href="/icons/icons.svg#icon-edit-2"></use>
+              </svg>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+
+  </script>
+</light-detail>

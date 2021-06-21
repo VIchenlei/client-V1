@@ -1,0 +1,39 @@
+@import defs
+
+.popup-list
+  @include popup-panel
+  width: 100%
+  max-height: 16rem
+  min-width: 7rem
+
+  .list-item
+    border-bottom: 1px solid $color-white
+    flex: 0 0 2.2rem
+    @include align-center-middle 
+    @include line-height(2rem,2rem)
+    justify-content:flex-start
+    width: 100%
+    overflow: hidden
+    text-overflow: ellipsis
+    white-space: nowrap
+    cursor: pointer
+
+    &:last-child
+      border-bottom: none
+    &:hover
+      background: $table-body-hover
+.input-popup-list
+  left: 0
+  .label
+    @include align-center-middle
+    font-weight: normal
+    .input
+      @include wh(auto, auto)
+  div
+    text-align: left
+
+.meta-edit
+  td
+    text-align: left
+    padding: 14px
+

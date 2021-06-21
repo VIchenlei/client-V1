@@ -1,0 +1,38 @@
+<dialog-head class="dlg-head {classname}">
+  <span class="dlg-title">
+    <grip type="grip-horizontal"></grip>
+    <span>{title}</span>
+  </span>
+  <span onclick={ close } if={ needCloser }>
+    <img class="icon" src="/img/close.png" alt="">
+    <!-- <svgicon icon="icon-close"></svgicon> -->
+  </span>
+
+  <script>
+    this.title = opts.title
+    this.classname = opts.classname
+    this.needCloser = !(opts.closer === 'no')
+
+    // 如果 parent 有 close() ，则调用 this.parent.close()，否则直接隐藏 this.parent
+    this.close = (evt) => {
+      if (this.parent.close && (typeof this.parent.close === 'function')) {
+        this.parent.close()
+        let ele = this.parent.root.classList
+        // ele.remove('alarm-list-panel-login')
+        // ele.add('alarm-list-panel')
+        // ele.add('animated')
+        ele.remove('slideInDown')
+        ele.add('slideOutUp')
+      } else {
+        // this.parent.root.classList.add('hide')
+        let parentElement = this.parent.root
+        let ele = parentElement.querySelector('.dlg-window').classList
+        let dlBgEle = parentElement.querySelector('.dlg-bg').classList
+        ele.remove('zoomIn')
+        ele.add('zoomOut')
+        dlBgEle.remove('zoomToOut')
+        dlBgEle.add('zoomNone')
+      }
+    }
+  </script>
+</dialog-head>

@@ -1,0 +1,114 @@
+<worktime-shift>
+  <table>
+    <thead>
+      <th>班次</th>
+      <th>工作面平均时长</th>
+      <th>平均无效时长</th>
+    </thead>
+    <tbody>
+      <tr each={list in lists}>
+        <td>{getShortName(list.shift_id)}点班</td>
+        <td>{list.worktime}小时</td>
+        <td>{list.roadtime}小时</td>
+      </tr>
+    </tbody>
+  </table>
+  <script>
+    import {clone} from '../../js/utils/utils.js'
+    this.getShortName = (shiftID) => {
+      let shift = xdata.metaStore.data.shift && xdata.metaStore.data.shift.get(shiftID)
+      return shift ? shift.short_name : shiftID
+    }
+    this.queryDB = (sql) => {
+      let message = {
+        cmd: 'query',
+        data: {
+          sql: sql
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: this.name
+        }
+      })
+      window.xhint.showLoading()
+    }
+    this.getSql = () => {
+      let sql = `select shift_id, round(avg_valid_time, 2) as worktime, round(avg_invalid_time, 2) as roadtime from his_worktime_rate_detail where rate_id = ${this.rateID} order by shift_id`
+      console.log(sql)
+      this.queryDB(sql)
+    }
+    this.init = (opts) => {
+      this.deptID = this.parent.opts.deptID
+      this.time = this.parent.opts.time
+      this.name = 'worktime-shift'
+      this.rateID = this.parent.opts.rateID
+      this.queryDB()
+      this.getSql()
+    }
+    this.init(opts)
+
+    this.getWorktime = (list) => {
+      let result = list.worktime / list.worknum
+      result = result ? Number(result.toFixed(2)) : 0
+      return result
+    }
+
+    this.getRoadtime = (list) => {
+      let result = list.roadtime - list.worktime
+      result = result / list.roadnum
+      result = result ? Number(result.toFixed(2)) : 0
+      return result
+    }
+
+    this.splitData = (rows) => {
+      rows.forEach(row => {
+
+        let workshift = row['workshift']
+        let roadshift = row['roadshift']
+        let workshiftstore = this.deptShiftStore.get(workshift)
+        workshiftstore['worktime'] += row.worktime
+        workshiftstore['worknum'] += 1
+        // let roadshiftstore = this.deptShiftStore.get(roadshift)
+        let roadshiftstore = this.deptShiftStore.get(workshift)
+        roadshiftstore['roadtime'] += row.dtime
+        roadshiftstore['roadnum'] += 1
+      })
+    }
+
+    this.initData = () => {
+      this.deptShiftStore = new Map()
+      let msg = {
+        worktime: 0,
+        roadtime: 0,
+        // worknum: 0,
+        // roadnum: 0
+      }
+      let shifts = xdata.metaStore.data.shift
+      shifts = shifts && Array.from(shifts.keys())
+      for (let i = 0; i < shifts.length; i++) {
+        let row = clone(msg)
+        let shift = shifts[i]
+        row['shiftID'] = shift
+        this.deptShiftStore.set(shift, row)
+        row = null
+      }
+    }
+    
+    xbus.on('REPT-SHOW-RESULT', (ds) => {
+      if (ds.def.name === this.name) {
+        window.xhint.close()
+        if (!ds.rows || ds.rows.length < 0) {
+          this.parent.hasdata = false
+          return
+        }
+        // this.initData()
+        // this.splitData(ds.rows)
+        // this.lists = this.deptShiftStore && Array.from(this.deptShiftStore.values())
+        this.lists = ds.rows && ds.rows
+        this.update()
+      }
+    })
+  </script>
+</worktime-shift>

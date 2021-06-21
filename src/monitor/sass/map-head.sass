@@ -1,0 +1,34 @@
+@import '../../sass/defs'
+
+.map-head
+  padding: 0 1rem
+
+  .search-bar  // defined in fuzzy-search.sass, here over-write it
+    width: 100%
+    @media screen and (min-aspect-ratio: 10/8) //(orientation: landscape)
+      width: 16rem
+
+    .search-type-selector
+      border-radius: 0
+    .search-box
+      border-radius: 2px
+      width: 100%
+    .result-panel
+      width: 100%
+
+
+  .shortcut-operation
+    // position: relative
+    // display: flex
+    // justify-content: center
+    // align-items: center
+    // border-right: 1px solid $head-bg-light
+
+    // @media screen and (max-width: $width-medium)
+    //   display: none
+    @media screen and (max-width: $width-medium) and (max-aspect-ratio: 10/8)
+      display: none
+    @media screen and (max-width: $width-medium) and (min-aspect-ratio: 10/8) //(orientation: landscape)
+      display: flex
+      justify-content: flex-end
+      border-right: none

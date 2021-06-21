@@ -1,0 +1,258 @@
+<player-ctrl ref="player-ctrl" class="player-controlbar">
+  <!-- <span class="process-container" onmousedown={ startDragTo } onmousemove={ dragTo }> -->
+  <span class="process-container">
+    <span ref="wholeprocess" class="whole-process" onclick={ gotoHere }>
+      <span ref="activeprocess" class="active-process">
+        <span class="process-indicator"></span>
+      </span>
+    </span>
+  </span>
+
+  <span class="play-pause">
+    <span onclick={ togglePlay } id="playButton" class="player-button">
+      <svg class="icon" if={ isPlaying }><use xlink:href="/icons/icons.svg#icon-pause"></use></svg>
+      <svg class="icon" if={ !isPlaying }><use xlink:href="/icons/icons.svg#icon-play_arrow"></use></svg>
+    </span>
+    <span onclick={ stopPlay } class="player-button">
+      <svg class="icon"><use xlink:href="/icons/icons.svg#icon-stop2"></use></svg>
+    </span>
+    <span class="time-bar">
+      <span ref="elapsedtime">00:00:00</span>
+      <span>/</span>
+      <span ref="totaltime">00:00:00</span>
+    </span>
+  </span>
+
+  <span class="speed-controler">
+    <!-- <span ref="s01" class="select-tag active" data-value="1" onclick={ setSpeed }>1X</span>
+    <span ref="s10" class="select-tag" data-value="10" onclick={ setSpeed }>10X</span> -->
+    <span ref="s60" class="select-tag active" data-value="60" onclick={ setSpeed }>60X</span>
+    <span ref="s70" class="select-tag" data-value="70" onclick={ setSpeed }>一分钟播放</span>
+  </span>
+
+  <script>
+    import { formatElapsedTime } from '../../js/utils/utils.js'
+
+    this.isMouseDown = false
+    this.isPlaying = false
+
+    // usefule DOM node
+    this.processBarNode = null
+    this.activeProcessNode = null
+    this.elapsedTimeNode = null
+    this.activeSpeedNode = null
+
+    this.player = null
+
+    this.on('mount', () => {
+      this.init()
+    })
+
+    this.on('unmount', () => {
+      try {
+        window.removeEventListener('resize', false)
+      } catch (err) {
+        console.log('err')
+      }
+    })
+
+    this.init = () => {
+      this.elapsedTimeNode = this.refs.elapsedtime
+      this.totalTimeNode = this.refs.totaltime
+
+      this.processBarNode = this.refs.wholeprocess
+      this.activeProcessNode = this.refs.activeprocess
+
+      this.activeSpeedNode = this.refs.s60  // 第一个tag，1X
+
+      this.player = this.parent
+      this.ticker = this.player.ticker
+
+      // this.totalTimeText = '00:00:00'
+      this.initProcessBar()
+      this.monitorResize()
+    }
+
+    this.monitorResize = () => {
+      let self = this
+      window.addEventListener('resize', function handle () {
+        self.pbLength = self.processBarNode.offsetWidth
+      })
+    }
+
+    // 初始状态：不启动播放，总时长为0
+    this.initProcessBar = () => {
+      this.isPlaying = false
+
+      this.activeProcessNode && this.activeProcessNode.setAttribute('style', `transform:translateX(-99%)`)
+
+      this.updateDurationNode(this.elapsedTimeNode, 0)
+      this.updateDurationNode(this.totalTimeNode, 0)
+
+      this.pbLength = this.processBarNode && this.processBarNode.offsetWidth
+
+      this.update()
+    }
+
+    // 加载轨迹数据：更新轨迹总时长
+    this.initTrack = (msg) => {
+      this.isPlaying = false
+
+      this.activeProcessNode && this.activeProcessNode.setAttribute('style', `transform:translateX(-99%)`)
+      this.updateDurationNode(this.elapsedTimeNode, 0)
+      if (msg) {
+        let totalMs = ((new Date(msg.endTime)).getTime() - (new Date(msg.startTime)).getTime()) || 0
+        this.updateDurationNode(this.totalTimeNode, totalMs)
+      }
+
+      this.pbLength = this.processBarNode.offsetWidth
+      this.update()
+    }
+
+    /*
+    let msg = {
+                cardID: this.cardID,
+                mapID: ds.rows[0]['map_id'],
+                rows: ds.rows,
+                duration: realDuration,
+                startTime: new Date(trackRec.start_time).getTime(),  // ms
+                endTime: new Date(trackRec.end_time).getTime()  // ms
+              }
+    */
+
+    // ------- operations start --------------
+    this.setSpeed = (evt) => {
+      let node = evt.target
+      let speed = parseInt(node.getAttribute('data-value'), 10)
+
+      if (node !== this.activeSpeedNode) {
+        this.activeSpeedNode.classList.remove('active')
+        this.activeSpeedNode = node
+        this.activeSpeedNode.classList.add('active')
+
+        this.ticker.setSpeed(speed)  // unit : s
+      }
+
+      evt.preventUpdate = true
+    }
+
+    // 切换 播放、暂停 状态
+    this.togglePlay = (evt) => {
+      if (this.totalTimeNode.innerText === '00:00:00' && !this.isPlaying) {
+        return
+      }
+      this.isPlaying = !this.isPlaying
+      this.ticker.togglePlay()
+    }
+
+    xbus.on('STOP-PLAYER-PLAY', () => { // 暂停
+      this.isPlaying = false
+      this.ticker && this.ticker.pausePlay()
+      this.update()
+    })
+
+    this.stopPlay = (evt) => {
+      this.isPlaying = false
+      this.ticker.stopPlay()
+      this.update()
+    }
+
+    this.gotoHere = (evt) => {
+      if (this.totalTimeNode.innerText === '00:00:00' && !this.isPlaying) {
+        return
+      }
+      let x = evt.layerX
+      let percent = x / this.pbLength
+      if (percent < 0.01) { // 防止恰好点击至开始没有数据
+        this.isPlaying = false
+        return this.ticker.stopPlay()
+      }
+      this.ticker.gotoHere(percent, 'jump')
+      this.isPlaying = false
+      this.update()
+    }
+
+    this.jumpTo = (tick) => {
+      this.updateActiveBar(tick, 'jump')
+      this.updateDurationNode(this.elapsedTimeNode, tick * 1000)
+    }
+
+    // ------- operations end --------------
+
+    // update player control bar on tick, called by the ticker
+    this.doTick = (tick) => {
+      this.updateActiveBar(tick)
+      this.updateDurationNode(this.elapsedTimeNode, tick * 1000)
+    }
+
+    // 更新时长节点，time 单位：ms
+    this.updateDurationNode = (node, time) => {
+      let stime = formatElapsedTime(time)
+      node && (node.innerText = stime)
+    }
+
+    this.updateActiveBar = (tick, type) => {
+      let percent = tick / this.ticker.totalTick
+      let s = '-' + (1 - percent) * 99 + '%'  // init is  -99%, last is 0%
+      let style = `transform:translateX(${s});`
+      if (type !== 'jump') { // 动画
+        style = style + 'transition: transform 980ms linear'
+      }
+      this.activeProcessNode.setAttribute('style', style)
+      // console.log('init process active bar : ', s)
+    }
+
+    this.reset = () => {
+      this.initProcessBar()
+    }
+
+    // ================ drag start
+    // this.dragTo = (evt) => {
+    //   // if (this.isMouseDown && evt.clientX >= this.indicatorStartOffsetX && evt.clientX <= this.indicatorStartOffsetX + this.pbLength - 1) {
+    //   //   let x = evt.layerX
+    //   //   let percent = x / this.pbLength
+    //   // }
+    // }
+
+    // this.startDragTo = (evt) => {
+    //   if (evt.target.getAttribute('class') !== 'process-indicator') {
+    //     return
+    //   }
+    //   this.stopTimer()
+
+    //   this.isMouseDown = true
+    // }
+
+    // this.stopDragTo = (evt) => {
+    //   if (!this.isMouseDown) {
+    //     return
+    //   }
+
+    //   let x = evt.layerX
+    //   let percent = x / this.pbLength
+    //   this.updateTick(Math.ceil(this.totalTick * percent))
+    //   this.updateActiveBar()
+
+    //   this.updateDurationNode(this.elapsedTimeNode, this.tick)
+
+    //   if (this.playCmd === 'track') {
+    //     let cursor = getCursor(this.data, { index: 0, isMoved: false }, this.trackTime)
+    //     if (cursor.isMoved) {
+    //       this.previewCursor = cursor
+
+    //       let row = this.data[cursor.index]
+    //       let rec = buildCardMoveRec(row)
+    //       this.jumpCard(rec, 'jump')
+
+    //       this.previewRec = this.data[this.previewCursor]
+    //     }
+    //   } else {
+    //     this.checkSegement(time, 'jump', this.playCmd, 1)
+    //   }
+
+    //   this.isMouseDown = false
+    // }
+
+    // ================ drag end
+  </script>
+</player-ctrl>

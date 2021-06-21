@@ -1,0 +1,180 @@
+<efficiency-detail>
+  <button class="hide-on-mb" onclick={ goOverView }>返回</button>
+  <div class="detail-title">{deptname}</div>
+  <div class="echarts-detail">
+    <span class="split">开机率</span>
+    <div class="eff-warp">
+      <div class="boot-eff" data-is="boot-eff"></div>
+    </div>
+    <span class="split" if={ hasWorktime }>工时利用率</span>
+    <div class="eff-warp" if={ hasWorktime }>
+      <div class="worktime-eff" data-is="worktime-eff"></div>
+    </div>
+    <span class="split">正规循环率</span>
+    <div class="eff-warp">
+      <div class="rugular-eff" data-is="rugular-eff"></div>
+    </div>
+    
+  </div>
+  <script>
+    import {getMonth} from '../../js/utils/utils.js'
+    this.time = null
+    this.hasWorktime = true
+    this.turnOffID = null
+    this.splitGasData = (rows) => {
+      this.gasMsgData = new Map()
+      rows && rows.forEach(row => {
+        let type = row.sensor_type_id
+        if (!this.gasMsgData.get(type)) {
+          let ret = new Map()
+          this.gasMsgData.set(type, ret)
+        }
+        let gasMsg = this.gasMsgData.get(type)
+        let sensorID = row.sensor_id        
+        let stime = row.switch_data.split(',')[0]
+        let data = row.switch_data.split(',')[1]
+        if (type === 8) { // 开关量，开/关
+          this.turnOffID = sensorID
+          sensorID = data
+          data = 0.05
+        } 
+        if (!gasMsg.get(sensorID)) {
+          let ret = new Map()
+          gasMsg.set(sensorID, ret)
+        }
+        let gas = gasMsg.get(sensorID)
+        gas.set(stime, [stime, data])
+      })
+    }
+
+    this.splitBootswitch = (rows) =>{
+      this.bootswitch = new Map()
+      rows && rows.forEach((row,index )=> {
+        let bootStime = row.open_data.split(',')[0]
+        let bootEndtime = row.close_data.split(',')[0]
+        let bootNextStime = ''
+        if(new Date(bootStime).format('yyyy-MM-dd') === new Date().format('yyyy-MM-dd')){
+          bootNextStime = rows[index+1] && rows[index+1].open_data.split(',')[0] ? rows[index+1].open_data.split(',')[0] : new Date().format('yyyy-MM-dd hh:mm:ss')
+        } else {
+          bootNextStime = rows[index+1] && rows[index+1].open_data.split(',')[0] ? rows[index+1].open_data.split(',')[0] : `${new Date(bootStime).format('yyyy-MM-dd')} 23:59:59`
+        }
+        let sdata = row.open_data.split(',')[1]
+        let edata = row.close_data.split(',')[1]
+        if (!this.bootswitch.get(sdata)) {
+          let ret = new Map()
+          this.bootswitch.set(sdata, ret)
+        }
+        if (!this.bootswitch.get(edata)) {
+          let ret1 = new Map()
+          this.bootswitch.set(edata, ret1)
+        }
+        let openSwitch= this.bootswitch.get(sdata)
+        openSwitch.set(bootStime,[bootStime,bootEndtime,sdata/20])
+        let closeSwitch = this.bootswitch.get(edata)
+        if(index === 0){
+          let compareStime = `${new Date(bootStime).format('yyyy-MM-dd')} 00:00:00`
+          if(bootStime > compareStime){
+            closeSwitch.set(compareStime,[compareStime,bootStime,'0.05'])
+          }
+          
+        }
+        closeSwitch.set(bootEndtime,[bootEndtime,bootNextStime,'0.05'])
+      })
+    }
+
+    this.filterData = (rows) => {
+      let faceworktime = []
+      let roadworktime = []
+      rows && rows.forEach((row) => {
+        let deptID = row.dept_id
+        if (deptID !== this.deptID) return
+        // let worktime = Number(((row.overWorktime - row.overChecktime) / row.num).toFixed(2))
+        let worktime = Number(row.overWorktime.toFixed(2))
+        let roadtime = Number((row.overChecktime).toFixed(2))
+        let stime = row.stime
+        faceworktime.push({
+          stime: stime,
+          worktime: worktime
+        })
+        roadworktime.push({
+          stime: stime,
+          worktime: roadtime
+        })
+      })
+      return {
+        faceworktime: faceworktime,
+        roadworktime: roadworktime
+      }
+    }
+
+    this.splitData = (rows) => {
+      let displacement = rows && rows['displacement']
+      let gasment = rows && rows['gasment']
+      let bootswitch = rows && rows['bootswitch']
+      let rugularAverage = rows && rows['rugularAverage']
+      let wholeworktime = this.parent.deptMap.get(this.deptID) && this.parent.deptMap.get(this.deptID).get('wholeworktime')
+      wholeworktime = wholeworktime && this.filterData(Array.from(wholeworktime.values()))
+      let faceworktime = wholeworktime && wholeworktime.faceworktime
+      let roadworktime = wholeworktime && wholeworktime.roadworktime
+      let bootAnalysis = rows && rows['bootAnalysis'] ? rows['bootAnalysis'] : []
+      let rugularAnalysis = rows && rows['rugularAnalysis'] ? rows['rugularAnalysis'] : []
+      let worktimeAnalysis = rows && rows['worktimeAnalysis'] ? rows['worktimeAnalysis'] : []
+      this.splitGasData(gasment)
+      this.splitBootswitch(bootswitch)
+      this.deptShift = rows && rows['deptshift']
+      if (!this.deptRows) return
+      this.tags['boot-eff'].init(this.deptRows.get('dept_boot'), bootAnalysis)
+      this.tags['worktime-eff'] && this.tags['worktime-eff'].init(this.deptRows.get('dept_worktime'), faceworktime, roadworktime, worktimeAnalysis)
+      this.tags['rugular-eff'].init(this.deptRows.get('dept_rugular'), displacement, rugularAverage, rugularAnalysis)
+      this.hasWorktime = this.deptRows.get('dept_worktime') ? true : false
+      this.update()
+    }
+    this.getSql = (deptID, time) => {
+      let sql = {}
+      if (!time) {
+        let defaultTime = this.parent.time
+        // defaultTime = new Date(new Date(defaultTime).getTime()).format('yyyy-MM')
+        let d = new Date().getDate()
+        if (new Date(defaultTime).getMonth() !== new Date().getMonth()) {
+          time = new Date(new Date(new Date(defaultTime).getFullYear(), new Date(defaultTime).getMonth() + 1, 0).getTime()).format('yyyy-MM-dd')
+        } else {
+          time = `${defaultTime}-${d}`
+        }
+        this.time = new Date(new Date(time).getTime()).format('MM-dd')
+
+        let stime = this.parent.time
+        let ltime = `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`
+        let worktime = getMonth(defaultTime)
+        if (this.workfaceID) {
+          sql['rugularAverage'] = `select round(sum_detail_value / sum_schedule_value * 100, 1) as worktime, sum_date as stime from his_regular_cycle_sum hrcs where hrcs.work_face_id = ${this.workfaceID} and hrcs.sum_date between '${stime}-1' and '${time}';`
+        }
+      }
+      let currtTime = new Date(time).format('yyyy-MM-dd') ==  new Date().format('yyyy-MM-dd') ? new Date().format('hh:mm:ss') : '23:59:59' 
+      time = `between '${time} 00:00:00' and '${time} ${currtTime}'`
+      // sql['displacement'] = `select hdp.position_data as position_data, avg_distance, max_distance, min_distance from his_draw_position hdp where write_time ${time} and work_face_id = ${this.workfaceID};`
+      sql['displacement'] = `select CONCAT(write_time, ',', avg_distance) as position_data, avg_distance, max_distance, min_distance from his_draw_position hdp where write_time ${time} and work_face_id = ${this.workfaceID};`
+      sql['gasment'] = `select hsd.sensor_id, concat_ws(',', date_format(hsd.write_time, "%Y-%m-%d %H:%i:%S"),hsd.data_value) as switch_data, write_time, sensor_type_id from his_sensor_data hsd inner join ( select sensor_id, sensor_type_id from dat_sensor ds where work_face_id = ${this.workfaceID})aa on hsd.sensor_id = aa.sensor_id and hsd.write_time ${time};`
+      sql['bootswitch'] = `select hsd.dept_id, concat_ws(',', date_format(hsd.start_up_time, "%Y-%m-%d %H:%i:%S"),1) as open_data, concat_ws(',', date_format(case when hsd.shut_down_time is null then now() else hsd.shut_down_time end, "%Y-%m-%d %H:%i:%S"),0) as close_data from his_startup_detail hsd where hsd.dept_id = ${deptID} and hsd.start_up_time ${time};`
+      let todayTime = new Date().format('yyyy-MM-dd')
+      sql['bootAnalysis'] = `select work_face_id, MainID, Analysis from rpt_sanlv_daily_detail rsdd left join rpt_sanlv_daily_main rsdm on rsdm.ID = rsdd.MainID where CreateDateTime = '${todayTime}' and work_face_id = ${this.workfaceID} and Rpt_Type = 1 order by ID desc limit 1;`
+      sql['rugularAnalysis'] = `select * from rpt_sanlv_daily_detail rsdd left join rpt_sanlv_daily_main rsdm on rsdm.ID = rsdd.MainID where CreateDateTime = '${todayTime}' and work_face_id = ${this.workfaceID} and Rpt_Type = 2 order by ID desc limit 1;`
+      sql['worktimeAnalysis'] = `select * from rpt_sanlv_daily_detail rsdd left join rpt_sanlv_daily_main rsdm on rsdm.ID = rsdd.MainID where CreateDateTime = '${todayTime}' and work_face_id = ${this.workfaceID} and Rpt_Type = 3 order by ID desc limit 1;`
+      this.parent.query('efficiency-detail', sql, '', deptID)
+    }
+    this.init = (deptID, vehicleID, workfaceID) => {
+      this.deptID = deptID
+      this.vehicleID = vehicleID
+      this.workfaceID = workfaceID
+      this.deptname = this.parent.getDeptName(deptID)
+      this.deptRows = this.parent.deptMap.get(deptID)
+      this.getSql(deptID)
+    } 
+    this.goOverView = () => {
+      this.parent.deptID = null
+      this.root.parentNode.querySelector('.detail').classList.add('hide')
+      this.root.parentNode.querySelector('.overview').classList.remove('hide')
+      this.parent.initoverviewcharts()
+      this.parent.initdeptcharts()
+    }
+  </script>
+</efficiency-detail>

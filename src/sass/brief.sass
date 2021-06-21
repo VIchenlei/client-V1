@@ -1,0 +1,103 @@
+@import defs
+
+.clickable
+    cursor: pointer
+    
+.brief-container
+    @include wh(100%,75%)
+    display: -webkit-flex
+    display: flex
+    flex-flow: row wrap
+    justify-content: space-around
+
+.subContainer
+    @include wh(23%,45%)
+    display: flex 
+    .Board
+        box-flex: 1
+
+.call-brief
+    width: 20%
+
+.brief-op-panel
+    @include align-middle-between
+    flex: 0 0 2.5rem
+    flex-flow: row nowrap
+    margin: 0
+    background: #F4F4F4
+    color: #000000
+
+    .op-title
+        @include align-middle
+        flex-flow: row nowrap
+        color: #323232
+
+.brief-call-cards
+    display: flex
+    flex-flow: row wrap
+
+    .call-card
+        @include align-middle-between
+        width: 95%
+        font-size: $fontsize-m
+        color: #FFF
+        border-radius: 3px
+        padding: 5%
+        margin: 4%
+        cursor: pointer
+        transition: all 0.3s ease 0s
+
+        .card-icon
+            @include wh(1rem,1rem)
+            fill: rgba(255, 255, 255, 0.5)
+            margin-left: 1rem
+
+        .card-label
+            width: 4rem
+        
+        .card-value
+            @include justify-middle
+            width: 1rem
+    
+    .green
+        background: #22CC33
+    
+    .gray
+        background: #666666
+
+.tabContainer
+    background: #e3e3e3
+    color: #333
+    border-collapse: collapse
+    font-size: 0.8125rem
+    margin: 0 0 0.1rem 1.2rem
+    width: 30%
+    padding: 0 .4rem 0 .4rem
+    @media screen and (max-width: $width-medium)
+        display: flex
+        width: 48%
+        margin-left: -10.7rem
+        height: 1.5rem 
+        font-size: 0.8rem
+        margin-bottom: -0.3rem
+        line-height: 1.5rem
+    @media screen and (max-width: $width-medium) and (orientation: landscape)
+        margin-left: -11rem
+    ul
+        list-style: none
+        display: flex
+        flex-flow: row
+        justify-content: space-around
+        font-weight: 600
+        border-radius: 3px
+        @media screen and (max-width: $width-medium)
+            width: 100%
+        li
+            padding: 0.5rem
+            cursor: pointer
+            @media screen and (max-width: $width-medium)
+                padding: 0 0.5rem
+            &:hover, &.active
+                border-bottom: 2px solid #27ca40
+    
+    

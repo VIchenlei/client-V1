@@ -1,0 +1,368 @@
+
+@import defs
+.dlg-bg
+    align-items: center 
+.dialog-show
+    min-width: 32rem
+    
+.dimensional
+    width: 100%
+    .dlg-head
+        @include wh(100%,2rem)
+        flex: auto 
+        position: absolute
+        top: 0
+    .blg-body
+        @include wh(100%,100%)
+        display: flex
+        flex-direction: column
+        .dimensional-pic
+            @include wh(100%,49%)
+            background: url('/img/coallayer.png') center center
+            margin-top: 2rem
+            overflow-x: auto
+            overflow-y: hidden
+            padding: 1rem 0 1rem 1rem
+            .bgimg
+                @include wh(7280px,22rem)
+                background: $driveface-bg
+                position: relative
+                .north
+                    @include absolute(0,0)
+                    @include wh(2.5rem,auto)
+                    transform: rotate(90deg)
+                #drivevehicle
+                    @include wh(48rem,auto)
+                    z-index: 10
+                    position: absolute
+                #belt
+                    position: absolute
+                    @include wh(6000px,4rem)
+                .danger
+                    position: absolute
+                    display: inline-block
+                    @include wh(10px,100%)
+                    background: red
+                .drivefacesensor
+                    p
+                        @include align-middle
+                        position: absolute
+                        z-index: 12
+                        flex-direction: column
+                        img
+                            @include wh(3rem,auto)
+                        &.gas
+                            top: 4rem
+                        &.hostair
+                            bottom: 0
+                        &.viceair
+                            top: 0
+                        &.temp
+                            bottom: 0
+                        &.jizaigas
+                            top: 4rem
+                        &.mashgas
+                            top: 2rem
+                        &.co
+                            top: 7rem
+                        &.hostair, &.viceair
+                            img
+                                width: 600px
+                        
+                .staffs
+                    p
+                        position: absolute
+                        @include align-middle
+                        flex-direction: column
+                        img
+                            @include wh(46px,70px)
+                .driverReader
+                    img
+                        position: absolute
+                        @include wh(40px,40px)
+                .omit
+                    position: absolute
+                    @include wh(120px,100%)
+                    top: 0
+                #drivevehicle, #belt, .staffs p
+                    transition: all 2s linear
+.box
+    position: fixed
+    right: 0
+    background: #f1f1f1
+    margin-left: -26rem
+    @include wh(100%,48%)
+    z-index: 999
+    bottom: 0
+    
+    .body-area
+        @include wh(100%,100%)
+        background: #fff
+    .content
+        height: 94%
+        font-size: .9375rem
+
+    .nav-titles
+        width: 100%
+        padding: 2px
+        background: #F5F5F5
+        span
+            background: #ccc
+            display: inline-block
+            float: left
+            @include wh(7rem,2rem)
+            margin: 5px 0 5px 0
+            text-align: center
+            line-height: 2rem
+            font-size: .9375rem
+            color: #666
+            cursor: pointer 
+            &.active
+                color: #fff
+                background: #48aaff
+
+    .nav-general
+        @include wh(100%,2rem)
+        background: #48aaff
+        padding: 5px
+        box-sizing: border-box
+        color: #fff
+        padding-left: 10px
+    
+        span
+            display: inline-block
+            @include wh(20px,20px)
+            border-radius: 100%
+            background: #fff
+            color: #009fff
+            text-align: center
+            line-height: 20px
+            float: right
+            cursor: pointer
+
+    .articleSec
+        display: flex
+        flex-direction: column
+        drivingface-shifttrend
+            width: 100%
+        .shiftTrend-content
+            min-height: 18rem
+        span
+            cursor: pointer
+            margin-left: 11px
+        .svgDom
+            margin: 20px auto
+        div
+            margin-top: 20px
+            flex: none
+            span
+                margin-right: 10px
+                cursor: pointer
+        table
+             margin-top: 20px  
+             tr 
+                background: #f1f1f1 !important
+        height: 100%
+
+        p
+            @include line-height(1.5rem,1.5rem)
+            padding-left: 5px
+            margin: 10px 0px 0px 6px
+            
+            input,#selectShift
+                width: 9rem
+                float: left
+                margin-left: 0.2rem
+                border: 1px solid #ccc
+            span
+                margin-right: 10px
+                float: left
+            button,.query-button
+                float: right
+                margin-right: 17%
+        svg
+            background: #f1f1f1
+        
+        .axis path,  
+        .axis line 
+            fill: none  
+            stroke: black  
+    article
+        @include wh(100%,100%)
+        color: #666
+        display: flex
+        padding: 15px
+        background: #F5F5F5
+        div
+            flex: 1
+        .content-end
+            display: flex
+            flex-direction: column
+            height: 50%
+            padding-bottom: 20px
+
+        .content-left
+            display: flex
+            flex-direction: column
+            @include wh(100%,100%)
+            padding: 10px 0px 23px 20px !important
+            p,.plan-pro,.real-pro
+                display: flex
+                flex: 1
+                span
+                    flex: 1
+                    &:nth-child(1)
+                        flex: 0.5
+            .plan-pro,.real-pro
+                span:nth-child(1)
+                    flex: 1
+
+            .bg-pro,.plan-bg,.real-bg
+                @include wh(40%,5px)
+                display: inline-block
+                background: #d3d3d3
+                border-radius: 3px
+            .bg-pro,.real-pro
+                margin-top: 0.4rem
+                position: relative
+
+                .plan-bg
+                    position: absolute
+                    left: 0
+                    background: #939393
+                .real-bg
+                    position: absolute
+                    left: 0
+                    background: #009fff
+
+        .content-right
+            @include wh(100%,100%)
+            padding: 0px 10px 40px 10px
+
+            .draw-content
+                @include wh(2.5rem,37%)
+                color: red
+                transform: rotate(-90deg)
+                position: fixed
+                top: 16.9rem
+                right: 7.5rem
+                background: #E2E2E2
+                
+                
+                .draw-top
+                    @include wh(30%,80%)
+                    border-right: 2px dotted #ccc
+                    border-left: 2px dotted #ccc
+                    margin-left: 30%
+                    position: relative
+
+                    &.draw-tunnerller
+                        width: 100% 
+                        margin-left: 0
+                        border-bottom: none
+                        margin-top: 5%
+                        background: #48aaff
+                        div
+                            position: relative
+                            span:nth-child(1)
+                                position: absolute
+                                width: 2rem
+                                line-height: 4rem  
+                                transform: rotate(90deg)
+
+                            .vertical-distance
+                                position: absolute
+                                left: -6.5rem
+                                @include line-height(1rem,0)
+                                bottom: -2rem
+                                color: #666
+                            .doatVehicle
+                                @include wh(10px,10px)
+                                @include absolute(45%,99%)
+                                display: line-block
+                                background: red
+                                border-radius: 100%
+                                bottom: 0
+                            .warnLine
+                                display: inline-block
+                                @include wh(100%,1px)
+                                @include absolute(0,0)
+                                background: red
+                    div
+                        @include wh(100%,8rem)
+                        @include line-height(6rem,20rem)
+                        bottom: 0
+                        position: absolute
+                        background: #000
+                        color: #ccc
+
+                        .doatVehicle
+                            @include wh(10px,10px)
+                            @include absolute(0,-3px)
+                            display: line-block
+                            background: red
+                            border-radius: 100%
+                    .base-line
+                        display: inline-block
+                        width: 100%
+                        text-align: center
+                        position: absolute
+                        bottom: 0
+                        z-index: 1
+                        color: #000
+                        transform: rotate(90deg)
+                    .base-left,.base-right
+                        @include wh(2rem,100%)
+                        display: inline-block
+                        line-height: 10rem
+                        position: absolute
+                        text-align: center
+                    .base-left
+                        left: -2rem
+                        border-left: 2px dotted #ccc
+                    .base-right
+                        right: -2rem
+                        border-right: 2px dotted #ccc
+
+                    
+                        
+                .draw-footer
+                    height: 10%
+                    border-top: 2px solid #ccc
+                    border-bottom: 2px solid #ccc
+                    text-align: center
+                    color: #666
+
+            .draw-bottom
+                height: 100%
+                display: flex
+                flex-direction: column
+                p
+                    float: left
+                    flex: 1
+                    display: flex
+                    align-items: center
+                    @include line-height(1.4rem,1.4rem)
+                    span:nth-child(1)
+                        flex: 0.55
+            
+                    &.AreaNormal
+                        span
+                            float: left
+                            color: #666
+                            height: 1rem
+                    &:nth-child(9),&:nth-child(10)
+                        width: 100%
+                        span:nth-child(1)
+                            flex: 0.6
+                        span:nth-child(2)
+                            flex: 1
+                        span:nth-child(3)
+                            width: auto
+                span
+                    @include wh(32%,1.4rem)
+                    display: inline-block
+                    text-align: left
+                        
+                    
+        

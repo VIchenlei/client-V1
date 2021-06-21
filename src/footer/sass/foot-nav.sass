@@ -1,0 +1,33 @@
+@import '../../sass/defs'
+
+.foot-nav
+  @include align-middle
+  flex: 0 0 3rem
+  justify-content: space-around
+  background: $body-bg
+  border-top: 1px solid $body-sp
+  color: $body-ft
+  font-size: $fontsize-s
+  z-index: 100
+
+  @media screen and (max-width: $width-medium) and (orientation: landscape)
+    display: none
+
+  span
+    @include align-center-middle
+    flex-flow: column
+    padding: .1rem
+
+    &.active
+      color: $active-bg
+      .icon
+        fill: $active-bg
+        stroke: none
+
+    .icon
+      fill: none
+      stroke: $body-ft
+      stroke-width: 1px
+
+    span
+      padding-top: .1rem

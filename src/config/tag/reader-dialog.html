@@ -1,0 +1,1165 @@
+<!--
+ * @Description: 合并分站 天线 分站覆盖范围为一个页面
+ * @ModifyDescription: 根据原型图完成新需求
+ * @Author: chenl
+ * @since: 2019-05-24 10:41:43
+ * @lastTime: 2019-07-31 13:16:35
+ * @LastAuthor: chenl
+ -->
+
+<reader-dialog>
+    <div class="dlg-bg animated" show={isShow}>
+        <div name="reader_dialog" ref="reader_dialog" class="dlg-window reader-dialog animated">
+            <div name="reader_title" ref="reader_title" class="dlg-head">
+                <span class="dlg-title">
+                    <grip type="grip-horizontal"></grip>{ tableTitle }
+                </span>
+            </div>
+            <div class="dlg-body" if={ !show_tips }>
+                <div class="content-panel">
+                    <div class="reader_manage">
+                        <div class="manage_title">
+                            <p>{ title[0] }</p>
+                            <img if={ this.cmd !=='INSERT' && name==='reader' } onclick={ jumpSelectPoint }
+                                src="/img/jump_icon.png" alt="" title="跳转实时界面选取坐标">
+                        </div>
+                        <ul class="list">
+                            <div data-is="reader-list2" msg={ opts.message } field={ hideField_zero } coord={ _coords }>
+                            </div>
+                        </ul>
+                    </div>
+                    <div class="reader_manage antenna_manage even" if={ name !=='lights_group' }>
+                        <div class="manage_title">
+                            <p>{ title[1] }</p>
+                            <img if={(name==='drivingface' || name==='coalface') && rows_one.length<1 } data-name={ one_name } onclick={ addData }
+                                src="/img/add_icon.png" alt="">
+                        </div>
+                        <div class="mark" if={ name === 'reader' }>
+                            <div class="color_mark">
+                                天线1
+                                <span></span>
+                            </div>
+                            <div class="color_mark">
+                                天线2
+                                <span></span>
+                            </div>
+                        </div>
+                        <div class="offset">
+                            <div class="{name==='reader' ? 'offset_list' : ''}">
+                                <ul class="list" each={ row, index in rows_one } if={ index<=1 }>
+                                    <div data-is="antenna-list" msg={ row } field={ hideField_one } idx = { index }></div>
+                                </ul>
+                            </div>
+                            <div class="circle" if={ name==='reader' }>
+                                <div>
+                                    <canvas class="canvas" width="120" height="120"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 掘进面基准点 -->
+                    <div class="reader_manage" if={ four_name && four_name==='drivingface_ref_point' }>
+                        <div class="manage_title">
+                            <p>{ title[4] }</p>
+                            <img if={ name==='drivingface' } data-name={ four_name } onclick={ addData }
+                                src="/img/add_icon.png" alt="">
+                        </div>
+                        <ul class="list" each={ row,index in rows_four }>
+                            <div data-is="datumpoint-list" msg={ row } index={index} field={ hideField_four }></div>
+                        </ul>
+                    </div>
+                    <div class="reader_manage" if={ name !=='lights_group' }>
+                        <div class="manage_title">
+                            <p>{ title[3] }</p>
+                            <img if={ name==='drivingface' } data-name={ tre_name } onclick={ addData }
+                                src="/img/add_icon.png" alt="">
+                        </div>
+                        <ul class="list" each={ row,index in rows_tre }>
+                            <div data-is="warning-list" msg={ row } index={index} field={ hideField_tre }></div>
+                        </ul>
+                    </div>
+                    <div
+                        class="reader_manage { name === 'drivingface' || name === 'lights_group' || name === 'coalface' ? 'even' : '' }">
+                        <div class="manage_title">
+                            <p>{ title[2] }</p>
+                            <img if={ name==='reader' } onclick={ preview } src="/img/jump_icon.png" alt="">
+                            <img if={ name==='drivingface' || name==='coalface' || name==='lights_group' } data-name={
+                                two_name } onclick={ addData } src="/img/add_icon.png" alt="">
+                        </div>
+                        <ul class="list" each={ row,index in rows_two } if={ name !=='lights_group' }>
+                            <div data-is="reader-pathlist" msg={ row } field={ hideField_two } index ={index} smsg={ rows_two }></div>
+                        </ul>
+                        <ul class="list" if={ name === 'reader' }> 
+                            <img class='pointImg' data-value="add" src="/img/add_icon.png" alt="" onclick={addPath}>
+                        </ul>
+                        <!-- 红绿灯 -->
+                        <div if={ name==='lights_group' } each={ rows,index in rows_two }
+                            class="wrapper { index%2 === 0 ? 'wrapper_even' : '' }">
+                            <ul class="wrapper-list">
+                                <li each={ rows[0].rows } class="{ field_name !=='label' ? field_name : '' }">
+                                    <div class="mdc-form-field" if={ field_name==='physics_light_id' }>
+                                        <div class="mdc-text-field" ref='content' data-mdc-auto-init="MDCTextField">
+                                            <input type={ getInputType(field_type, field_name) } ref='inputField'
+                                                class="mdc-text-field__input light{index}"
+                                                value={getTextValue(field_value, field_name, field_type)}
+                                                class={getTimeClass(field_type)} onkeydown={ enterForLogin } onfocus={
+                                                changeLoginText } onblur={ restLoginText }
+                                                readonly={isReadonly(field_name)} data-index={index}>
+                                            <label ref='labelField' class="mdc-text-field__label { floatAbove }">
+                                                <span>{field_label}</span>
+                                                <span>{ enableNull ? '' : '*' }</span>
+                                            </label>
+                                            <div if={!isReadonly(field_name)} class="mdc-text-field__bottom-line"></div>
+                                        </div>
+                                        <span class={ info ? "info" : '' }>{ info }</span>
+                                    </div>
+                                    <div class="mdc-form-field" if={ field_name==='reader_id' }>
+                                        <div class="mdc-text-field" data-mdc-auto-init="MDCTextField">
+                                            <select id="firstname"
+                                                class="{ isFaceClass(field_name) } query-option query-select mdc-text-field__input select{index}"
+                                                data-is="meta-select" name={ field_name } value={
+                                                getTextValue(field_value, field_name, field_type) }
+                                                disabled={isDisabled(field_name)} data-name={rows[0].name} onchange={
+                                                changeReader } data-index={index}></select>
+                                            <label for="firstname"
+                                                class="mdc-text-field__label mdc-text-field__label--float-above">
+                                                <span>{field_label}</span>
+                                                <span style="color:red;">{ enableNull ? '' : '*' }</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                            <ul class="list { index%2 === 0 ? 'wrapper-list_even' : '' }" each={ row in rows }>
+                                <div data-is="reader-pathlist" papa={ opts.papa } msg={ row } field={ hideField_two }>
+                                </div>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <ul class="showDetails hide">
+                    <li each={ item in items } onclick={ pitchOn } card-name={ item.name } li-id={ this.isStaff ?
+                        item.staff_id : item.vehicle_id } dept-id={ item.dept_id }>{ item.name }</li>
+                </ul>
+                <div class="dlg-foot" if={ !show_tips }>
+                    <button op-name="save-update" class="btn-sure" onclick={ save }>{cmd == 'DELETE' ? '删除' :
+                        '保存'}</button>
+                    <!-- <button op-name="save-update" class="btn-sure" onclick={ save }>保存</button> -->
+                    <button op-name="cancel-update" class="btn-cancel" onclick={ close }>取消</button>
+                </div>
+            </div>
+        </div>
+        <script>
+            import { DEFAULT_MAP_ID } from '../../js/def/map_def.js'
+            import { composeUpdateDBReq, trim, formatTime, getRows, getMessage, clone, dealRowsTow, getPathMsg } from '../../js/utils/utils.js'
+            import { metaUpdateRes, formatFieldValue, testUnenableNullData, testForm, getReaderCoord, getAantennaAngle, getCanvasList, getInsertMsg, getModifyInsertMsg, getIdx } from '../utils.js'
+            import '../../main/tag/page-main.html'
+            import './reader-list2.html'
+            import './warning-list.html'
+            import './antenna-list.html'
+            import './reader-pathlist.html'
+            import './datumpoint-list.html'
+            import { config } from '../../js/def/config_def.js'
+            this.sql = {}
+            this.show_tips = false
+            // 特殊的字段类型
+            this.specialTypes = ['FILE', 'SELECT', 'DATETIME', 'DATE', 'TIME', 'INPUT']
+            let tagMonitor = null
+            let msg = opts.message // eslint-disable-line
+            if (msg.hasOwnProperty('currentTag')) {
+                this.currentTag = msg.currentTag
+            }
+            let self = this
+            this.data = msg
+            this.cmd = msg.cmd
+            this.topicName = msg.name
+            this.tableName = msg.table
+            this.input = false
+            this.tableTitle = msg.title
+            this.tableKeyName = msg.key
+            this.rows = msg.rows
+            this.name = msg.name
+            this.maxid = msg.maxid
+            this.cmdSuccess = false
+            this.cmdFail = false
+            this.cardValue = null
+            this.position = opts.position // eslint-disable-line
+            this.showName = opts.showName // eslint-disable-line
+            this.items = opts.items // eslint-disable-line
+            this.modified = false // use to indicate which the record be modified or not.
+            this.dss = window.sessionStorage.getItem('selected')
+            let activeSubPageName = null
+            this._coords = null
+            this.isRequired_rl = true  // 判断所有组件是否有未填必填项
+            this.isRequired_rp = true  
+            this.isRequired_idx = true  //用作天线1判断
+            this.isVehicle_al = true  // 判断其他工作面是否已绑定了该车辆
+            this.isRequired_al = true  
+            this.isRequired_dl = true  
+            this.isRequired_wl = true  
+            this.isEnter_rp = false
+            this.isEnter_wl = false
+            this.isbindSouce = true
+            this.sensorMaxid = xdata.metaStore.maxIDs['sensor']
+            this.isShow = true
+            if (opts.hasOwnProperty('coord')) {
+                this._coords = opts.coord
+            }
+
+            /**
+             * @description: 合并页面下 name集合 用作更新时修改任意一个表的东西 修改成功之后关闭弹出窗
+             */
+            this.nameList = ['antenna', 'reader_path_tof_n', 'drivingface_vehicle', 'drivingface_warning_point', 'sensor', 'coalface_vehicle', 'drivingface_ref_point']
+
+            let basicmsg = ['dat_dept', 'dat_group', 'dat_worktype', 'dat_occupation', 'dat_shift_type', 'dat_shift', 'dat_occupation_level', 'dat_vehicle_type']
+            const KEYNUM = ['dat_drivingface_vehicle']
+            if (this.name === 'reader') {
+                this.title = ['分站基本信息', '天线基本信息', '分站覆盖范围基本信息']
+                /**
+                 * @description: 分站管理录、综采面录入需要隐藏的字段集合
+                 */
+                this.hideField_zero = ['angle', 'z', 'ip', 'enable_simulate_card']
+                this.hideField_one = ['antenna_id', 'reader_id', 'name', 'z', 'angle']
+                this.hideField_two = ['reader_id', 'id', 'tof_flag', 'b_z', 'e_z']
+            } else if (this.name === 'coalface') {
+                this.title = ['综采面基础数据', '综采面采煤机管理', '传感器管理']
+                this.hideField_zero = ['x_offset', 'y_offset', 'limit_speed', 'plan_day']
+                this.hideField_one = ['coalface_id']
+                this.hideField_two = ['sensor_id', 'work_face_id', 'z']
+            } else if (this.name === 'drivingface') {
+                this.title = ['掘进面基础数据', '掘进面掘进机管理', '传感器管理', '掘进面告警点', '掘进面基准点']
+                this.hideField_zero = ['base_point_z', 'icon_x', 'icon_y', 'icon_z', 'plan_day', 'drivingface_type', 'driver_dist', 'driver_dist_time']
+                this.hideField_one = ['drivingface_id', 'big_reader_id', 'relay_small_reader_id']
+                this.hideField_two = ['sensor_id', 'work_face_id', 'z']
+                this.hideField_tre = ['warning_point_id', 'drivingface_id', 'point_z']
+                this.hideField_four = ['drivingface_id','drp_id']
+            } else if (this.name === 'lights_group') {
+                this.title = ['红绿灯组基本信息', '', '红绿灯基本信息']
+                this.hideField_zero = ['lights_group_id', 'label', 'z']
+                this.hideField_two = ['light_id', 'lights_group_id', 'ip', 'z', 'label', 'reader_id', 'physics_light_id', 'special_flag']
+            }
+            let center = {
+                x: 80,
+                y: 80
+            }
+            let radius = 75
+            let cxt = null
+            let circles = [] // 储存canvas 清除之前的信息 便于重新绘制
+            let canvas
+            let context
+            let previousSelectedCircle
+            let isDragging = false
+            let canCoords = []
+            let index  // 选中天线索引 选中之后赋值
+            function Circle(x, y, radius, color) {
+                this.x = x
+                this.y = y
+                this.radius = radius
+                this.color = color
+                this.isSelected = false
+            }
+
+            let coords = []
+            msg.rows.forEach(e => {
+                if (e.field_name === 'x' || e.field_name === 'y') {
+                  if (this.cmd !== 'INSERT') {
+                    coords.push(e.field_name === 'x' ? e.field_value : -e.field_value)
+                  } else {
+                    coords.push(e.field_value)
+                  }
+                }
+            })
+            // let angleZero = getReaderCoord(coords[0], coords[1], 2, 0)  // 天线角度为0的坐标
+            this.getTimeClass = (type) => {
+                if (type === 'DATETIME' || type === 'DATE') return 'datetime-input'
+                return ''
+            }
+
+            this.getInputType = (fieldType) => {
+                if (fieldType !== 'SELECT') {
+                    let ret = 'text'
+                    switch (fieldType) {
+                        case 'DATETIME':
+                            ret = 'datetime-local'
+                            break
+                        case 'DATE':
+                            ret = 'date'
+                            break
+                        case 'TIME':
+                            ret = 'time'
+                            break
+                        case 'COLOR':
+                            ret = 'color'
+                            break
+                        default:
+                            ret = 'text'
+                    }
+                    return ret
+                }
+            }
+            this.isReadonly = (field_name) => {
+                if (this.cmd === 'INSERT') return
+                if (this.cmd === 'DELETE') return 'readonly'
+                let readonly = ''
+                if (field_name === this.tableKeyName) readonly = 'readonly'
+                return readonly
+            }
+            this.getTextValue = (field_value, field_name, field_type) => {
+                if (this.tableName === 'dat_drivingface_vehicle' && field_name === 'shake_threshold') {
+                    if (!field_value) return 20
+                } else {
+                    if (field_value) {
+                        // if (field_name === 'y') {
+                        //     field_value = -Number(field_value)
+                        // }
+                        if (field_type === 'DATETIME') {
+                            return new Date(field_value).format('yyyy-MM-ddThh:mm:ss')
+                        } else if (field_type === 'DATE') {
+                            return new Date(field_value).format('yyyy-MM-dd')
+                        } else if (field_type === 'TIME') {
+                            return new Date('2018-12-12 ' + field_value).format('hh:mm')
+                        }
+                    }
+                    return field_value
+                }
+            }
+            this.on('META-DIALOG-SHOW', (msg) => {
+                this.initDialog(msg)
+                this.update()
+                this.show()
+            })
+            this.initDialog = (msg) => {
+                this.show_tips = false
+                this.data = msg
+                this.cmd = msg.cmd
+                this.topicName = msg.name
+                this.tableName = msg.table
+                this.tableTitle = msg.title
+                this.tableKeyName = msg.key
+                this.rows = msg.rows
+                this.maxid = msg.maxid
+                this.modified = false // use to indicate which the record be modified or not.
+            }
+
+            this.close = () => {
+                this.unmount(true)
+                if (this.name === 'reader' && (this.cmd === 'UPDATE')) xbus.trigger('MAP-READERPATHTEST', 'close')
+                if (this.name === 'reader' && (this.cmd === 'INSERT' || this.cmd === 'UPDATE')) xbus.trigger('MAP-READERPATH', 'close')
+                //实时界面 点击取消isToolTip 设置为true  允许显示弹窗
+                if (this.name === 'reader') xbus.trigger('MAP-CHANGE-TOOLTIPS', {isToolTip: true}) 
+                if (this.name === 'reader') {
+                    xbus.trigger('DRAW-READER-UPDATE',{isRedraw: true})
+                } 
+            }
+            this.getValue = (i, type) => {
+                let fieldName = this.rows[i].field_name
+                let field_type = this.rows[i].field_type
+                let ele = this.refs[fieldName].root.querySelector('input')
+                let value = ele && ele.value
+                if (field_type === 'SELECT') {
+                    if (type === 'insert') {
+                        value = this.root.querySelector('.' + fieldName + ' select').getAttribute('value')
+                        value = this.root.querySelector('.' + fieldName + ' select').value
+                        if (!value || !value.match(/\d/ig)) {
+                            value = 0
+                        }
+                    } else {
+                        value = this.refs[fieldName].root.querySelector('select').value
+                    }
+                }
+                if (this.refs[fieldName].tips && !value && value !== 0) {
+                    //如果是必填字段但是没有值时
+                    return testUnenableNullData()
+                }
+                value = formatFieldValue(field_type, value)
+                return value
+            }
+
+            this.isDisabled = (field_name) => {
+                if (this.cmd === 'INSERT') return ''
+                if (this.cmd === 'DELETE') return 'disabled'
+                if (field_name === this.tableKeyName) return 'disabled'
+            }
+            this.pitchOn = (evt) => {
+                let target = evt.currentTarget
+                let input = this.root.querySelector('.pitchON')
+                input.value = target.innerHTML
+                let id = target.getAttribute('li-id')
+                let deptID = target.getAttribute('dept-id')
+                input.setAttribute('data-value', id)
+                input.setAttribute('dept-value', deptID)
+                let details = this.root.querySelector('.showDetails')
+                details.classList.add('hide')
+                input.setAttribute('class', '')
+            }
+            /**
+             * @description:  点击跳转图标跳转至实时界面拾取坐标点
+             */
+            this.jumpSelectPoint = () => {
+                tagMonitor = opts.papa
+                if(tagMonitor){
+                    tagMonitor.gotoPage('sp_monitor', msg, 'edit-reader')
+                    this.root.querySelector('.dlg-bg').classList.add('hide')
+                }else{
+                    this.unmount(true)
+                    if(this.name === 'reader'){// 点击分站右侧跳转图标 快速定位分站位置 再点击分站图标可拖动分站图标修改分站位置
+                        let msg = {
+                            mapID: xdata.metaStore.defaultMapID,
+                            symbolType: 'reader',
+                            mapType: 'MONITOR',
+                            isVisible: 'false',
+                            id: [this.rows[0].field_value]
+                        }
+                        xbus.trigger('MAP-SHOW-READER', msg)//显示光晕
+
+                        xbus.trigger('MAP-MOVE-READER', opts.message)  //显示某一分站
+
+                        xbus.trigger('MAP-CHANGE-TOOLTIPS',{isToolTip: false}) //增加判断 编辑定位拖动分站时不显示 toopitp 弹窗
+                    }                   
+                }
+                
+            }
+
+            this.init = (msg) => {
+                this.rows_one = null
+                this.rows_two = null
+                if (this.name === 'drivingface') this.rows_tre = [], this.rows_four = []
+                this.rows_one = msg.amessage
+                this.rows_two = msg.pmessage
+                if (this.name === 'coalface'){
+                    this.one_name = 'coalface_vehicle'
+                    this.two_name = 'sensor'
+                } 
+                if (this.name === 'drivingface') {
+                    this.rows_tre = msg.wmessage
+                    this.rows_four = msg.dmessage
+                    this.one_name = 'drivingface_vehicle'
+                    this.two_name = 'sensor'
+                    this.tre_name = 'drivingface_warning_point'
+                    this.four_name = 'drivingface_ref_point'
+                }
+                if (this.name === 'lights_group') {
+                    this.rows_two = []
+                    // 更改数据结构 把相同 物理灯号和分站id放在一个集合
+                    for (let i = 0; i < msg.pmessage.length; i++) {
+                        let light = []
+                        let pmsg1 = msg.pmessage[i]
+                        let pmsg2 = msg.pmessage[i + 1]
+                        let idx = getIdx(pmsg1, 'physics_light_id') // 下标
+                        if (i < msg.pmessage.length - 1) {
+                            let value1 = pmsg1.rows[idx].field_value
+                            let value2 = pmsg2.rows[idx].field_value
+                            if (value1 === value2) {
+                                light.push(pmsg1)
+                                light.push(pmsg2)
+                                this.rows_two.push(light)
+                            }
+                        } else if (i === msg.pmessage.length - 1 && msg.pmessage.length % 2 === 1) {
+                            // 模运算 一个物理灯号正反面两两一组 模运算结果为1，则最后一个的物理灯号只有正面或者反面 单独存一个数组 
+                            light.push(msg.pmessage[i])
+                            this.rows_two.push(light)
+                        }
+                    }
+                }
+                if (this.name === 'reader') canCoords = getCanvasList(opts.hasOwnProperty('coord') ? this._coords : coords, this.rows_one, this.cmd)
+            }
+            this.init(opts)
+
+            this.preview = (evt) => {
+                tagMonitor = opts.papa
+                if (tagMonitor) {
+                    // 配置分站覆盖范围编辑
+                    tagMonitor.gotoPage('sp_monitor', msg, 'edit-reader_path')
+                    let msg = {
+                      mapID: xdata.metaStore.defaultMapID,
+                      symbolType: 'reader',
+                      mapType: 'MONITOR',
+                      isVisible: 'false',
+                      id: [this.rows[0].field_value]
+                    }
+                    // 显示光晕
+                    xbus.trigger('MAP-SHOW-READER', msg)
+                    this.isShow = false
+                    let rows = clone(this.rows_two)
+                    rows = rows.map(item => {
+                        let itemRows = item.rows
+                        let dealObj = {}
+                        for(let i = 0; i < itemRows.length; i++){
+                            dealObj[itemRows[i].field_name] = itemRows[i].field_value
+                        }
+                        return dealObj
+                    })
+                    let showMsg = {
+                        name: this.rows[0].field_value,
+                        checked: true,
+                        isModify: true,
+                        rows: rows
+                    }
+                    xbus.trigger('MAP-SHOW-READERPATH', showMsg)
+                } else {
+                    xbus.trigger('SAVE-ENTRYMSG')
+                    this.isShow = false
+
+                    let rows = clone(this.rows_two)
+
+                    rows = rows.map(item => {
+                        let itemRows = item.rows
+                        let dealObj = {}
+                        for(let i = 0; i < itemRows.length; i++){
+                            dealObj[itemRows[i].field_name] = itemRows[i].field_value
+                        }
+                        return dealObj
+                    })
+                    let msg = {
+                        name: this.rows[0].field_value,
+                        checked: true,
+                        isModify: true,
+                        rows: rows
+                    }
+                    xbus.trigger('MAP-SHOW-READERPATH', msg)
+                }
+            }        
+            
+            /**
+             * @description: 分站覆盖范围点击跳转图标 处理画线所需要的数据格式 
+             */
+            this.formartFn = (rows_two) => {
+                let rows = []
+                for (let i = 0; i < rows_two.length; i++) {
+                    let subset = {}
+                    let lsubset = {}
+                    let e = rows_two[i].rows
+                    for (let j = 0; j < e.length; j++) {
+                        if (e[j].field_name === 'reader_id') {
+                            subset.reader_id = e[j].field_value
+                        }
+                        if (e[j].field_name === 'b_x') {
+                            subset.x = e[j].field_value
+                        }
+                        if (e[j].field_name === 'b_y') {
+                            subset.y = e[j].field_value
+                        }
+                        if (i === rows_two.length - 1) {
+                            if (e[j].field_name === 'reader_id') {
+                                lsubset.reader_id = e[j].field_value
+                            }
+                            if (e[j].field_name === 'e_x') {
+                                lsubset.x = e[j].field_value
+                            }
+                            if (e[j].field_name === 'e_y') {
+                                lsubset.y = e[j].field_value
+                            }
+                        }
+
+                    }
+                    rows.push(subset)
+                    if (i === rows_two.length - 1) rows.push(lsubset)
+                }
+                let id = xdata.metaStore.defaultMapID
+                let msg = {
+                    mapID: id,
+                    rows: rows,
+                    message: opts.message,
+                    amessage: opts.amessage,
+                    pmessage: opts.pmessage
+                }
+                return msg
+            }
+
+            this.on('mount', () => {
+                if (this.name === 'reader' && this.rows_one.length>0) {
+                    this.pathr = 50 //滑动路径半径
+                    canvas = this.root.querySelector('.canvas')	//获取canvas对象
+                    this.context = canvas.getContext("2d")
+
+                    canvas.addEventListener("mousedown", this.canvasClick.bind(this), false)
+                    canvas.addEventListener("mousemove", this.dragCircle.bind(this), false)
+                    canvas.addEventListener("mouseup", this.stopDragging.bind(this), false)
+                    // canvas.addEventListener("mouseout", this.stopDragging.bind(this), false)
+
+                    canCoords[0] && this.addRandomCircle(canCoords[0].x, canCoords[0].y, '#f15a4a') // 天线1
+                    canCoords[1] && this.addRandomCircle(canCoords[1].x, canCoords[1].y, '#ffcc33') // 天线2
+
+                    for (var i = 0; i < circles.length; i++) {
+                        var circle = circles[i]
+                        if (circle.color === '#f15a4a') {
+                            index = 0
+                        } else if (circle.color === '#ffcc33') {
+                            index = 1
+                        }
+                    }
+                }
+
+                this.show()
+                window.setDraggable({
+                    target: this.refs.reader_dialog,
+                    handle: this.refs.reader_title
+                })
+                this.registerGlobalEventHandlers()
+                if (this.refs['md5']) {
+                    this.refs['md5'].readOnly = true
+                }
+            })
+
+            /**
+             * @description: 限制天线圆盘鼠标拖动有效范围
+             */
+            this.check = (x, y) => {  //限制可拖动范围
+                var xx = x * x;
+                var yy = y * y;
+                var rr = 50 * 50; //最小
+                var rrr = 55 * 55;  //最大
+                if (xx + yy < rrr) {
+                    return true;
+                }
+                return false;
+            }
+            this.spotchange = (a) => {//canvas内坐标转化为圆形坐标 
+                var target = {};
+                if (a.x < 60 && a.y < 60) {
+                    target.x = -(60 - a.x);
+                    target.y = 60 - a.y;
+                } else if (a.x > 60 && a.y < 60) {
+                    target.x = a.x - 60;
+                    target.y = 60 - a.y;
+                } else if (a.x > 60 && a.y > 0) {
+                    target.x = a.x - 60;
+                    target.y = -(a.y - 60)
+                } else if (a.x < 60 && a.y > 60) {
+                    target.x = -(60 - a.x);
+                    target.y = -(a.y - 60);
+                }
+                return target;
+            }
+            this.getmoveto = (lx, ly) => {
+                if (!isDragging) {
+                    return false;
+                }
+                var tem = {};
+                tem.o = Math.atan(ly / lx); //鼠标移动点圆形角
+                tem.x = this.pathr * Math.cos(tem.o);
+                tem.y = this.pathr * Math.sin(tem.o);
+                if (lx < 0) { //坐标点处理
+                    tem.x = -tem.x;
+                    tem.y = -tem.y;
+                }
+                if (lx > 0) {  //弧度值处理
+                    tem.z = -Math.atan(tem.y / tem.x) + Math.PI * 2;
+                } else {
+                    tem.z = -Math.atan(tem.y / tem.x) + Math.PI;
+                }
+                // if (tem.z > 7.06) {  //最大值
+                //     tem.z = 7.06;
+                //     tem.x = this.pathr * Math.cos(Math.PI * 0);
+                //     tem.y = -this.pathr * Math.sin(Math.PI * 0);
+                // }
+                // if (tem.z < 2.4) { //最小值
+                //     tem.z = 2.4;
+                //     tem.x = this.pathr * Math.cos(Math.PI * 0);
+                //     tem.y = -this.pathr * Math.sin(Math.PI * 0);
+                // }
+                return tem;
+            }
+            this.respotchange = (a) => { //圆心坐标转换为canvas内坐标
+                var target = {};
+                if (a.x > 0 && a.y > 0) {
+                    target.x = 60 + a.x;
+                    target.y = (60 - a.y);
+                } else if (a.x < 0 && a.y > 0) {
+                    target.x = 60 + a.x;
+                    target.y = 60 - a.y;
+                } else if (a.x < 0 && a.y < 0) {
+                    target.x = 60 + a.x;
+                    target.y = -(a.y - 60)
+                } else if (a.x > 0 && a.y < 0) {
+                    target.x = 60 + a.x;
+                    target.y = -(a.y - 60);
+                }
+                return target;
+            }
+
+
+            this.save = (evt) => {
+                if (this.cmd === 'INSERT') this.doInsert()
+                if (this.cmd === 'UPDATE') this.doUpdate()
+                if (this.cmd === 'DELETE') this.doDelete()
+            }
+
+            this.handleTable = (type) => {
+              if (!this.isbindSouce) this.isbindSouce = true
+              if (this.name === 'drivingface' && this.rows_four.length === 0) {
+                let tips = '没有基准点数据！'
+                return testUnenableNullData(tips)
+              }
+              let antennaListTag = this.tags['antenna-list'], readerPathListTag = this.tags['reader-pathlist'], readerListTag = this.tags['reader-list2'], datumpointListTag = this.tags['datumpoint-list'], warnListTag = this.tags['warning-list']
+              this.tags['reader-list2'].isRequired()
+              if (!this.isRequired_rl) return
+              let names = ['coalface', 'drivingface']
+              if (names.includes(this.name)) {
+                if (antennaListTag) Array.isArray(antennaListTag) ? antennaListTag.forEach(e => e.isRequired()) : antennaListTag.isRequired()
+                if (readerPathListTag) {
+                    if(Array.isArray(readerPathListTag)){
+                        readerPathListTag = readerPathListTag.sort(function(a,b){return a.opts.index-b.opts.index})
+                        readerPathListTag.forEach((e, i) => {
+                            if (this.isbindSouce) e.isEnter()
+                        })
+                    }else {
+                        readerPathListTag.isEnter()
+                    }
+                }
+              } else {
+                if (antennaListTag) Array.isArray(antennaListTag) ? antennaListTag.forEach(e => e.isRequired()) : antennaListTag.isRequired()
+                if (readerPathListTag){
+                    if(Array.isArray(readerPathListTag)){
+                        readerPathListTag = readerPathListTag.sort(function(a,b){return a.opts.index-b.opts.index})
+                        readerPathListTag.forEach(e => e.isRequired())
+                    }else {
+                        readerPathListTag.isRequired()
+                    }
+                }
+              }
+
+              if (datumpointListTag) Array.isArray(datumpointListTag) ? datumpointListTag.forEach(e => e.isRequired()) : datumpointListTag.isRequired()
+              if (this.name === 'drivingface' && warnListTag) Array.isArray(warnListTag) ? warnListTag.forEach(e => e.isEnter()) : warnListTag.isEnter()
+
+              if (this.isRequired_rl && this.isRequired_al && this.isRequired_rp && this.isRequired_dl && this.isRequired_wl && this.isVehicle_al && this.isbindSouce) {
+                type === 'insert' ? readerListTag.doInsert() : readerListTag.doUpdate()
+                if (type === 'insert' && this.isRequired_al && this.isRequired_idx && this.isVehicle_al) {
+                  if (antennaListTag) Array.isArray(antennaListTag) ? antennaListTag.forEach(e => e.doInsert()) : antennaListTag.doInsert()
+                } else if (this.isRequired_al && this.isRequired_idx && this.isVehicle_al) {
+                  if (antennaListTag) Array.isArray(antennaListTag) ? antennaListTag.forEach(e => e.doRun()) : antennaListTag.doRun()
+                }
+                if (datumpointListTag) {
+                  if (type === 'insert' && this.isRequired_dl) {
+                    Array.isArray(datumpointListTag) ? datumpointListTag.forEach(e => e.doInsert()) : datumpointListTag.doInsert()
+                  } else {
+                    Array.isArray(datumpointListTag) ? datumpointListTag.forEach(e => e.doRun()) : datumpointListTag.doRun()
+                  }
+                }
+              }
+            }
+
+            this.doInsert = () => {
+              this.handleTable('insert')
+              let readerPathListTag = this.tags['reader-pathlist'], warnListTag = this.tags['warning-list']
+              if(this.isRequired_rp && this.isRequired_wl && (this.isEnter_rp || this.isEnter_wl) && this.isVehicle_al && this.isbindSouce && this.isRequired_rl && this.isRequired_dl){   
+                if(Array.isArray(readerPathListTag)){
+                    readerPathListTag.sort(function(a,b){return a.opts.index-b.opts.index})
+                    readerPathListTag.forEach(e => e.doInsert())
+                } else {
+                    readerPathListTag.doInsert()
+                }
+                if (this.name === 'drivingface') Array.isArray(warnListTag) ? warnListTag.forEach(e => e.doInsert()) : warnListTag.doInsert()
+              }
+            }
+
+            this.doUpdate = () => {
+              this.handleTable('update')
+              let readerPathListTag = this.tags['reader-pathlist'], warnListTag = this.tags['warning-list']
+              if (this.isRequired_rp && this.isEnter_rp && readerPathListTag && this.isVehicle_al && this.isbindSouce && this.isRequired_rl && this.isRequired_dl && this.isRequired_wl) {
+                if(Array.isArray(readerPathListTag)){
+                    readerPathListTag.sort(function(a,b){return a.opts.index-b.opts.index})
+                    readerPathListTag.forEach(e => e.doRun())
+                } else {
+                    readerPathListTag.doRun()
+                }
+              }
+              if (this.isRequired_wl && this.isEnter_wl && warnListTag && this.isVehicle_al && this.isbindSouce && this.isRequired_rl && this.isRequired_dl && this.isRequired_rp) {
+                if (this.name === 'drivingface') Array.isArray(warnListTag) ? warnListTag.forEach(e => e.doRun()) : warnListTag.doRun()
+              }
+            }
+
+            this.doDelete = () => { 
+                let self = this
+                if (this.activePanel) {
+                    this.activePanel.unmount(true)
+                }
+                this.activePanel = riot.mount('call-leave', {
+                    name: 'dodelete',
+                    currentTag: self
+                })[0]
+            }
+
+            this.deleteMsg = ()=>{
+                let antennaListTag = this.tags['antenna-list'], readerPathListTag = this.tags['reader-pathlist'], readerListTag = this.tags['reader-list2'], datumpointListTag = this.tags['datumpoint-list'], warnListTag = this.tags['warning-list']
+                this.tags['reader-list2'].doDelete()
+
+                if(antennaListTag) Array.isArray(antennaListTag) ? antennaListTag.forEach(e => e.doDelete()) : antennaListTag.doDelete()
+                
+                if(readerPathListTag){
+                    if(Array.isArray(readerPathListTag)){
+                        readerPathListTag = readerPathListTag.sort(function(a,b){return a.opts.index-b.opts.index})
+                        readerPathListTag.forEach(e => e.doDelete())
+                    }else {
+                        readerPathListTag.doDelete()
+                    }
+                } 
+                if(warnListTag){
+                    if(this.name === 'drivingface') Array.isArray(warnListTag) ? warnListTag.forEach(e => e.doDelete()) : warnListTag.doDelete()
+                }
+                if(datumpointListTag){
+                    Array.isArray(datumpointListTag) ? datumpointListTag.forEach(e => e.doDelete()) : datumpointListTag.doDelete()
+                }
+            }
+            // 每次打开一个 dialog 时，
+            // 会先 unmount 前一次的 dialog，这里会注销对应的全局事件（xbus）
+            this.on('unmount', () => {
+                this.unregisterGlobalEventHandlers()
+            })
+            xbus.on('MODIFY-DELETE',()=>{
+                this.cmd = 'DELETE'
+            })
+            this.registerGlobalEventHandlers = () => {
+                xbus.on('META-UPDATE-DB-RES', (res) => {
+                    let updateRes = metaUpdateRes(res, this.topicName, this.cmd, this.nameList)
+                    if (updateRes) {
+                        this.close()
+                        if (opts.hasOwnProperty('coord')) {
+                            this._coords = null
+                        }
+                    }
+                    this.update()
+                    window.setDraggable({
+                        target: this.refs.reader_dialog,
+                        handle: this.refs.reader_title
+                    })
+                })
+                xbus.on('SHOW-READEDIALOG', (message) => {
+                    this.isShow = true
+                    let coordinates = message.coordinates
+                    for (let i = 0; i< this.rows_two.length; i++) {
+                        let item = this.rows_two[i]
+                        item.cmd = 'INSERT'
+                        for (let j = 0; j < item.rows.length; j++) {
+                            if (item.rows[j].field_name === 'b_x') {
+                                item.rows[j].field_value = Number(coordinates[i][0][0].toFixed(1))
+                            }
+                            if (item.rows[j].field_name === 'b_y') {
+                                item.rows[j].field_value = -Number(coordinates[i][0][1].toFixed(1))
+                            }
+                            if (item.rows[j].field_name === 'e_x') {
+                                item.rows[j].field_value = Number(coordinates[i][1][0].toFixed(1))
+                            }
+                            if (item.rows[j].field_name === 'e_y') {
+                                item.rows[j].field_value = -Number(coordinates[i][1][1].toFixed(1))
+                            }
+                            if (item.rows[j].field_name === 'spacing_ratio') {
+                                item.rows[j].field_value = 0
+                            }
+                        }
+                    }
+                    this.update()
+                })
+            }
+            this.show = () => {
+                let ele = this.root.querySelector('.dlg-window').classList
+                let dlBgEle = this.root.querySelector('.dlg-bg').classList
+                dlBgEle.remove('zoomNone')
+                dlBgEle.add('zoomToOut')
+                ele.add('zoomIn')
+                ele.remove('zoomOut')
+            }
+            this.unregisterGlobalEventHandlers = () => {
+                xbus.off('META-UPDATE-DB-RES FILE-MODIFIED')
+                xbus.off('SHOW-READEDIALOG')
+            }
+
+            /**
+             * @description: 天线管理初始化圆盘
+             */
+            this.addRandomCircle = (x, y, color) => {
+                // 为圆圈计算一个随机大小和位置
+                var radius = 6
+                var x = x
+                var y = y
+                var color = color
+
+                // 创建一个新圆圈
+                var circle = new Circle(x, y, radius, color)
+                // 把它保存在数组中
+                circles.push(circle)
+                // 重新绘制画布
+                this.drawCircles()
+            }
+
+            this.clearCanvas = () => {
+                // 去除所有圆圈
+                circles = []
+
+                // 重新绘制画布.
+                this.drawCircles()
+            }
+
+            this.drawCircles = (x, y) => {
+                // 清除画布，准备绘制
+                this.context.clearRect(0, 0, canvas.width, canvas.height)
+                this.context.beginPath()
+                this.context.lineWidth = 1
+                this.context.arc(60, 60, 50, Math.PI * 0, Math.PI * 2, false)// 绘制内层圆弧
+                this.context.strokeStyle = '#0078b4'
+                this.context.stroke()
+
+                this.context.beginPath()
+                this.context.arc(60, 60, 50, Math.PI * 0, Math.PI * 2, false) // 绘制外侧圆弧
+                this.context.strokeStyle = '#c0c0c0'
+                this.context.lineCap = "round"
+                this.context.lineWidth = 5
+                this.context.stroke()
+
+                // 遍历所有圆圈
+                for (var i = 0; i < circles.length; i++) {
+                    var circle = circles[i]
+                    if (circle.isSelected && x && y) {
+                        if (circle.color === '#f15a4a') {
+                            index = 0
+                        } else if (circle.color === '#ffcc33') {
+                            index = 1
+                        }
+                        circle.x = x
+                        circle.y = y
+                    }
+                    //绘制圆点与中心连接线段
+                    this.context.beginPath()
+                    this.context.moveTo(60,60)
+                    this.context.lineTo(circle.x,circle.y)
+                    this.context.lineWidth = 2
+                    this.context.strokeStyle = circle.color
+                    this.context.stroke()
+                    // 绘制圆圈
+                    this.context.globalAlpha = 0.85
+                    this.context.beginPath()
+                    this.context.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2)
+                    this.context.fillStyle = circle.color
+                    this.context.strokeStyle = "black"
+                    
+                    if (circle.isSelected) {
+                        this.context.lineWidth = 2
+                    }
+                    else {
+                        this.context.lineWidth = 1
+                    }
+                    this.context.fill()
+                    this.context.stroke()
+                }
+            }
+
+            /**
+             * @description: 点击天线圆盘上的圆点  根据颜色判断天线 1 2 拖动选中圆点
+             */
+            this.canvasClick = (e) => {
+                // 取得画布上被单击的点
+                var clickX = e.pageX - this.getOffsetLeft(canvas)
+                var clickY = e.pageY - this.getOffsetTop(canvas)
+                // 查找被单击的圆圈
+                for (var i = circles.length - 1; i >= 0; i--) {
+                    var circle = circles[i]
+                    //使用勾股定理计算这个点与圆心之间的距离
+                    var distanceFromCenter = Math.sqrt(Math.pow(circle.x - clickX, 2)
+                        + Math.pow(circle.y - clickY, 2))
+                    // 判断这个点是否在圆圈中
+                    if (distanceFromCenter <= circle.radius) {
+                        // 清除之前选择的圆圈
+                        if (previousSelectedCircle != null) previousSelectedCircle.isSelected = false
+                        previousSelectedCircle = circle
+
+                        //选择新圆圈
+                        circle.isSelected = true
+
+                        // 使圆圈允许拖拽
+                        isDragging = true
+
+                        //更新显示
+                        this.drawCircles()
+
+                        //停止搜索
+                        return
+                    }
+                }  
+            }
+
+            /**
+             * @description: 停止拖动圆点 松开鼠标左键获取拖动之后，canvas坐标转换后的该天线坐标
+             */
+            this.stopDragging = () => {
+              isDragging = false
+              let a = canCoords[index]
+              let b = circles[index]
+              let angle = getAantennaAngle(60, 60, b.x, b.y);
+              // 根据canvas 移动之后获取的角度 根据分站中心的坐标转换为天线坐标
+              let fieldValue = this.tags['reader-list2'].refs['y'].root.querySelector('input').value
+              let values
+              if (this.cmd !== 'INSERT') {
+                values = opts.hasOwnProperty('coord') ? getReaderCoord(this._coords[0], this._coords[1], 1, angle) : getReaderCoord(coords[0], coords[1] , 1, angle)
+              } else {
+                values = opts.hasOwnProperty('coord') ? getReaderCoord(this._coords[0], this._coords[1], 1, angle) : getReaderCoord(coords[0], coords[1], 1, angle)
+              }
+              let antennaListTag = this.tags['antenna-list'][index]
+              antennaListTag.refs['x'].root.querySelector('input').value = values.x
+              antennaListTag.refs['y'].root.querySelector('input').value = values.y
+            }
+
+            /**
+             * @description: 选取天线圆盘中的圆点执行拖动圆点绕圆运动的函数 
+             */
+            this.dragCircle = (e) => {
+                // 判断圆圈是否开始拖拽
+                let a = {}
+                if (isDragging == true) {
+                    a.x = e.clientX - this.getOffsetLeft(canvas)
+                    a.y = e.clientY - this.getOffsetTop(canvas)
+                    let b = this.spotchange(a)
+                    // 判断拖拽对象是否存在
+                    if (previousSelectedCircle != null) {
+                        // 取得鼠标位置
+                        var x = e.pageX - this.getOffsetLeft(canvas)
+                        var y = e.pageY - this.getOffsetTop(canvas)
+                        if (this.check(b.x, b.y)) {
+                            // 将圆圈移动到鼠标位置
+                            previousSelectedCircle.x = x
+                            previousSelectedCircle.y = y
+                            let co = this.getmoveto(b.x, b.y)
+                            var tar = this.respotchange(co)
+                            var o = co.z
+                            // 更新画布
+                            this.drawCircles(tar.x, tar.y)
+                        }
+                    }
+                }
+            }
+
+            /**
+             * @description: 点击天线管理圆点获取鼠标点击距弹窗外边距的可视距离
+             */
+            this.getOffsetLeft = (el) => {
+                let l                
+                let ele = this.root.querySelector('.canvas')
+                l = ele.getBoundingClientRect().left
+                return l
+            }
+
+            this.getOffsetTop = (el) => {
+                let t 
+                let ele = this.root.querySelector('.canvas')
+                t = ele.getBoundingClientRect().top
+                return t
+            }
+
+            /**
+             * @description: 添加传感器、掘进面告警点、基准点
+             */
+            this.addData = (e) => { 
+                let name = e.target.dataset.name
+                let table = {
+                    def: name === 'sensor' ? config['sensor'].def : xdata.metaStore.defs[name],
+                    rows: xdata.metaStore.dataInArray.get(name),
+                    maxid: xdata.metaStore.maxIDs[name]
+                }
+                this.sensorMaxid = this.sensorMaxid + 1
+                let _msg = getInsertMsg(table.def, table.maxid)
+                let names = ['sensor', 'drivingface_warning_point', 'drivingface_ref_point']
+                if (names.includes(name)) {
+                    this.changeNum(name,msg,_msg,this.sensorMaxid)
+                } else if(name === 'drivingface_vehicle' || name === 'coalface_vehicle') {
+                    //编辑工作面未配置采煤机掘进机 点击添加图标配置采煤机 掘进机
+                    this.rows_one.push(getModifyInsertMsg(msg, _msg))
+                    let index = getIdx(msg,`${this.name}_id`) // 掘进机编号索引
+                    let value = msg.rows[index].field_value
+                    this.rows_one[0].rows[index].field_value = value // 采煤机 掘进机只有一个 索引0选择第1个修改对应的工作面编号
+                }
+            }
+
+            /**
+             * @description: 更改物理灯号 输入框失去焦点时 把value 赋值给rows-two集合中物理灯号
+             */
+            this.restLoginText = (e) => {
+                let index = e.target.dataset.index //索引
+                let value = e.target.value // 输入框value
+                this.root.querySelector(`.light${index}`).value = value
+                let _value = this.root.querySelector(`.light${index}`).value
+                let rows = this.rows_two[index]
+                // 同一个物理灯号正反面分站id相同 
+                rows.forEach(e => {
+                    let _rows = e.rows
+                    _rows.forEach(el => {
+                        if (el.field_name === 'physics_light_id') el.field_value = Number(value)
+                    })
+                })
+            }
+
+            let subtractPaddName = ['coalface_id', 'drivingface_id']
+            this.isFaceClass = (name) => {
+                if (subtractPaddName.includes(name)) return 'face-padding'
+            }
+
+            /**
+             * @description: 选择分站 把选中值value 赋值给rows-two集合中分站
+             */
+            this.changeReader = (e) => {
+                let index = e.target.dataset.index //索引
+                let idx = this.root.querySelector(`.select${index}`).selectedIndex //select索引
+                let value = this.root.querySelector(`.select${index}`).options[idx].value // select选中值value
+                let rows = this.rows_two[index]
+                // 同一个物理灯号正反面分站id相同 
+                rows.forEach(e => {
+                    let _rows = e.rows
+                    _rows.forEach(el => {
+                        if (el.field_name === 'reader_id') el.field_value = Number(value)
+                    })
+                })
+            }
+
+            xbus.on('META-UPDATE-OBJ', (msg) => {
+                this.sql[`sql${msg.index}`] = msg.sql
+            })
+
+            /**
+             * @description: 添加传感器 告警点 基准点修改对应的工作面编号
+             */    
+            this.changeNum = (name,msg,_msg,sensorMaxid) =>{
+                let commonMsg = getModifyInsertMsg(msg, _msg)
+                let commonidx = name === 'sensor' ? getIdx(commonMsg,'work_face_id') : getIdx(commonMsg,'drivingface_id')
+                let index = getIdx(msg,`${this.name}_id`) // 掘进机编号索引
+                let value = msg.rows[index].field_value
+                commonMsg.rows[commonidx].field_value = value
+                if(name === 'sensor') {
+                  commonMsg.maxid = sensorMaxid - 1
+                  commonMsg.rows[0].field_value = sensorMaxid
+                  this.rows_two.push(commonMsg)
+                }
+                if(name === 'drivingface_warning_point'){
+                    this.rows_tre.push(commonMsg)
+                    if(this.rows_tre.length > 1){
+                        for (let i = 0; i < this.rows_tre.length; i++) {
+                            let e = this.rows_tre[i]
+                            if(i>=1 && e.cmd === 'INSERT' && this.rows_tre[i-1].cmd === 'INSERT'){
+                                e.rows[0].field_value = this.rows_tre[i-1].rows[0].field_value+1
+                            }
+                        }
+                    }
+                } 
+                if(name === 'drivingface_ref_point') this.rows_four.push(commonMsg)
+            }
+            
+            /**
+             * 当分站覆盖范围基本信息中无信息时，添加路径按钮
+            * */
+            this.addPath = () => {
+                if (this.rows_two.length >= 4) {
+                    let msg = {
+                    value: 'nochange',
+                    tip: `覆盖范围路径不可超过四条！`
+                    }
+                    window.hintip.open(msg)
+                    return
+                }
+                let pathGather = Array.from(xdata.metaStore.data.road_segment.values())
+                let pmessage = getPathMsg(this.rows, pathGather, this.cmd)
+                if (!pmessage) return
+                this.rows_two.push(pmessage)
+                this.rows_two = dealRowsTow(this.rows_two)
+                this.isRequired_rp = true
+                this.update()
+            }
+
+        </script>
+</reader-dialog>

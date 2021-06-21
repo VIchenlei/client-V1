@@ -1,0 +1,350 @@
+<track-query>
+  <div class="query-condition-panel {queryMore ? 'full-panel' : 'narrow-panel'}">
+    <div class="object-type-panel">
+      <label><input type="radio" checked={ cardTypeID === 1 ? 'checked' : ''} name="cardtypeid" ref="cardtypeid" value="1" onclick={ setCardTypeID } >人员</label>
+      <label><input type="radio" name="cardtypeid" checked={ cardTypeID ===2 ? 'checked' : ''} ref="cardtypeid" value="2" onclick={ setCardTypeID }>车辆</label>
+    </div>
+    <div class="identify-staff search-bar" ref="searchStaff"></div>
+    <div class="query-more" >
+      <span onclick={ switchMore }>{ !queryMore ?'高级筛选' : '返回'}</span>
+    </div>
+    <div data-is="duration-select" class="duration-select-panel" if={ queryMore }></div>
+    <button type="button" class="query-tracklist-btn" onclick={ doQueryList }>查询</button>
+  </div>
+
+  <div id="track_list" data-is="track-list"></div>
+
+  <script>
+    import './track-list.html'
+    import './duration-select.html'
+
+    // const PAGE_SIZE = 10
+
+    this.papa = opts.papa
+
+    // default search type is : staff
+    this.cardTypeID = 1  // 1: staff, 2: vehicle
+
+    this.tagTrackList = null
+
+    this.queryMore = false
+    this.activeDurationTag = null
+
+    this.on('mount', () => {
+      // this.objNameInput = this.refs.objid
+      this.selectOpts = this.refs.selectOpts
+
+      this.tagTrackList = this.tags['track-list']
+
+      // this.tagDuration = this.tags['duration-select']
+      this.player = this.papa.parent.tagPlayer
+
+      // 搜索内容
+      let filteredList = xdata.metaStore.getFilterCardList()
+      this.staffs = filteredList && filteredList.staffs
+      this.vehicles = filteredList && filteredList.vehicles
+      this.fuzz = riot.mount('div.identify-staff', 'fuzzy-search2', { typeDef: this.typeDef, dataSet: this.dataSet, searchIcon: true })[0]
+
+      this.registerGlobalEventHandlers()
+    })
+
+    this.getResult = (result) => {
+      // let chosedStaff = result
+      this.root.querySelector('#searchinput').value = result.name
+      // this.subRows = [result]
+      // this.update()
+    }
+
+    this.init = (value) => {
+      let data, placeholder, label
+      let keys = []
+      if (value === 'staff') {
+        data = Array.from(xdata.metaStore.staffs.values())
+        placeholder = '请输入姓名/简拼'
+        label = '人员'
+        keys = ['name', 'spy', 'staff_id']
+      } else if (value === 'vehicle') {
+        data = Array.from(xdata.metaStore.data.vehicle.values())
+        placeholder = '请输入车牌号'
+        label = '车辆'
+        keys = ['name']
+      }
+      this.typeDef = {
+        name: value,
+        label: label,
+        placeholder: placeholder,
+        cb: this.getResult  // the callback when select an item.
+      }
+      this.dataSet = {
+        desc: 'name',  // 显示结果集时，显示的字段：一般为描述字段
+        keys: keys,  // 参与搜索的列名称
+        data: data
+      }
+    }
+    this.init('staff')
+
+    this.getRegistCard = (card) => {
+      let ifregister = xdata.metaStore.data.card.get(card)
+      if (ifregister) {
+        return true
+      } else {
+        return false
+      }
+    }
+
+    this.on('unmount', () => {
+      // console.log('track-query unmounted. ', this)
+      this.unregisterGlobalEventHandlers()
+    })
+
+    this.registerGlobalEventHandlers = () => {
+      xbus.on('REPT-SHOW-RESULT', this.processTrackResult)
+    }
+
+    this.unregisterGlobalEventHandlers = () => {
+      xbus.off('REPT-SHOW-RESULT', this.processTrackResult)
+    }
+
+    this.setCardTypeID = (evt) => {
+      xbus.trigger('MAP-HISTORY-RESET')
+      let v = this.root.querySelector('input[name="cardtypeid"]:checked').value
+      this.cardTypeID = v ? parseInt(v, 10) : -1
+      if (this.cardTypeID === 1) {
+        this.init('staff')
+      } else if (this.cardTypeID === 2) {
+        this.init('vehicle')
+      }
+      if (this.fuzz) {
+        this.fuzz.unmount(true)
+      }
+      this.fuzz = riot.mount('div.identify-staff', 'fuzzy-search2', { typeDef: this.typeDef, dataSet: this.dataSet, searchType: true })[0]
+      this.update()
+    }
+
+    // 处理传过来快捷操作历史轨迹的数据，用于快速跳转
+    // 根据 staff_id or vehicle_id 查询
+    this.setQueryKey = (cardTypeID, cardID,numberId,preName) => {
+      let name = ''
+      let objID = -1
+
+      let obj = xdata.metaStore.getCardBindObjectInfo(cardID)
+      if (obj) {
+        name = obj.name
+        if(numberId){//处理报表跳转
+          objID = numberId
+          name = preName
+        }else{
+          objID = cardTypeID === 1 ? obj.staff_id : obj.vehicle_id
+        }
+        this.setCardTypeID()
+        this.fuzz.tags["icon-input"].refs['searchinput'].value = name
+        this.fuzz.tags["icon-input"].refs['searchinput'].setAttribute('data-type', objID)
+      }
+    }
+
+    // 设置搜索类型，用于快速跳转
+    this.setCardType = (cardTypeID) => {
+      this.cardTypeID = cardTypeID
+      let value = this.cardTypeID === 1 ? 'staff' : 'vehicle'
+      this.init(value)
+      this.update()
+    }
+
+    // 获取查询的时间区间
+    this.getQueryDuration = () => {
+      let ret = null
+      if (this.queryMore) {
+        let tagDuration = this.tags['duration-select']
+        ret = tagDuration && tagDuration.getDuration()
+      }
+
+      return ret
+    }
+
+    // 点击查询按钮
+    this.doQueryList = (evt) => {
+      window.xhint.showLoading()
+
+      this.tagTrackList.reset()
+      this.player.reset()
+      // let defaultMapID = xdata.metaStore.defaultMapID
+
+      // let searchValue = this.objNameInput.value
+      let objID = this.fuzz.tags["icon-input"].refs['searchinput'].getAttribute('data-type')
+      let inputValue = this.fuzz.tags["icon-input"].refs['searchinput'].value
+      if(!objID && inputValue){//用户不选择列表直接输入名字时处理
+        if(this.cardTypeID === 1){
+          let inputData = xdata.metaStore.dataInArray.get('staff').filter(item => item.name === inputValue)[0]
+          objID = inputData && inputData.staff_id
+        }else{
+          let inputData = xdata.metaStore.dataInArray.get('vehicle').filter(item => item.name === inputValue)[0]
+          objID = inputData && inputData.vehicle_id
+        }
+      }
+      if (!inputValue && this.queryMore) { // 处理input没值，但是data-id有的bug
+        objID = ''
+      } else if (!inputValue && !this.queryMore) {
+        return window.xhint.showHint('请输入查询的人员或车辆。')
+      }
+      let duration = this.getQueryDuration()
+      this.queryTrackList(this.cardTypeID, objID, duration)
+    }
+
+    this.queryTrackList = (typeID, objID, duration) => {
+      if (!duration && !objID) {
+        return window.xhint.showHint('请输入查询条件后再点击查询！')
+      }
+      let sql = ''
+      // 用于分页时，统计总记录数。 注意，形式必须为 : select count(xx) as total from ...
+      let countSql = ''
+      let timeExpr = ''
+      if (typeID === 2) { // vehicle
+        if (duration) {
+          timeExpr = ` and start_time >= "${duration.startTime}" and start_time < "${duration.endTime}"`
+        }
+        // TODO: 简化 sql 语句
+        if (objID) {
+          sql = `select rav.* from (
+            select rav.card_id, date_format(rav.start_time, "%Y-%m-%d %H:%i:%s") as start_time, date_format(rav.end_time, "%Y-%m-%d %H:%i:%s") as end_time,rav.vehicle_id,rav.name,rav.att_date,rav.shift_id,ifnull(dl1.name,'') as sname,ddm1.name as sdir,rav.landmark_distance_start as sdis,ifnull(dl2.name,'') as ename,ddm2.name as edir,rav.landmark_distance_end as edis from(
+              select rav.*, v.name from rpt_att_vehicle rav, dat_vehicle v where rav.vehicle_id=v.vehicle_id and rav.vehicle_id=${objID}${timeExpr}) rav
+              left join dat_landmark dl1 on rav.landmark_id_start = dl1.landmark_id
+              left join dat_landmark dl2 on rav.landmark_id_end = dl2.landmark_id
+              left join dat_direction_mapper ddm1 on rav.landmark_direction_start = ddm1.direction_mapper_id
+              left join dat_direction_mapper ddm2 on rav.landmark_direction_end = ddm2.direction_mapper_id) rav
+              left join dat_driver_arrange dda on rav.vehicle_id =dda.vehicle_id and rav.att_date=dda.driver_date and rav.shift_id=dda.shift_id
+              order by rav.start_time desc;`
+          countSql = `select count(vehicle_id) as total from rpt_att_vehicle where vehicle_id=${objID}${timeExpr}; `
+        } else {
+          sql = `select rav.* from (
+            select rav.card_id, date_format(rav.start_time, "%Y-%m-%d %H:%i:%s") as start_time, date_format(rav.end_time, "%Y-%m-%d %H:%i:%s") as end_time,rav.vehicle_id,rav.name,rav.att_date,rav.shift_id,ifnull(dl1.name,'') as sname,ddm1.name as sdir,rav.landmark_distance_start as sdis,ifnull(dl2.name,'') as ename,ddm2.name as edir,rav.landmark_distance_end as edis from(
+              select rav.*, v.name from rpt_att_vehicle rav, dat_vehicle v where rav.vehicle_id=v.vehicle_id${timeExpr}) rav
+              left join dat_landmark dl1 on rav.landmark_id_start = dl1.landmark_id
+              left join dat_landmark dl2 on rav.landmark_id_end = dl2.landmark_id
+              left join dat_direction_mapper ddm1 on rav.landmark_direction_start = ddm1.direction_mapper_id
+              left join dat_direction_mapper ddm2 on rav.landmark_direction_end = ddm2.direction_mapper_id) rav
+              left join dat_driver_arrange dda on rav.vehicle_id =dda.vehicle_id and rav.att_date=dda.driver_date and rav.shift_id=dda.shift_id
+              order by rav.start_time desc;`
+          timeExpr = `start_time >= "${duration.startTime}" and start_time < "${duration.endTime}"`
+          countSql = `select count(vehicle_id) as total from rpt_att_vehicle where ${timeExpr}; `
+        }
+      } else if (typeID === 1) { // staff
+        if (duration) {
+          timeExpr = ` and ras.start_time >= "${duration.startTime}" and ras.start_time < "${duration.endTime}"`
+        }
+        if (objID) {
+          sql = ` select ras.card_id, ras.staff_id,date_format(ras.start_time, "%Y-%m-%d %H:%i:%s") as start_time, date_format(ras.end_time, "%Y-%m-%d %H:%i:%s") as end_time,ifnull(dl1.name,'') as sname,ddm1.name as sdir,ras.landmark_distance_start as sdis,ifnull(dl2.name,'') as ename,ddm2.name as edir,ras.landmark_distance_end as edis from (
+          select ras.* from rpt_att_staff ras where ras.staff_id=${objID}${timeExpr}) ras
+          left join dat_landmark dl1 on ras.landmark_id_start = dl1.landmark_id
+          left join dat_landmark dl2 on ras.landmark_id_end = dl2.landmark_id
+          left join dat_direction_mapper ddm1 on ras.landmark_direction_start = ddm1.direction_mapper_id
+          left join dat_direction_mapper ddm2 on ras.landmark_direction_end = ddm2.direction_mapper_id order by ras.start_time desc;`
+          countSql = `select count(staff_id) as total from rpt_att_staff as ras where staff_id=${objID}${timeExpr};`
+        } else {
+          timeExpr = `ras.start_time >= "${duration.startTime}" and ras.start_time < "${duration.endTime}"`
+          sql = ` select ras.card_id, ras.staff_id,date_format(ras.start_time, "%Y-%m-%d %H:%i:%s") as start_time, date_format(ras.end_time, "%Y-%m-%d %H:%i:%s") as end_time,ifnull(dl1.name,'') as sname,ddm1.name as sdir,ras.landmark_distance_start as sdis,ifnull(dl2.name,'') as ename,ddm2.name as edir,ras.landmark_distance_end as edis from (
+          select ras.* from rpt_att_staff ras where ${timeExpr}) ras
+      left join dat_landmark dl1 on ras.landmark_id_start = dl1.landmark_id
+      left join dat_landmark dl2 on ras.landmark_id_end = dl2.landmark_id
+      left join dat_direction_mapper ddm1 on ras.landmark_direction_start = ddm1.direction_mapper_id
+      left join dat_direction_mapper ddm2 on ras.landmark_direction_end = ddm2.direction_mapper_id  order by ras.start_time desc;`
+          countSql = `select count(staff_id) as total from rpt_att_staff as ras where ${timeExpr};`
+        }
+      } else {
+        console.warn('UNKNOWN search type : ', typeID)
+      }
+
+      console.log(sql)
+      console.log(countSql)
+      this.requestFirstPageOfTrackList(sql, countSql, PAGE_SIZE)
+    }
+
+    // ------------------ 轨迹列表分页处理 ---------------
+
+    // 发送查询轨迹列表的分页请求
+    this.requestFirstPageOfTrackList = (sql, countSql, pageSize) => {
+      let message = {
+        cmd: 'query',
+        data: {
+          name: 'TrackList',
+          pageSize: pageSize,
+          pageIndex: 0,  // the first time: must be
+          total: -1,  // the first time: must be
+          sql: sql,
+          countSql: countSql
+        }
+      }
+
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: { name: 'TrackList' }
+      })
+
+      // save the sql for later using
+      this.sql = sql
+    }
+
+    // 发送查询轨迹列表的请求
+    this.sendTrackListReq = (sql) => {
+      let message = {
+        cmd: 'query',
+        data: {
+          name: 'TrackList',
+          pageSize: -1,  // 最近100条
+          pageIndex: 0,
+          sql: sql
+        }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: 'TrackList'
+        }
+      })
+    }
+
+    this.selectItem = (evt) => {
+      // let target = evt.currentTarget
+      // let objID = target.getAttribute('data-id')
+      // this.objNameInput.value = target.innerHTML
+      // this.objNameInput.setAttribute('data-id', objID)
+      this.selectOpts.classList.add('hide')
+    }
+
+    this.showList = () => {
+      this.selectOpts.classList.remove('hide')
+    }
+
+    this.showSelectOpts = (evt) => {
+      let target = evt.currentTarget
+      let searchValue = target.value
+
+      let trackListTags = this.selectOpts.querySelectorAll('li')
+      this.isCardExist = false
+      let regString = 'n*' + searchValue + 'n*'
+      let Reg = new RegExp(regString, 'i')
+      // let countforCardExist = 0
+      for (let i = 0; i < trackListTags.length; i++) {
+        let cardName = trackListTags[i].getAttribute('card-name')
+        if (!Reg.test(cardName) || cardName === null) {
+          trackListTags[i].style.display = 'none'
+        } else {
+          this.selectOpts.classList.remove('hide')
+          trackListTags[i].style.display = 'block'
+          // countforCardExist++
+        }
+      }
+    }
+
+    // TODO: remove this, use global message HIDE-POPUP
+    // this.hideOptsPanel = (evt) => {
+    //   let self = this
+    //   setTimeout(function () { //点击的时候，失焦事件在前，会导致选不中，如果把该处理放到点击事件里处理，会出现用户势必要选一个bug
+    //     self.selectOpts.classList.add('hide')
+    //   }, 3000)
+    // }
+
+    this.switchMore = (evt) => { // 点击高级查询
+      this.queryMore = !this.queryMore
+    }
+  </script>
+</track-query>

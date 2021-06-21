@@ -1,0 +1,197 @@
+<sp-monitor>
+  <!-- <div class="mapside">
+    <div data-is="over-view" class="overview-panel"></div>
+    <aside data-is="map-sidebar" class="map-sidebar map-sidebar-full hide-on-mb"></aside>
+  </div> -->
+  <!-- <div data-is="over-view" class="overview-panel"></div>
+  <aside data-is="map-sidebar" class="map-sidebar map-sidebar-full hide-on-mb"></aside> -->
+  <div class="mapcontainer">
+    <div data-is="map-head" class="page-head map-head hide-on-pc"></div>
+    <div class="map-canvas" onclick={ clickMap }>
+      <div id="{MAP_CONTAINER_NAME}" class="map" ></div>
+      <!-- <div data-is="over-view" class="overview-panel"></div> -->
+      <div class="mapside">
+        <div data-is="over-view" class="overview-panel"></div>
+        <aside data-is="map-sidebar" class="map-sidebar map-sidebar-full hide-on-mb" papa={papa}></aside>
+      </div>
+
+      <div data-is="map-topbar" class="map-topbar op-panel hide-on-mb"></div>
+      <div data-is="three-rate" class="three-rate hide-on-mb"></div>
+      <!-- <div data-is="three-bottom-rate" class="three-bottom-rate hide-on-mb"></div> -->
+
+      <div data-is="legend" class="legend-container hide-on-mb"></div>
+
+      <div data-is="tool-tips" class="tool-tips-container hide"></div>
+      <!-- <div data-is="card-tips" class="card-tips-container realTime hide"></div> -->
+      <div data-is="patrol-tips"class="tool-tips-container"></div>
+      <div data-is="light-tips" class="tool-tips-container hide"></div>
+      <!-- <div data-is="alarm-list" class="dlg-window alarm-list-panel hide"></div> -->
+      <!-- <alarm-list></alarm-list> -->
+      <!-- <div data-is="user-profile" id="sp_profile" class="user-profile node-hide animated"></div> -->
+    </div>
+    <div data-is="map-tools" class="map-tools hide-on-pc"></div>
+    <div data-is="monitor-state" class="page-foot hide-on-pc"></div>
+  </div>
+
+  <script>
+    import '../sass/detail-dialog.sass'
+    import '../../user/tag/user-profile.html'
+
+    
+    import OlMapService from '../../js/service/OlMapService.js'
+
+    // import '../sass/alarm-list.sass'
+    // import './alarm-list.html'
+
+    import './map-tools.html'
+    import './monitor-state.html'
+
+    import './map-sidebar.html'
+    import './map-head.html'
+
+    import './over-view.html'
+    import './map-topbar.html'
+
+    import './tool-tips.html'
+    import './patrol-tips.html'
+    import './light-tips.html'
+    // import './card-tips.html'
+
+    import './legend.html'
+
+    import './map-dialog.html'
+    import './data-table.html'
+    import './three-rate.html'
+    import './three-rate-top.html'
+    import './three-rate-bottom.html'
+    import './three-bottom-rate.html'
+    import './three-rate-dept.html'
+    //import './top-alarm.html'
+
+    // import '../../drivingface/tag/popuplabel-drivingface.html'
+    import '../../drivingface/tag/dimensional-workface.html'
+    import '../../coalface/tag/popuplabel-coalface.html'
+    // import graphQuery from '../../js/def/graph_query.js'
+    import ol from 'openlayers'
+
+    this.MAP_CONTAINER_NAME = 'monitormap'
+
+    this.papa = opts.papa.opts
+
+    this.mapID = opts.mapID  // eslint-disable-line
+    this.mapType = 'MONITOR'
+
+    this.mapService = null
+
+    // 鼠标坐标控件
+    let mousePositionControl = null
+
+    this.isPC = window.isPC
+
+    this.on('mount', () => {
+      this.mapService = new OlMapService(this.mapType)
+      this.papa = opts.papa
+
+      this.registerGlobalEventHandler()
+    })
+
+    this.on('unmount', () => {
+      console.log('>> Unmount sp-monitor.')
+      this.unregisterGlobalEventHandler()
+    })
+
+    this.unregisterGlobalEventHandler = () => {
+      xbus.off('MAP-OPEN-MONITOR')
+      xbus.off('MAP-UPDATE-SIZE')
+      xbus.off('MAP-TOGGLE-EDIT')
+      xbus.off('MAP-RESET-POS')
+    }
+
+    this.clickMap = (evt) => {
+      evt.stopPropagation()
+    }
+
+    this.registerGlobalEventHandler = () => {
+      xbus.on('MAP-OPEN-MONITOR', (msg) => {
+        console.log('sp-monitor on MAP-OPEN-MONITOR: Going to load map.', msg)
+        this.mapService.loadMap(this.MAP_CONTAINER_NAME, msg.id, msg.map, msg.row)
+        xbus.trigger('MAP-INIT-LABEL', { mapID: this.mapID, mapType: this.mapType, deviceType: '*' })
+        xbus.trigger('MAP-INIT-CARD', { mapID: this.mapID, mapType: this.mapType, cardType: '*' })
+        // this.getThreeRate()
+      })
+
+      // update the map's size
+      xbus.on('MAP-UPDATE-SIZE', () => {
+        this.mapService.map.updateSize()
+      })
+
+      // 鼠标位置
+      xbus.on('MAP-TOGGLE-EDIT', (flag) => {
+        if (!mousePositionControl) {
+          mousePositionControl = new ol.control.MousePosition({
+            coordinateFormat: ol.coordinate.createStringXY(1),
+            undefinedHTML: '0,0',
+            target: document.getElementById('mouse-position')
+          })
+        }
+
+        let map = this.mapService.map
+        flag ? map.addControl(mousePositionControl) : map.removeControl(mousePositionControl)
+      })
+
+      // 重置中心点、旋转角度、缩放登记为初始化值
+      xbus.on('MAP-RESET-POS', (msg) => {
+        this.mapService.resetView()
+      })
+
+      xbus.on('RESET-MAP', (mapID) => {
+        this.mapService = new OlMapService(this.mapType)
+        let gisMap = xdata.mapStore.maps.get(mapID)
+        let row = xdata.mapStore.gisMap.get(mapID)
+        this.mapService.loadMap('monitormap', mapID, gisMap, row)
+        mousePositionControl = null
+        xbus.trigger('MAP-LOAD-SUCESS')
+      })
+
+      xbus.on('REPT-SHOW-RESULT', (ds) => {
+        if (ds.def.name === 'three-credentials') {
+          this.tags['three-rate'] && this.tags['three-rate'].initDate(ds.rows)
+          this.tags['three-bottom-rate'] && this.tags['three-bottom-rate'].initDate(ds.rows)
+        }
+      })
+      this.getReaderInfo = (res) =>{// 点击分站右侧跳转图标 快速定位分站位置 再点击分站图标可拖动分站图标修改分站位置
+        let msg = {
+            mapID: xdata.metaStore.defaultMapID,
+            symbolType: 'reader',
+            mapType: 'MONITOR',
+            isVisible: 'true',
+            id: [res.rows[0].field_value]
+        }
+        xbus.trigger('MAP-SHOW-READER', msg)//显示光晕
+
+        xbus.trigger('MAP-MOVE-READER', res)  //显示某一分站
+      }
+
+      this.getLightInfo = (res) =>{
+        let msg = {
+            mapID: xdata.metaStore.defaultMapID,
+            symbolType: 'light',
+            mapType: 'MONITOR',
+            isVisible: true,
+            light_msg: res
+        }
+        xbus.trigger('MAP-SHOW-ONELIGHT', msg)  //显示某一红绿灯
+
+        // xbus.trigger('MAP-SHOW-LIGHTS', res)  //显示某一分站
+      }
+
+      this.getRoutePlanInfo = () =>{
+        xbus.trigger('MAP-DRAW-ROUTEPLAN', {
+          mapID: this.mapID,
+          mapType: this.mapType,
+          isEdit: true
+        })
+      }
+    }
+  </script>
+</sp-monitor>

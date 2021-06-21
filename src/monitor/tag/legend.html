@@ -1,0 +1,25 @@
+<legend>
+  <img class="legend-img animated rotateOutDownRight" src="/img/legend.png" ref="legendImg">
+  <div class="legend-switcher" onclick={ toggleSwitch }>
+    <!-- <svg class="icon"><use xlink:href="/icons/icons.svg#icon-angle-double-{switcher}"></use></svg> -->
+    <svg class="icon"><use xlink:href="/icons/icons.svg#icon-legend"></use></svg>
+  </div>
+
+  <script>
+    this.isOn = true
+    this.switcher = 'left'
+
+    this.toggleSwitch = (evt) => {
+      this.isOn = !this.isOn
+      let legend = this.refs.legendImg.classList
+      if (this.isOn) {
+        legend.remove('rotateInUpRight')
+        legend.add('rotateOutDownRight')
+      } else {
+        legend.add('rotateInUpRight')
+        legend.remove('rotateOutDownRight')
+      }
+      // this.switcher = this.isOn ? 'left' : 'right'
+    }
+  </script>
+</legend>

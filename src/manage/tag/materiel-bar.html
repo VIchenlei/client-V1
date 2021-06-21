@@ -1,0 +1,273 @@
+<materiel-bar>
+    <h3>{showDef[0].title}</h3>
+    <p>
+        <span onclick={ preDay }>上一天</span>
+        <span onclick={ nextDay }>下一天</span>
+    </p>
+    <p>
+        <span>调度员:</span>
+        <span>{ today }
+            <span>{ shift }</span>
+        </span>
+    </p>
+    <div id="materiel-table"></div>
+    <script>
+        import {materielDef} from '../../js/def/materiel_def.js'
+        import './materiel-table.html'
+        import {composeUpdateDBReq} from '../../js/utils/utils.js'
+
+        this.root.classList.add('manage-canvas')
+        this.root.classList.remove('hide')
+        if (xdata.metaStore.data.user) {
+            this.roleID = xdata.metaStore.data.user.get(xdata.userName).role_id
+        }
+
+        this.needShift = true
+        let sql = null
+        let year = new Date().getFullYear()
+        let month = new Date().getMonth() + 1
+        let day = new Date().getDate()
+        this.today = year + '年' + month + '月' + day + '日'
+        let sqlTime = year + '-' + month + '-' + day
+        this.sqltime = sqlTime
+        this.name = opts.name
+        this.firstArr = []
+        let self = this
+
+        if (this.name === this.materielDef) {
+            this.needShift = false
+        }
+        this.shiftID = Number(opts.shiftID)
+        switch (this.shiftID) {
+            case 1: this.shift = '八点班'
+                break
+            case 2: this.shift = '四点班'
+                break
+            case 3: this.shift = '零点班'
+                break
+        }
+        this.materielDef = materielDef
+        this.showDef = this.materielDef.filter(item => item.nameTitle === this.name)
+
+        this.queryDB = (sqlName, sql) => {
+            let message = {
+                cmd: 'query',
+                data: {
+                    name: sqlName,
+                    sql: sql
+                }
+            }
+            xbus.trigger('REPT-FETCH-DATA', {
+                req: message,
+                def: {
+                    name: sqlName
+                }
+            })
+        }
+
+        this.queryCriteria = (time) => {
+            time = time ? time : this.sqltime
+            if (this.name === 'materiel_bar') {
+                this.tableName = 'his_materiel_bar_plan'
+                sql = `select id, work_property, company_name, product_name, vehcile_number, bar_place, discharge_place, complate_situation from his_materiel_bar_plan mbp where mbp.date_time='${time}' and mbp.shift_id=${this.shiftID} order by mbp.work_property`
+                this.sqlName = 'materiel_bar_back'
+                this.queryDB(this.sqlName, sql)
+            } else if (this.name === 'materiel_submitted') {
+                this.tableName = 'his_materiel_submitted_plan'
+                sql = `select id, company_name, product_name, vehicle_number, rubber_tire_number, discharge_place, vehicle_describe from his_materiel_submitted_plan where date_time='${time}' and shift_id=${this.shiftID}`
+                this.sqlName = 'materiel_submitted_back'
+                this.queryDB(this.sqlName, sql)
+            } else if (this.name === 'special_vehicle_plan') {
+                this.tableName = 'his_special_vehicle'
+                sql = `select id, work_property, company_name, product_name, vehcile_number, bar_place, discharge_place, complate_situation from his_special_vehicle mbp where mbp.date_time='${time}' and mbp.shift_id=${this.shiftID} order by mbp.work_property`
+                this.sqlName = 'special_vehicle_transport_back'
+                this.queryDB(this.sqlName, sql)
+            }
+            console.log(sql)
+        }
+
+        // this.on('mount', () => {
+        this.queryCriteria(sqlTime)
+        // })
+        
+        // 日期格式化
+        this.formatDay = (time) => {
+            let year = new Date(time).getFullYear()
+            let month = new Date(time).getMonth() + 1
+            let day = new Date(time).getDate()
+            this.today = year + '年' + month + '月' + day + '日'
+            return year + '-' + month + '-' + day
+        }
+        // 上一天
+        this.preDay = (evt) => {
+            let pre = new Date(new Date(sqlTime).getTime() - 24 * 3600 * 1000)
+            let time = this.formatDay(pre)
+            this.queryCriteria(time)
+            sqlTime = time
+            this.sqltime = sqlTime
+            this.update()
+            window.xhint.showLoading()
+        }
+        // 下一天
+        this.nextDay = (evt) => {
+            let next = new Date(new Date(sqlTime).getTime() + 24 * 3600 * 1000)
+            let time = this.formatDay(next)
+            this.queryCriteria(time)
+            sqlTime = time
+            this.sqltime = sqlTime
+            this.update()
+
+            window.xhint.showLoading()
+        }
+
+        xbus.on('REPT-SHOW-RESULT', (ds) => {
+            if (ds.def.name === 'materiel_bar_back' || ds.def.name === 'materiel_submitted_back' || ds.def.name === 'special_vehicle_transport_back') {
+                let rows = ds.rows
+                let name = ds.def.name
+                if (this.materielTable) {
+                    this.materielTable.unmount(true)
+                }
+                this.materielTable = riot.mount('div#materiel-table', 'materiel-table', {
+                    name: this.name,
+                    rows: rows,
+                    self: self
+                })[0]
+                this.update()
+            }
+        })
+
+        this.saveDB = (evt) => {
+            let target = evt.currentTarget
+            let operationDB = target.parentElement.getAttribute('name')
+            if (operationDB) {
+                this.doUpdate(target)
+            } else {
+                this.doInsert(target)
+            }
+            // this.queryCriteria(sqlTime)
+            // this.update()
+        }
+
+        // 补全数据
+        this.repairDate = (fieldName, fieldValue) => {
+            if (/number/ig.test(fieldName)) {
+                if (fieldValue === null) {
+                    fieldValue = '0'
+                }
+            } else if (/id/ig.test(fieldName)) {
+                if (fieldValue === null) {
+                    fieldValue = '0'
+                }
+            } else if (fieldName === 'complate_situation') {
+                if (fieldValue === null) {
+                    fieldValue = '1'
+                }
+            }
+            return fieldValue
+        }
+        // 保存
+        this.doInsert = (target) => {
+            let targetChild = target.parentElement.children
+            let targetClass = target.parentElement.parentElement.getAttribute('class')
+            let fields = ''
+            let values = ''
+            for (let i = 0, len = targetChild.length - 1; i < len; i++) {
+                let fieldName = targetChild[i].firstElementChild.getAttribute('data-type')
+                let fieldValue = targetChild[i].firstElementChild.getAttribute('data-value')
+                fieldValue = this.repairDate(fieldName, fieldValue)
+                if (fieldValue === null) {
+                    fieldValue = '"' + '"'
+                } else {
+                    fieldValue = '"' + fieldValue + '"'
+                }
+                if (i === 0) {
+                    fields += fieldName
+                    values += fieldValue
+                } else {
+                    fields += ',' + fieldName
+                    values += ',' + fieldValue
+                }
+            }
+            fields += ',date_time, shift_id'
+            values += ',' + '"' + sqlTime + '"' + ',' + this.shiftID
+
+            let sql = `INSERT into ${this.tableName} (${fields}) VALUES (${values})`
+            console.log(sql)
+            let req = composeUpdateDBReq('INSERT', this.name, '', sql)
+            xbus.trigger('META-UPDATE-DB', {
+                req: req
+            })
+        }
+
+        // 更新
+        this.doUpdate = (target) => {
+            let targetChild = target.parentElement.children
+            let targetClass = target.parentElement.parentElement.getAttribute('class')
+            let targetValue = target.parentElement.getAttribute('data-type')
+            let fields = ''
+            let values = ''
+            let updateSql = ''
+            for (let i = 0, len = targetChild.length - 1; i < len; i++) {
+                let fieldName = targetChild[i].firstElementChild.getAttribute('data-type')
+                let fieldValue = targetChild[i].firstElementChild.getAttribute('data-value')
+                fieldValue = this.repairDate(fieldName, fieldValue)
+                if (i === 0) {
+                    updateSql += `${fieldName}='${fieldValue}'`
+                } else {
+                    updateSql += `,${fieldName}='${fieldValue}'`
+                }
+            }
+
+            let sql = `UPDATE ${this.tableName} SET ${updateSql} where id=${targetValue}`
+            let req = composeUpdateDBReq('UPDATE', this.name, '', sql)
+            xbus.trigger('META-UPDATE-DB', {
+                req: req
+            })
+            console.log(sql)
+        }
+
+        this.composeUpdateDBReq = (db_op, sqlstring) => {
+            return {
+                cmd: 'update', // update, CMD.META.UPDATE
+                data: {
+                    op: db_op, // INSERT, UPDATE, DELETE
+                    sql: sqlstring
+                }
+            }
+        }
+
+        // 打印 导出CSV
+        this.askFile = (name, targetValue) => {
+            let askSql, labes, title, types
+            let namesInShort = []
+            if (this.name === 'materiel_bar') {
+                askSql = `select case when work_property=0 then '日常工作' else '重点工作' end as workpro, ifnull(company_name, ' ') as company_name, ifnull(product_name, ' ') as product_name, ifnull(vehcile_number, ' ') as vehcile_number, ifnull(bar_place, ' ') as bar_place, ifnull(discharge_place, ' ') as discharge_place, case when complate_situation=0 then '完成' else '未完成' end as comp from his_materiel_bar_plan mbp where mbp.date_time='${sqlTime}' and mbp.shift_id=${this.shiftID} order by mbp.work_property`
+                namesInShort = ['workpro', 'company_name' ,'product_name', 'vehcile_number', 'bar_place', 'discharge_place', 'comp']
+            } else if(this.name === 'materiel_submitted') {
+                askSql = `select company_name, ifnull(product_name, ' ') as product_name, ifnull(vehicle_number, ' ') as vehicle_number, ifnull(rubber_tire_number, ' ') as rubber_tire_number, ifnull(discharge_place, ' ') as discharge_place, ifnull(vehicle_describe, ' ') as vehicle_describe from his_materiel_submitted_plan where date_time='${sqlTime}' and shift_id=${this.shiftID}`
+                namesInShort = this.showDef[0].fields
+            } else if (this.name === 'special_vehicle_plan') {
+               askSql = `select case when work_property=0 then '日常工作' else '重点工作' end as workpro, ifnull(company_name, ' ') as company_name, ifnull(product_name, ' ') as product_name, ifnull(vehcile_number, ' ') as vehcile_number, ifnull(bar_place, ' ') as bar_place, ifnull(discharge_place, ' ') as discharge_place, case when complate_situation=0 then '完成' else '未完成' end as comp from his_special_vehicle mbp where mbp.date_time='${sqlTime}' and mbp.shift_id=${this.shiftID} order by mbp.work_property`
+                namesInShort = ['workpro', 'company_name' ,'product_name', 'vehcile_number', 'bar_place', 'discharge_place', 'comp']
+            }
+            labes = this.showDef[0].names
+            title = this.showDef[0].title
+            types = this.showDef[0].types
+            let msg = {
+                cmd: 'file',
+                exprList : [],
+                fileType : name,
+                labels: labes,
+                name: this.name,
+                namesInShort: namesInShort,
+                reptIndex: new Date().getTime(),
+                sql: askSql,
+                title: title,
+                types: types,
+                userName: xdata.userName
+            }
+            console.log(msg)
+            xbus.trigger('REPT-FETCH-FILE', msg)
+        }
+    </script>
+</materiel-bar>

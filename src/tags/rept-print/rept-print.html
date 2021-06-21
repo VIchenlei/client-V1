@@ -1,0 +1,13 @@
+<rept-print>
+  <span each={printdef in printdefs} class="printButton hint--bottom-left" aria-label={printdef.label} name={printdef.name} onclick="{askFile}">
+    <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#{ printdef.icon }"></use></svg>
+  </span>
+  <script>
+    this.printdefs = opts.printdefs
+    this.cb = opts.cb
+    this.askFile = (evt) => { 
+      let opName = evt.currentTarget.getAttribute('name')
+      this.cb(opName)
+		}
+  </script>
+</rept-print>

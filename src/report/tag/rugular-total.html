@@ -1,0 +1,515 @@
+<rugular-total>
+    <div class="rugular-button">
+        <span onclick={ printarea } class="print-button">
+            <svg class="icon black-icon"><use xlink:href="/icons/icons.svg#icon-printer"></use></svg>
+        </span>
+    </div>
+    <div class="rugular-charts-warp" style="width:100%;height:350px;" each={list in showList}>
+        <div class={"rugular"+list} data-dept={list.deptID} style="width:100%;height:100%;"></div>
+    </div>
+  <script>
+    import echarts from 'echarts'
+    import '../sass/rugular-total.sass'
+    import {getMonth, clone} from '../../js/utils/utils.js'
+    import { rugulartotal } from "../../js/def/graph_def.js"
+
+    let self = this
+    const DEPTARR = [56, 13, 22, 46, 12, 57, 61, 68, 69, 100, 62, 23] // 演示队组
+    this.counttime = (totalTime) => {
+      let leave1=totalTime%(24*3600*1000)
+      let hours=Math.floor(leave1/(3600*1000))
+      let leave2=leave1%(3600*1000)
+      let minutes=Math.floor(leave2/(60*1000))
+      let time = hours+"时"+minutes+"分";
+      return time;
+    }
+    
+    this.query = (name, sqlString) => {
+      let message = {
+          cmd: 'query',
+          data: {
+          name: name,
+          sql: sqlString
+          }
+      }
+      xbus.trigger('REPT-FETCH-DATA', {
+          req: message,
+          def: {
+          name: name
+          }
+      })
+      window.xhint.showLoading()
+    }
+
+    this.doQuery = (tabDef, time) => {
+      this.rugularData = new Map()
+      this.rugularTotalData = new Map()
+      this.name = tabDef.name
+      this.time = time
+      let sqlString = null  
+      sqlString = clone(tabDef.sqlTmpl)
+      for (let i = 0; i < Object.keys(sqlString).length; i++) {
+          let name = Object.keys(sqlString)[i]
+          sqlString[name] = sqlString[name].replace('{exprString}', `'${time}' and '${time}'`)
+      }
+      this.sql = sqlString
+      this.query(this.name, sqlString)
+    }
+    
+    this.splitRugularData = (rows)=>{
+      rows.forEach(row => {
+        if (DEPTARR.includes(row.dept_id)) {
+          if (!this.rugularData.get(row.dept_id)) {
+            let ret = new Map()
+            this.rugularData.set(row.dept_id, ret)
+          }    
+          let rugularmap = this.rugularData.get(row.dept_id)
+          let stime = new Date(row.stime).getDate()
+          rugularmap.set(stime, {
+            sumnum: row.sumnum,
+            vehicleID: row.vehicle_id,
+            vehicleTypeID: row.vehicle_type_id
+          })
+        } else {
+          console.warn('该队组已被过滤:', row.dept_id)
+        }
+      })
+    }
+
+    this.splitDeptData = (rows, name)=>{
+      rows.forEach(row => {
+        if (Array.from(this.rugularData.keys()).includes(row.dept_id)) {
+          if (!this.rugularTotalData.get(row.dept_id)) {
+            let ret = new Map()
+            this.rugularTotalData.set(row.dept_id, ret)
+          }
+          let deptmap = this.rugularTotalData.get(row.dept_id)
+          if(!deptmap.get(name)){
+            let ret1 = new Map()
+            deptmap.set(name, ret1)
+          }
+          let data = deptmap.get(name)
+          data.set(row)
+        }
+      })
+    }
+    
+    this.splitBootswitch = (rows) =>{
+      this.bootswitch = new Map()
+      rows && rows.forEach((row,index )=> {
+        if (!this.bootswitch.get(row.dept_id)) {
+            let ret2 = new Map()
+            this.bootswitch.set(row.dept_id, ret2)
+        }    
+        let switchmap = this.bootswitch.get(row.dept_id)
+        let bootStime = row.open_data.split(',')[0]
+        let bootEndtime = row.close_data.split(',')[0]
+        let bootNextStime = ''
+        if(new Date(bootStime).format('yyyy-MM-dd') === new Date().format('yyyy-MM-dd')){
+          bootNextStime = rows[index+1] && rows[index+1].dept_id === row.dept_id && rows[index+1].open_data.split(',')[0] ? rows[index+1].open_data.split(',')[0] : new Date().format('yyyy-MM-dd hh:mm:ss')
+        } else {
+          bootNextStime = rows[index+1] && rows[index+1].dept_id === row.dept_id && rows[index+1].open_data.split(',')[0] ? rows[index+1].open_data.split(',')[0] : `${new Date(bootStime).format('yyyy-MM-dd')} 23:59:59`
+        }
+        let sdata = row.open_data.split(',')[1]
+        let edata = row.close_data.split(',')[1]
+        if (!switchmap.get(sdata)) {
+          let ret = new Map()
+          switchmap.set(sdata, ret)
+        }
+        if (!switchmap.get(edata)) {
+          let ret1 = new Map()
+          switchmap.set(edata, ret1)
+        }
+        let openSwitch= switchmap.get(sdata)
+        openSwitch.set(bootStime,[bootStime,bootEndtime,sdata/20])
+        let closeSwitch = switchmap.get(edata)
+        if(index === 0 || (rows[index-1] && rows[index-1].dept_id !== row.dept_id)){
+          let compareStime = `${new Date(bootStime).format('yyyy-MM-dd')} 00:00:00`
+          if(bootStime > compareStime){
+            closeSwitch.set(compareStime,[compareStime,bootStime,'0.05'])
+          }
+          
+        }
+        closeSwitch.set(bootEndtime,[bootEndtime,bootNextStime,'0.05'])
+      })
+    }
+
+    this.pushMsg = (rows, name, color, num, bool) => {
+      let msg = {
+        sampling: 'average',
+        name: name,
+        data: rows,
+        type: 'line',
+        yAxisIndex: num,
+        smooth: bool,
+        itemStyle: {
+          normal: {
+            color: color,
+            lineStyle: {
+                color: color,
+            }
+          }
+        }                
+      }
+      return msg
+    }
+    
+    this.pushGasdata = (rows, color, id, name, deptID) => {
+      if (id === 'open') {
+        let total = (rows.length*1/60>>0) + "小时" + rows.length*1%60 + "分钟"
+        this.total[deptID] = total
+      }
+      let msg = {
+        name:name,
+        // id: id,
+        type:'bar',
+        data: rows,
+        barWidth: 1,
+        itemStyle: {
+          normal: {
+            color: color
+          }
+        }
+      }
+      return msg
+    }
+      
+    this.setGasData = (series, type, legend, gasMsgData, deptID) => {
+      let gasData = gasMsgData.get(type)
+      let keys = gasData && Array.from(gasData.keys())
+      if(type === 8)  keys && keys.sort()
+      keys && keys.forEach((key,i) => {
+        let rows = gasData.get(key)
+        rows = Array.from(rows.values())
+        if (type === 1) {
+          let name = xdata.metaStore.data.sensor && xdata.metaStore.data.sensor.get(key)
+          name = name ? `${name.sensor_desc}` : '瓦斯浓度'
+          legend.push(name)
+          let color = '#00FFFF'
+          let index = keys.indexOf(key)
+          if (index === 0) color = '#00ffff'
+          if (index === 1) color = '#c300ff'
+          if (index === 2) color = '#ff9c00'
+          series.push(this.pushMsg(rows, name, color, 0, false))
+        } else if (type === 8) {
+          let name = this.vehicleTypeID === 26 ? '掘进机开停' : '采煤机开停'
+          !legend.includes(name) && legend.push(name)
+          let color = key == 0 ? '#26cc41' : '#ff0000'
+          let seriesID = key == 0 ? 'open' : 'off'
+          series.push(this.pushGasdata(rows, color, seriesID, name, deptID))
+        }
+      })
+    }
+
+    this.splitGasData = (rows, series, type, legend, deptID) => {
+      let gasMsgData = new Map()
+      rows && rows.forEach(row => {
+        let type = row.sensor_type_id
+        if (!gasMsgData.get(type)) {
+          let ret = new Map()
+          gasMsgData.set(type, ret)
+        }
+        let gasMsg = gasMsgData.get(type)
+        let sensorID = row.sensor_id        
+        let stime = row.switch_data.split(',')[0]
+        let data = row.switch_data.split(',')[1]
+        if (type === 8) { // 开关量，开/关
+          sensorID = data
+          data = 0.05
+        } 
+        if (!gasMsg.get(sensorID)) {
+          let ret = new Map()
+          gasMsg.set(sensorID, ret)
+        }
+        let gas = gasMsg.get(sensorID)
+        gas.set(stime, [stime, data])
+      })
+      this.setGasData(series, type, legend, gasMsgData, deptID)
+    }
+
+    this.getPositionData = (displacement, totalLength) => {
+      let positiondata = []
+      let dataArr = []
+      displacement.forEach(item => {	
+        let datas = item.position_data.split(';')
+        if (!!!datas[datas.length - 1]) {
+          datas.pop()
+        }
+        dataArr.push(item.avg_distance)
+        datas.forEach(data => {
+          if (!!!data) return
+          data = data.split(',')
+          positiondata.push(data)
+          // !isNaN(Number(data[1])) && dataArr.push(Number(data[1])) 
+        })
+      })
+      let max = Math.max.apply(Math, dataArr) + 20
+      max = totalLength ? totalLength : Math.ceil(max)
+      let min = Math.min.apply(Math, dataArr)
+      min = Math.floor(min) <= 20 ? 0 : Math.floor(min) - 20
+      return {
+        positiondata: positiondata,
+        max: max,
+        min: min
+      }
+    }
+    
+    this.selectLegend = (legend) => {
+      let msg = {}
+      switch (legend.length) {
+        case 3:
+          msg[`${legend[1]}`] = false
+        case 2:
+          msg[`${legend[0]}`] = false
+          break
+      }
+      return msg
+    }
+    
+    this.turnCarSwitch = (rows, color, states, deptID) => {
+      if (states === 'open') {
+        let totalTime = rows.reduce(function (preTotal,item) {
+        let sumTime = Date.parse(new Date(item[1])) - Date.parse(new Date(item[0]))
+        return preTotal+sumTime
+        },0)
+        totalTime = this.counttime(totalTime)
+        this.total[deptID] = totalTime
+      }
+      rows.sort(function(a,b){return new Date(a[0])-new Date(b[0])})
+      let msg = {
+        type: 'custom',
+        id: states,
+        renderItem: function renderItem(params, api) {
+        var yValue = api.value(2);
+        var start = api.coord([api.value(0), yValue]);
+        var size = api.size([api.value(1) - api.value(0), yValue]);
+        var style = api.style();   
+        return {
+          type: 'rect',
+          shape: {
+          x: start[0],
+          y: start[1],
+          width: size[0],
+          height: size[1]
+          },
+          style: style
+        };
+        },
+        dimensions: ['from', 'to', 'profit'],
+        encode: {
+        x: [0, 1],
+        y: 2,
+        itemName: 3
+        },
+        data: rows,
+        itemStyle: {
+        normal: {
+          color: color
+        }
+        }
+      }
+      return msg
+    }
+      
+    this.getDeptName = (deptID) => { 
+      let deptname = xdata.metaStore.getNameByID('dept_id', deptID)
+      let vehicleID = xdata.metaStore.data.vehicle_extend.values() && Array.from(xdata.metaStore.data.vehicle_extend.values()).filter(item => item.dept_id == deptID)
+      vehicleID = vehicleID && vehicleID[0] && vehicleID[0].vehicle_id
+      let vehicleTypeID = xdata.metaStore.data.vehicle.values() && Array.from(xdata.metaStore.data.vehicle.values()).filter(item => item.vehicle_id == vehicleID)
+      vehicleTypeID = vehicleTypeID && vehicleTypeID[0] && vehicleTypeID[0].vehicle_type_id
+      let face = vehicleTypeID === 26 ? xdata.metaStore.data.drivingface_vehicle : xdata.metaStore.data.coalface_vehicle
+      face = face && Array.from(face.values()).filter(item => item.vehicle_id == vehicleID)
+      if (face && face.length > 0) {
+        let faceID = vehicleTypeID === 26 ? face[0].drivingface_id : face[0].coalface_id
+        let faces = vehicleTypeID === 26 ? xdata.metaStore.data.drivingface : xdata.metaStore.data.coalface
+        faces = faces && faces.get(faceID) && faces.get(faceID).name
+        deptname = faces && (deptID === 12  ? faces : `${faces}-${deptname}`) 
+      }
+      return deptname
+    }
+
+    this.initRugularFactor = () => {
+      for (let i = 0; i < this.showList.length; i++) {
+        let deptID = this.showList[i]
+        let deptIDObj = this.getQuantity(deptID)
+        let rows = this.bootswitch.get(deptID)
+        let totalLength = deptIDObj && deptIDObj.totalLength
+        let initdom = this.root.querySelector('.rugular'+deptID)
+				if (!initdom) return
+				echarts.dispose(initdom)
+				let chart = echarts.init(initdom)
+        let positionmsg = null	
+        let displacement = 	this.rugularTotalData.get(deptID).get('displacement') && Array.from(this.rugularTotalData.get(deptID).get('displacement').keys())
+        let gasData = this.rugularTotalData.get(deptID).get('gasment') && Array.from(this.rugularTotalData.get(deptID).get('gasment').keys())
+				if (displacement && displacement.length > 0) {
+					positionmsg = this.getPositionData(displacement, totalLength)
+				}
+				let series = []
+				let legend = []
+				this.splitGasData(gasData, series, 1, legend) // 瓦斯
+				let legendType = this.selectLegend(legend)
+				let posname = deptIDObj.vehicleTypeID === 26 ? '掘进机位置(m)' : '采煤机位置(m)'
+				positionmsg && series.push(this.pushMsg(positionmsg.positiondata, posname, '#0167ff', 1, true))
+				legend.push(posname)
+				// this.splitGasData(gasData, series, 8, legend,deptID) // 开关
+        rows && rows.get('0') && series.push(this.turnCarSwitch(Array.from(rows.get('1').values()), '#26cc41', 'open', deptID))
+        rows && rows.get('1') && series.push(this.turnCarSwitch(Array.from(rows.get('0').values()), '#ff0000', 'off', deptID))
+				series.push({
+					type: 'line',
+					markLine:{
+						silent: true,
+						lineStyle:{
+							type: 'solid',
+							color: '#ff5454'	
+						},
+						symbolSize: [0, 0],
+					},
+					markArea: {
+						silent: true,
+						itemStyle: {
+							normal: {
+								color: '#d8d8d8',
+								opacity: 1
+							}
+						},
+						data: [[{
+							xAxis: 'min',
+							yAxis: 0
+						}, {
+							xAxis: 'max',
+							yAxis: 0.05
+						}]]
+					}
+				})
+                
+				let msg = {
+					legend: {
+							data: legend,
+							right: '5%',
+							icon: 'circle',
+              selected: legendType   
+					},
+          // title: [this.getDeptName(deptID), deptIDObj.complexName, deptIDObj.carHeader, deptIDObj.carEnd],
+          title: {
+            deptName : this.getDeptName(deptID),
+            complexName: deptIDObj.complexName,
+            carHeader: deptIDObj.carHeader,
+            carEnd: deptIDObj.carEnd,
+            total: this.total[deptID]
+          },
+					time: this.time ? this.time : `${new Date().getMonth() + 1}-${new Date().getDate()}`,
+					series: series,
+					max : positionmsg && positionmsg.max,
+					min : positionmsg && positionmsg.min
+        }
+				let option = rugulartotal(msg)
+				chart.setOption(option)
+      }
+    }
+
+    this.getQuantity = (deptID) => {
+      let that = {}
+      let time = this.time ? new Date(this.time).getDate() : new Date().getDate()
+      let rugulars = this.rugularData && this.rugularData.get(deptID)
+      let data = rugulars && rugulars.get(time)
+      rugulars = rugulars && Array.from(rugulars.values())
+      let vehicleTypeID = rugulars && rugulars[0] && rugulars[0].vehicleTypeID
+      let vehicleID = rugulars && rugulars[0] && rugulars[0].vehicleID
+      let sumnum = data ? data.sumnum : 0
+      if (vehicleTypeID) that.complexName = vehicleTypeID === 26 ? `排数：${sumnum}` : `刀数：${sumnum}`
+      let face = vehicleTypeID === 26 ? xdata.metaStore.data[`drivingface_vehicle`] : xdata.metaStore.data['coalface_vehicle']
+      face = face && Array.from(face.values())
+      face = face && face.filter(item => item.vehicle_id === vehicleID)
+      face = face && face[0]
+      if (vehicleTypeID === 26) { // 掘进面进尺
+        let faceID = face && face[`drivingface_id`]
+        let unit = faceID && xdata.metaStore.data.drivingface && xdata.metaStore.data.drivingface.get(faceID)
+        unit = unit && unit.drifting_footage_unit
+        unit = unit && unit * sumnum
+        if (unit) that.complexName = `${that.complexName}；进尺：${unit.toFixed(2)}米`
+      } else if (vehicleTypeID === 25) {
+        let faceID = face && face['coalface_id']
+        let unit = faceID && xdata.metaStore.data.coalface && xdata.metaStore.data.coalface.get(faceID)
+        let carPositon = unit && unit.head_y_pos
+        let unitTotalLength = unit && unit.totalLength
+        that.totalLength = unitTotalLength * 1.1
+        that.carHeader = carPositon === 1 ? '机头' : '机尾'
+        that.carEnd = carPositon === 1 ?  '机尾' : '机头' 
+      }
+      that.vehicleTypeID = vehicleTypeID
+      return that
+    }
+
+
+    xbus.on('REPT-SHOW-RESULT', (ds) => {
+      if (ds.def.name === 'rugular_total') {
+				this.total = {}
+        window.xhint.close()
+        let rows = ds.rows  
+        let deptRugular = this.splitRugularData(rows['dept_rugular'])
+        this.showList = Array.from(this.rugularData.keys())
+        let displacement = this.splitDeptData(rows['displacement'], 'displacement')
+        let gasment = this.splitDeptData(rows['gasment'], 'gasment')
+        let bootswitch = this.splitBootswitch(rows['bootswitch'])
+        this.update()
+        this.initRugularFactor()
+        this.total = null
+        this.update()
+      }
+    })
+
+    this.printarea = () => {
+      let menu = document.querySelector('#rept-menu')
+      let pageHead = document.querySelector('.page-head')
+      let tabBar = document.querySelector('.tab-bar')
+      let newexprs = document.querySelector('#query-newexprs')
+      let printButton = this.root.querySelector('.rugular-button')
+      let foot = document.querySelector('footer')
+      let footNav = document.querySelector('.foot-nav')
+      let chartsWarp = this.root.querySelectorAll('.rugular-charts-warp')
+      let canvasWarp = this.root.querySelectorAll('canvas')
+      let alarm = document.querySelector('.alarm-list-panel')
+      let reportCanvas = document.querySelector('#rept-canvas')
+      let helpme = document.querySelector('.helpme-dialog')
+      let len = chartsWarp.length
+      let itemHeight = len && Math.floor((1600-200-len*15)/len)
+      itemHeight = itemHeight > 280 ? 280 : itemHeight
+      for(let i=0;i<len;i++){
+        canvasWarp[i].style.width = '950px'
+        canvasWarp[i].style.height = itemHeight+'px'
+        chartsWarp[i].style.height = itemHeight+'px'
+        chartsWarp[i].classList.add('print-warp')
+      }
+      menu.classList.add('hide')
+      pageHead.classList.add('hide')
+      tabBar.classList.add('hide')
+      newexprs.classList.add('hide')
+      printButton.classList.add('hide')
+      foot.classList.add('hide')
+      footNav.classList.add('hide')
+      alarm.classList.add('hide')
+      reportCanvas.classList.add('report-canvas-print')
+      helpme.classList.add('hide')
+
+
+      window.print()
+
+      for(let i=0;i<len;i++){
+        canvasWarp[i].style.width = '100%'
+        chartsWarp[i].style.height = '350px'
+        canvasWarp[i].style.height = '350px'
+        chartsWarp[i].classList.remove('print-warp')
+      }
+      menu.classList.remove('hide')
+      pageHead.classList.remove('hide')
+      tabBar.classList.remove('hide')
+      newexprs.classList.remove('hide')
+      printButton.classList.remove('hide')
+      foot.classList.remove('hide')
+      footNav.classList.remove('hide')
+      alarm.classList.remove('hide')
+      reportCanvas.classList.remove('report-canvas-print')
+      this.update()
+    }
+  </script>
+</rugular-total>

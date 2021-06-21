@@ -1,0 +1,43 @@
+<last-update>
+  <span class="page-footer__last-update hint--top" aria-label="{ status >= 0 ? '采集服务器已连接' : '采集服务器未连接' }">
+
+    <!--<svg class="icon {status >= 0 ? 'connected' : 'disconnected'}">
+      <use xlink:href="/icons/icons.svg#icon-{status >= 0 ? 'link' : 'unlink'}"></use>
+    </svg>-->
+
+    <img src="/img/{status >= 0 ? 'link.png' : 'unlink.png'}" style="width: 1rem" alt="">
+    <span>{ (new Date(xdata.lastUpdate)).format('hh:mm:ss') }</span>
+  </span>
+
+  <script>
+    this.status = xdata.collectorStatus
+
+    xbus.on('LAST-UPDATE', () => {
+      this.update()
+    })
+    xbus.on('COLLECTOR-STATUS-LOGIN', () => {
+      this.status = 0
+      this.update()
+    })
+    xbus.trigger('COLLECTOR-DISCONNECTED FAILED-FOR-NOCONN', () => {
+      this.status = -1
+      this.update()
+    })
+    xbus.on('COLLECTOR-STATUS-UPDATE', () => {
+      let status = xdata.collectorStatus
+      switch (status) {
+        case 'online':
+          this.status = 0
+          break
+        case 'offline':
+          this.status = -1
+          break
+        default:
+          this.status = -1000
+          break
+      }
+
+      this.update()
+    })
+  </script>
+</last-update>

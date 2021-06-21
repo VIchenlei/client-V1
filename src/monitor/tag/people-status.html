@@ -1,0 +1,290 @@
+<people-status>
+  <div class="dlg-bg animated">
+    <div class="dlg-window people-status-dialog animated zoomIn">
+      <dialog-head title="井下人员分布"></dialog-head>
+
+      <div class="dlg-body">
+        <div class="ctrl-panel">
+          <span class="condition-builder">
+            <span each={ fields } class="condition">
+              <input choice={ name } type="radio" checked={ choice == name } onclick={switchChoice} />
+              <span>{ label }</span>
+            </span>
+            <!-- <span class="condition">
+              <input status="real" type="radio" checked={ type == 'real'} onclick={ switchType}/>
+              <span>实时数据</span>
+            </span> -->
+            <span class="condition seperate-left">
+              <input status="past" type="radio" checked={ type == 'past'} onclick={ switchType}/>
+              <span>指定时间：<input class="input-special" ref="pastInput" type="datetime-local" disabled /></span>
+            </span>
+          </span>
+          <button onclick={ searchList }>查询</button>
+        </div>
+
+        <div class="content-panel" if={hasdata}>
+          <div class="content-frame">
+            <div class="content-title">
+              <span class="content-peoples">井下总人数:{ peoples }</span>
+            </div>
+            <div class="content-title">
+              <span class="content-subtitle" each={ label in title.group }>{ label }</span>
+            </div>
+            <div each={ group in groups }>
+              <p class="content-group { group[0] == currentGroupID ? 'active': ''}" data-groupid={ group[0] } onclick={ expandGroup}>
+                <span class="content-span" data-groupid={ group[0] }>{ group[1]}</span>
+                <span class="content-span" data-groupid={ group[0] }>{ group[2]}</span>
+                <span class="content-span" data-groupid={ group[0] }>{ group[3]}</span>
+                <span class="content-span" data-groupid={ group[0] }>{ group[4]}</span>
+                <span class="content-span" data-groupid={ group[0] }>{ group[5]}</span>
+              </p>
+              <table if={ group[0] == currentGroupID} class="detail-panel">
+                <thead>
+                  <tr>
+                    <th each={ label in title.detail}>{ label }</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr each={ row in currentGroup }>
+                    <td each={ value, i in row } >{value}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div data-is="blank-message" message="没有符合条件的数据。" class="blank-message" if={ !hasdata }></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import '../sass/people-status.sass'
+    import {show} from '../../js/utils/utils.js'
+
+    this.type = null // 实时或者历史
+    this.choice = null  // 左侧选择区域选中的筛选项
+    this.time = null // 历史查询的时间点
+    this.peoples = 0  // 井下总人数
+    this.title = null // 主层级和展开区域的标题
+    this.groups = null // 主层级的group
+    this.data = null   // 返回的历史数据
+    this.expands = null // 展开区域的历史数据
+
+    // 当前展开的区域
+    this.currentGroupID = -1
+    this.currentGroup = null
+
+    // 不同条件筛选的层级标题
+    const TOPIC = {
+      dept: {
+        group: ['部门', '注册人数', '井下人数', '总工作时长', '平均工作时长'],
+        detail: ['姓名', '入井时间', '进入区域时间', '接收时间', '工作时长', '地图', '区域', '部门', '工种', '速度', '位置']
+      },
+      area: {
+        group: ['区域', '注册人数', '井下人数', '总工作时长', '平均工作时长'],
+        detail: ['姓名', '入井时间', '进入区域时间', '接收时间', '工作时长', '地图', '区域', '部门', '工种', '速度', '位置']
+      },
+      occupation_level: {
+        group: ['职务', '注册人数', '井下人数', '总工作时长', '平均工作时长'],
+        detail: ['姓名', '入井时间', '进入区域时间', '接收时间', '工作时长', '地图', '区域', '部门', '工种', '速度', '位置']
+      },
+      worktype: {
+        group: ['工种', '注册人数', '井下人数', '总工作时长', '平均工作时长'],
+        detail: ['姓名', '入井时间', '进入区域时间', '接收时间', '工作时长', '地图', '区域', '部门', '工种', '速度', '位置']
+      }
+    }
+
+    const CHOICE = [{
+      label: '部门', name: 'dept'
+    }, {
+      label: '区域', name: 'area'
+    }, {
+      label: '职务', name: 'occupation_level'
+    }, {
+      label: '工种', name: 'worktype'
+    }]
+
+    this.fields = CHOICE
+
+    this.hasdata = false
+
+    this.on('mount', () => {
+      if (window.isPC) {
+        window.setDialogDraggable(this.root)
+      }
+    })
+
+    // 更新时点查询表
+    this.updateData = (msg) => {
+      // set visible
+      show(this.root)
+
+      this.init(msg)
+    }
+
+    // 初始化
+    this.init = (msg) => {
+      this.type = msg.type
+      this.choice = msg.choice
+      this.update()
+    }
+
+    this.showStatus = (msg) => {
+      this.type = msg.type
+      this.choice = msg.choice
+      this.title = TOPIC[msg.choice]
+      if (this.data) {
+        this.groups = this.getPastGroups(this.choice)
+        this.hasdata = true
+      }
+      this.currentGroupID = -1
+      this.update()
+    }
+
+    // 得到历史查询条件下的groups
+    this.getPastGroups = (choice) => {
+      let rows = []
+      let expands = {}
+      this.data.forEach((item, index) => {
+        let groupID = item[choice + '_id']
+        if (expands[groupID]) {
+          expands[groupID].push(item)
+        } else {
+          expands[groupID] = []
+          expands[groupID].push(item)
+        }
+      })
+      this.expands = expands
+      for (let key in expands) {
+        let label = xdata.metaStore.getNameByID(choice + '_id', key)
+        let regis = xdata.metaStore.data.staff.size
+        let count = expands[key].length
+        let sumTime = 0
+        for (let row of expands[key]) {
+          if (row.worktime) {
+            sumTime += Math.round(row.worktime / 60)
+          }
+        }
+        let avgTime = Math.floor(sumTime / count * 100) / 100
+        rows.push([key, label, regis, count, sumTime, avgTime])
+      }
+      return rows
+    }
+
+    // 查询历史时刻的数据
+    this.searchList = () => {
+      let timeInputted = null
+      if (this.type === 'real') {
+        timeInputted = new Date().format('yyyy-MM-dd hh:mm')
+      } else if (this.type === 'past') {
+        timeInputted = this.refs.pastInput.value
+      }
+      let sTime = new Date(timeInputted).format('yyyy-MM-dd hh:mm')
+      let eTime = new Date(Date.parse(timeInputted) + 1000 * 60).format('yyyy-MM-dd hh:mm') // 一分钟之内的数据
+      let sqlString = `select ds.staff_id,date_format(ras.start_time,"%Y-%m-%d %H:%i:%s") downtime,date_format(hlas.enter_time,"%Y-%m-%d %H:%i:%s") areatime,date_format(hls.cur_time,"%Y-%m-%d %H:%i:%s") recetime,timestampdiff(minute,ras.start_time,hls.cur_time) worktime,hls.map_id,hls.area_id,dse.dept_id,dse.worktype_id,dato.occupation_level_id,hls.speed,hls.landmark_id,hls.landmark_dist from (select * from his_location_staff where cur_time >= '${sTime}' and cur_time <= '${eTime}') hls left join (select * from rpt_att_staff where  start_time <= '${sTime}' and end_time >= '${eTime}') ras on ras.staff_id = hls.staff_id left join (select * from his_location_area_staff where  enter_time <= '${sTime}' and leave_time >= '${eTime}') hlas on hlas.staff_id = hls.staff_id left join dat_staff ds on ds.staff_id = hls.staff_id left join dat_staff_extend dse on dse.staff_id = ds.staff_id left join dat_occupation dato on dato.occupation_id = dse.occupation_id;`
+      console.log(sqlString)
+      let message = {
+        cmd: 'query',
+        data: {
+          name: 'crowd-spread',
+          sql: sqlString
+        }
+      }
+
+      xbus.trigger('REPT-FETCH-DATA', {
+        req: message,
+        def: {
+          name: 'crowd-spread'
+        }
+      })
+    }
+
+    xbus.on('REPT-SHOW-RESULT', (ds) => {
+      if (ds.def.name === 'crowd-spread') {
+        this.data = ds.rows
+        this.peoples = this.data.length
+        this.showStatus({type: this.type, choice: this.choice})
+      }
+    })
+
+    // 切换活跃组，并展开对应类别的详细信息
+    this.expandGroup = (evt) => {
+      let el = evt.target
+      let sid = el.getAttribute('data-groupid')
+      let choice = this.choice
+      let type = this.type
+      if (sid) {
+        let groupID = parseInt(sid, 10)
+        if (groupID === this.currentGroupID) { // 关闭 tab
+          this.currentGroupID = -1
+          this.currentGroup = null
+        } else {
+          this.updateDetailData(type, choice, groupID)
+        }
+      }
+    }
+
+    // 根据 groupID，更新明细数据,groupID为区域
+    this.updateDetailData = (type, choice, groupID) => {
+      this.currentGroup = this.getPastCurrent(choice, groupID)
+      this.currentGroupID = groupID
+    }
+
+    // 得到历史查询下展开区域的数据
+    this.getPastCurrent = (choice, groupID) => {
+      let rows = []
+      let origins = this.expands[groupID]
+      let keys = ['staff_id', 'downtime', 'areatime', 'recetime', 'worktime', 'map_id', 'area_id', 'dept_id', 'worktype_id', 'speed']
+      origins.forEach((item) => {
+        let row = []
+        for (let key of keys) {
+          if (['staff_id', 'map_id', 'area_id', 'dept_id', 'worktype_id'].includes(key)) {
+            row.push(xdata.metaStore.getNameByID(key, item[key]))
+          } else {
+            row.push(item[key])
+          }
+        }
+        let position = xdata.metaStore.getNameByID('landmark_id', item.landmark_id) + item.landmark_dist
+        row.push(position)
+        rows.push(row)
+      })
+      return rows
+    }
+
+    // 将数据格式化为显示需要的数组
+    this.formatDetailData = (origins) => {
+      let def = xdata.cardStore.stateDefs['staff']
+      for (let i = 0, count = origins.length; i < count; i++) {
+        let row = origins[i]
+        origins[i] = xdata.metaStore.formatStateArray(def, row, null)
+      }
+      return origins
+    }
+
+    // 切换筛选条件
+    this.switchChoice = (evt) => {
+      let el = evt.target
+      this.choice = el.getAttribute('choice')
+      let msg = {type: this.type, choice: this.choice}
+      this.showStatus(msg)
+    }
+
+    // 切换实时和历史查询
+    this.switchType = (evt) => {
+      let el = evt.target
+      this.type = el.getAttribute('status')
+      if (this.type === 'past') {
+        this.refs.pastInput.disabled = false
+        this.hasdata = null
+        this.update()
+      } else {
+        this.refs.pastInput.disabled = true
+      }
+    }
+
+    // this.close = (evt) => {
+    //   this.root.classList.add('hide')
+    // }
+  </script>
+</people-status>

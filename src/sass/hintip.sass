@@ -1,0 +1,18 @@
+@import defs
+
+.hintip
+    @include justify-middle
+    position: absolute
+    z-index: 9999
+    width: 100%
+    padding: 5rem
+    .hintip-cont
+        @include line-height(4rem,4rem)
+        min-width: 15rem
+        padding: 0 3rem
+        text-align: center
+        border-radius: 5px
+        .success-tip
+            fill: $success-icon
+        .failure-icon
+            fill: $failure-icon

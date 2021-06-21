@@ -1,0 +1,254 @@
+<echarts-work>
+  <div class="search">
+    <select-input idname={getName()} class="facename" name={getName()} ref={getName()} data-type="all" data-value="">
+    </select-input>
+    <select-input if={tableName==='sanlv_schedule' } idname="sanlv" class="facename sanlv" name="sanlv" ref="sanlv"
+      data-type="all"></select-input>
+    <icon-input idname="month" ref="month" type="month" class="x-date" placeholder="" icon="icon-down"
+      classname="login-input" data-type="month" value={getMonth()}></icon-input>
+    <button onclick={doSearch}>查询</button>
+  </div>
+  <div class="op-panel" if={tableName !=='sanlv_schedule' }>
+    <span class="hint--bottom-left" aria-label="添加信息" onclick={ insert }>
+      <svg class="icon black-icon">
+        <use xlink:href="/icons/icons.svg#icon-add"></use>
+      </svg>
+    </span>
+  </div>
+  <div class="echarts_work" style="width: 100%;height: 100%;"></div>
+  <script>
+    import echarts from 'echarts'
+    import { getRows, getMessage } from '../../js/utils/utils.js'
+    import { manages } from '../../js/def/manage_def.js'
+    import { calendar } from '../../js/def/graph_def.js'
+    let self = this
+    this.needAll = 'disNeedAll'//向子组件传递
+    this.on('mount', () => {
+      this.tableName = this.opts.name
+      this.update()
+      this.registerGlobalEventHandlers()
+    })
+
+    this.getName = () => {
+      let name = this.opts.name
+      if (name === 'sanlv_schedule') {
+        return 'sanlv_all'
+      } else {
+        this.faceTypeID = name.includes('coalface') ? 1 : 2
+        this.name = this.faceTypeID === 1 ? 'coalfaceWork' : 'drivingfaceWork'
+        return name.includes('coalface') ? 'coalface_id' : 'drivingface_id'
+      }
+    }
+
+    this.getMonth = () => {
+      return `${new Date().getFullYear()}-${new Date().getMonth() + 1}`
+    }
+
+    this.doSearch = () => {
+      let monthVal = this.root.querySelector('#month').value
+      if (monthVal) {
+        let face = this.root.querySelector('.facename').querySelector('select').value
+        let faceID = this.tableName === 'sanlv_schedule' ? parseInt(face.split('-')[0], 10) : parseInt(face, 10)
+        this.faceTypeID = this.faceTypeID || parseInt(face.split('-')[1], 10)
+        let lv = this.root.querySelector('.sanlv') && this.root.querySelector('.sanlv').querySelector('select').value
+        lv = lv && lv === 'startup' ? 'his_startup_detail' : 'his_regular_cycle_detail'
+        this.faceID = faceID
+        if (!faceID) return
+        let time = this.root.querySelector('.x-date').querySelector('input').value
+        let sMonth = `${time}-1`
+        let y = time.split('-')[0]
+        let m = time.split('-')[1]
+        let lMonth = `${new Date(new Date(y, m, 0).getTime()).format('yyyy-MM-dd')}`
+        this.fullDate = new Date(y, m, 0).getDate()
+        let sql = null
+        if (this.tableName === 'sanlv_schedule') {
+          let workface = this.faceTypeID === 1 ? xdata.metaStore.data.coalface_vehicle : xdata.metaStore.data.drivingface_vehicle
+          workface = workface && workface.get(faceID)
+          let vehicleID = workface && workface.vehicle_id
+          if (!vehicleID) {
+            let msg = {
+              value: 'nochange',
+              tip: '该工作面没有绑定车辆'
+            }
+            window.hintip.open(msg)
+            return
+          }
+          this.vehicleID = vehicleID
+          this.name = lv
+          sql = {
+            actual_data: lv === 'his_startup_detail' ? `select sum(real_startup_time) as svalue, date(start_up_time) as stime from his_startup_detail where start_up_time between '${sMonth} 00:00:00' and '${lMonth} 23:59:59' and work_face_id = ${faceID} group by date(start_up_time);` : `select sum(detail_value)as svalue, date(start_time) as stime from his_regular_cycle_detail where start_time between '${sMonth} 00:00:00' and '${lMonth} 23:59:59' and work_face_id = ${faceID} group by date(start_time);`,
+            schedule_date: `select schedule_startup_time, schedule_mine_times, schedule_tunnelling_times, schedule_date as stime from dat_workface_scheduling where workface_id = ${faceID} and schedule_date between '${sMonth}' and '${lMonth}' order by schedule_date;`
+          }
+          // sql = lv === 'his_startup_detail' ? `select sum(real_startup_time) as svalue, date(start_up_time) as stime from his_startup_detail where start_up_time between '${sMonth} 00:00:00' and '${lMonth} 23:59:59' and vehicle_id = ${vehicleID} group by date(start_up_time);` : `select sum(detail_value)as svalue, date(start_time) as stime from his_regular_cycle_detail where start_time between '${sMonth} 00:00:00' and '${lMonth} 23:59:59' and vehicle_id = ${vehicleID} group by date(start_time);`
+        } else {
+          sql = `select schedule_startup_time, schedule_mine_times, schedule_tunnelling_times, schedule_date as stime from dat_workface_scheduling where workface_id = ${faceID} and schedule_date between '${sMonth}' and '${lMonth}' order by schedule_date;`
+        }
+        let name = 'workface_scheduling_echarts'
+        this.opts.sptag.inquireDB(name, sql)
+      }else{
+        let tips='请选择具体的查询时间...'
+        window.xhint.showHint(tips)
+      }
+    }
+
+    this.splitData = (rows) => {
+      let data = []
+      let time = this.root.querySelector('.x-date').querySelector('input').value
+      let scheduleNumName = this.faceTypeID === 1 ? 'schedule_mine_times' : 'schedule_tunnelling_times'
+      let datas = this.tableName === 'sanlv_schedule' ? rows['actual_data'] : rows
+      let scheduleDatas = this.tableName === 'sanlv_schedule' ? rows['schedule_date'] : null
+      for (let i = 1; i <= this.fullDate; i++) {
+        let t = `${time}-${i} 00:00:00`
+        let row = datas && datas.filter(item => new Date(item.stime).getTime() === new Date(t).getTime())
+        let scheduledata = 0
+        if (scheduleDatas) {
+          let scheduleRow = scheduleDatas.filter(item => new Date(item.stime).getTime() === new Date(t).getTime())
+          if (scheduleRow && scheduleRow.length > 0) {
+            scheduledata = this.name === 'his_startup_detail' ? scheduleRow[0].schedule_startup_time : scheduleRow[0][scheduleNumName]
+          }
+        }
+        let scheduleTime = 0
+        let scheduleNum = 0
+        if (row && row.length > 0) {
+          scheduleTime = this.tableName === 'sanlv_schedule' ? row[0].svalue && (row[0].svalue).toFixed(2) : row[0].schedule_startup_time
+          scheduleNum = row[0][scheduleNumName]
+          // TODO:删除row
+        }
+        if (this.tableName === 'sanlv_schedule') {
+          scheduleNum = scheduledata
+        }
+        data.push([t, 1, scheduleTime, scheduleNum])
+      }
+      this.initEcharts(data)
+    }
+
+    this.concatData = (params) => {
+      let vehicle = xdata.metaStore.data.vehicle_extend && xdata.metaStore.data.vehicle_extend.get(this.vehicleID)
+      let deptID = vehicle && vehicle.dept_id
+      let msg = this.name === 'his_startup_detail' ? {
+        vehicle_id: this.vehicleID,
+        start_up_time: params.data[0],
+        shut_down_time: params.data[0],
+        real_startup_time: '',
+        schedule_work_time: params.data[3],
+        dept_id: deptID
+      } : {
+          vehicle_id: this.vehicleID,
+          detail_type: this.faceTypeID,
+          start_time: params.data[0],
+          end_time: params.data[0],
+          detail_value: '',
+          schedule_value: params.data[3],
+          dept_id: deptID
+        }
+      return msg
+    }
+
+    this.doChange = (params) => {
+      let msg = null
+      if (this.tableName === 'sanlv_schedule') {
+        let hasData = params.data[2]
+        let scheduledata = params.data[3]
+        let schedule_date = params.data[0]
+        let isOld = self.checkDay(schedule_date, 'old')
+        if (hasData || isOld || !scheduledata) {
+          let tip = '当天有实际数据，不允许修改'
+          if (isOld) tip = '不能修改晚于今天的数据'
+          if (!scheduledata) tip = '当天没有计划值，请先进行排班'
+          let msg = {
+            value: 'nochange',
+            tip: tip
+          }
+          window.hintip.open(msg)
+          return
+        }
+        msg = this.concatData(params)
+      } else {
+        let schedule_date = params.data[0]
+        let isEarly = self.checkDay(schedule_date, 'early')
+        if (isEarly) {
+          let msg = {
+            value: 'nochange',
+            tip: '不能操作今天之前的数据'
+          }
+          window.hintip.open(msg)
+          return
+        }
+        let schedule_startup_time = params.data[2]
+        let schedule_num = params.data[3]
+        msg = {
+          schedule_startup_time: schedule_startup_time,
+          schedule_date: schedule_date
+        }
+        self.faceTypeID === 1 ? msg['schedule_mine_times'] = schedule_num : msg['schedule_tunnelling_times'] = schedule_num
+        self.faceTypeID === 1 ? msg['coalface_id'] = self.faceID : msg['drivingface_id'] = self.faceID
+      }
+      self.edit(msg)
+    }
+
+    this.initEcharts = (data) => {
+      let initdom = this.root.querySelector('.echarts_work')
+      if (!initdom) return
+      echarts.dispose(initdom)
+      let chart = echarts.init(initdom)
+      let msg = {
+        time: this.root.querySelector('.x-date').querySelector('input').value,
+        data: data,
+        name: this.tableName,
+        title: this.faceTypeID === 1 ? '计划刀数' : '计划排数',
+        type: this.faceTypeID
+      }
+      let option = calendar(msg)
+      chart.setOption(option)
+      chart.off('click')
+      chart.on('click', function (params) {
+        self.doChange(params)
+      })
+    }
+
+    this.checkDay = (day, type) => {
+      let isEarly = false
+      let tday = `${new Date(new Date().getTime()).format('yyyy-MM-dd')} 00:00:00`
+      tday = new Date(tday).getTime()
+      day = new Date(day).getTime()
+      if (type === 'early') {
+        if (day <= tday) {
+          isEarly = true
+        }
+      } else {
+        if (day > tday) {
+          isEarly = true
+        }
+      }
+
+      return isEarly
+    }
+
+    this.edit = (data) => {
+      data = { row: data }
+      let def = this.tableName === 'sanlv_schedule' ? manages[this.name] : manages[this.name + 'Update']
+      let rows = getRows(data, def, this.maxid)
+      let msg = getMessage('UPDATE', rows, def, this.maxid)
+      this.opts.sptag.trigger('META-UPDATE-ROW', msg)
+    }
+
+    this.insert = (evt) => {
+      let def = manages[this.name]
+      let rows = getRows(null, def, this.maxid)
+      let msg = getMessage('INSERT', rows, def, this.maxid)
+      this.opts.sptag.trigger('META-INSERT-ROW', msg)
+    }
+
+    this.registerGlobalEventHandlers = () => {
+      xbus.on('META-UPDATE-DB-RES', (res) => {
+        if (res.data.name === this.name) {
+          this.doSearch()
+        }
+      })
+    }
+
+    this.on('unmount', () => {
+      xbus.off('META-UPDATE-DB-RES')
+    })
+  </script>
+</echarts-work>

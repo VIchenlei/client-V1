@@ -1,0 +1,336 @@
+<card-tips onclick={ preventBubble }>
+  <div name="draggeTitle" class="tips-title" ref="tipstitle">
+    <span class="tips-title-text">{ title }</span>
+    <span class="dlg-closer" onclick={ hide }>
+      <svg class="icon icon-close"><use xlink:href="/icons/icons.svg#icon-close"></use></svg>
+    </span>
+  </div>
+  <div class="content-body">
+    <div class="title-block">
+      <span>基本信息</span>
+    </div>
+    <div class="content-block" id="infoTips" if={ info && cardtype==='vehicle' }>
+      <div>
+        <p><span class="tlabel">卡号：</span><span>{info.card_id}</span></p>
+        <p><span class="tlabel">车牌：</span><span>{info.name}</span></p>
+        <p><span class="tlabel">类型：</span><span>{info.vehicle_type_id}</span></p>
+        <p><span class="tlabel">部门：</span><span>{info.dept_id}</span></p>
+      </div>
+      <div class="pic-container">
+        <img src={ info.pic } class="card-pic">
+      </div>
+      <!-- <div if={!isCMJ}>
+        <p><span class="tlabel">班组：</span><span>{info.group_id}</span></p>
+      </div> -->
+    </div>
+    <div class="content-block" id="infoTips" if={ info && cardtype==='staff' }>
+      <div>
+        <p><span class="tlabel">卡号：</span><span>{info.card_id}</span></p>
+        <p><span class="tlabel">工号：</span><span>{info.staff_id}</span></p>
+        <p><span class="tlabel">姓名：</span><span>{info.name}</span></p>
+        <p><span class="tlabel">性别：</span><span>{info.sex_id}</span></p>
+      </div>
+      <div class="pic-container">
+        <img src={ info.pic } class="card-pic">
+      </div>
+      <div>
+        <p><span class="tlabel">部门：</span><span>{info.dept_id}</span></p>
+        <p><span class="tlabel">工种：</span><span>{info.worktype_id}</span></p>
+      </div>
+      <div>
+        <!-- <p><span class="tlabel">班组：</span><span>{info.group_id}</span></p> -->
+        <p><span class="tlabel">职务：</span><span>{info.occupation_id}</span></p>
+      </div>
+    </div>
+
+    <div class="title-block">
+      <span>当前状态</span>
+    </div>
+    <div class="content-block" id="infoTips" if={ state && cardtype==='vehicle' }>
+      <div>
+        <p if={!isCMJ}><span class="tlabel">出车：</span><span>{state[6]}</span></p>
+        <p if={!isCMJ}><span class="tlabel">司机：</span><span>{ state[18] }</span>
+          <span>(
+            <!-- <img src="/img/tel.png" alt=""> -->
+            <span>{ state[19] }</span>)
+          </span>
+        </p>
+        <p><span class="tlabel">电量：</span><span>{ state[13] }</span></p>
+        <p><span class="tlabel">时间：</span><span>{state[8]}</span></p>
+        <p if={ curTitleType ==='MONITOR' }><span class="tlabel">东经：</span><span>{state[4]}</span></p>
+        <!-- <p><span>海拔：</span><span>{state[20]}</span></p> -->
+      </div>
+      <div>
+        <p if={!isCMJ}><span class="tlabel">时长：</span><span>{state[9]}</span></p>
+        <p><span class="tlabel">速度：</span><span>{state[16]} {sunit}</span></p>
+        <p><span class="tlabel">状态：</span><span>{state[14]}</span></p>
+        <p><span class="tlabel">位置：</span><img class="ticon" src="../img/location.png">{state[17]}</p>
+        <p if={ curTitleType ==='MONITOR' }><span class="tlabel">北纬：</span><span>{state[3]}</span></p>
+      </div>
+      <!-- <div class="current-pos">
+        <p><span class="tlabel">位置：</span><img class="ticon" src="../img/location.png">{state[16]}</p>
+      </div> -->
+    </div>
+    <div class="content-block" id="infoTips" if={ state && cardtype==='staff' }>
+      <div>
+        <p  if={ curTitleType ==='MONITOR' }><span class="tlabel">下井：</span><span>{state[6]}</span></p>
+        <p><span class="tlabel">电量：</span><span>{state[13]}</span></p>
+        <p><span class="tlabel">时间：</span><span>{state[8]}</span></p>
+        <p if={ curTitleType ==='MONITOR' }><span class="tlabel">东经：</span><span>{state[4]}</span></p>
+        <!-- <p><span>海拔：</span><span>{state[19]}</span></p> -->
+      </div>
+      <div>
+        <p><span class="tlabel">时长：</span><span>{state[9]}</span></p>
+        <p><span class="tlabel">状态：</span><span>{state[14]}</span></p>
+        <p><span class="tlabel">位置：</span><img class="ticon" src="../img/location.png">{state[17]}</p>
+        <p if={ curTitleType ==='MONITOR' }><span class="tlabel">北纬：</span><span>{state[3]}</span></p>
+      </div>
+      <!-- <div class="current-pos">
+        <p><span class="tlabel">位置：</span><img class="ticon" src="../img/location.png">{state[16]}</p>
+      </div> -->
+    </div>
+    <div class="title-block" if={ personOnCar }>
+      <span>车上人员</span>
+    </div>
+    <rs-table class="person-onCar" if={ personOnCar } data={ personList } data-def={ personOnCarDef }></rs-table>
+    <!-- <div class="person-onCar" if={ personOnCar }> 
+      <span each={ item in personList}>{ xdata.metaStore.getCardNameByID(item) }</span>
+    </div> -->
+
+    <div class="tipsop-panel" if={ info && curTitleType ==='MONITOR' }>
+      <card-opbar cardid={id} cardtypeid={cardTypeID} isspecial={ isspecial } needhide="1"></card-opbar>
+    </div>
+  </div>
+
+  <script>
+    import { CARD } from '../../js/def/state.js'
+    import './card-opbar.html'
+    import '../../tags/rs-table/rs-table.html'
+
+    let isPC = window.isPC
+    const CMJTYPE = 25
+    const JJJTYPE = 26
+
+    this.def = opts.def  // eslint-disable-line
+    this.id = opts.id  // eslint-disable-line
+    // const areatype = 1000
+    this.isCMJ = false
+
+    // 初始状态
+    this.isShowing = false   // if the tips is showing or not
+    this.personOnCar = false
+    this.sunit = 'Km/h'
+
+    this.personOnCarDef = ['工号', '姓名', '卡号', '部门']
+
+    // let self = this
+
+    this.on('mount', () => {
+      window.setDraggable({
+        target: this.root,
+        handle: this.refs.tipstitle
+      })
+    })
+
+    xbus.on('HIDE-ALL-POPUP', () => {
+      this.hide()
+    })
+
+    this.preventBubble = (evt) => {
+      evt.stopPropagation()
+    }
+
+    this.show = (msg) => {
+      let curTitleType = msg.curTitleType
+      this.id = msg.id
+      this.cardtype = msg.cardtype // CARD: staff, vehicle, ...
+
+      this.title = this.cardtype === 'vehicle' ? '车辆信息' : '人员信息'
+
+      // CMJ
+      let vehicle = this.cardtype === 'vehicle' ? xdata.metaStore.getCardBindObjectInfo(this.id) : ''
+      let vehicleType = vehicle ? vehicle.vehicle_type_id : ''
+      this.isCMJ = (vehicleType === CMJTYPE || vehicleType === JJJTYPE) ? true : false
+      this.sunit = this.isCMJ ? 'm/min' : 'Km/h'
+
+      // set the info data
+      this.infoDef = msg.info.def
+      let infoData = msg.info.rec
+      this.info = xdata.metaStore.formatRecord(this.infoDef, infoData, null)
+
+      // 设置照片路径
+      if (this.info) {
+        let pic = this.info && this.info.pic
+        this.info.pic = pic ? '/resource/' + this.cardtype + '/' + this.info.pic : '/img/pic' + this.cardtype + '.png'
+      }
+      // show the dialog
+      this.root.classList.remove('hide')
+      this.isShowing = true
+
+      let stateData = null
+      if (curTitleType === 'HISTORY') { // 历史轨迹点击图标弹出label
+        this.curTitleType = 'HISTORY'
+        stateData = this.hisPosData
+      } else {
+        this.curTitleType = 'MONITOR'
+        stateData = msg.state.rec
+      }
+
+      // 卡类型 ID
+      this.cardTypeID = stateData && stateData[1]
+
+      // set the state data
+      this.stateDef = msg.state.def
+      this.state = xdata.metaStore.formatStateArray(this.stateDef, stateData, null) // convert the display
+      if(this.state[3] && this.state[4]){
+        let geoCoordinate = this.horizontalToGeographic(this.state[3],this.state[4])
+        this.state[3] = geoCoordinate[0]
+        this.state[4] = geoCoordinate[1]
+      }
+      // add driver name
+      let vehicleNumber = stateData[CARD.object_id]
+      let driver = xdata.metaStore.getVehicleDriver(vehicleNumber)
+      let driverName = driver ? driver.name : ''
+      let tel = driver ? this.getTel(driver) : ''
+      this.state.push(driverName)
+      this.state.push(tel)
+      let cardDeep = xdata.metaStore.getCardDeep(stateData[CARD.area_id], stateData[CARD.card_id])
+      this.state.push(`${cardDeep}米`)
+      this.updatePersonOnCarList()
+      // set the show point
+      let point = this.getShowPoint(msg.event)
+      this.root.style.left = `${point.x}px`
+      this.root.style.top = `${point.y}px`
+      this.update()
+    }
+
+    this.horizontalToGeographic = (x, y) => {
+      let xcoord = (36.15072107 + 1.93 * Math.pow(10,-8) * (-x - 4677)).toFixed(8)  
+      let ycoord = (112.99159417 - 1.97 * Math.pow(10,-8) * (y + 194)).toFixed(8)
+      return [xcoord, ycoord]
+    }
+
+    this.getPersonOnCar = () => {
+      this.personList = this.info && xdata.PersonOnCarStore.personOnCarDetail.get(this.info.card_id)
+      this.personOnCar = this.personList && this.personList.length > 0 && true
+    }
+
+    this.updatePersonOnCarList = () => {
+      this.getPersonOnCar()
+      this.tags['rs-table'] && this.tags['rs-table'].update({datas: this.personList})
+    }
+
+    xbus.on('PERSON-ONCAR-UPDARE', () => {
+      this.updatePersonOnCarList()
+    })
+
+    xbus.on('HIS-POSITION-DATA', (msg) => { // 监听历史数据变化
+      this.hisPosData = msg.data
+      let stateData = this.hisPosData
+      this.state = xdata.metaStore.formatStateArray(this.stateDef, stateData, null)
+      // let geoCoordinate = this.horizontalToGeographic(this.state[3],this.state[4])
+      // this.state[19] = geoCoordinate[0]
+      // this.state[18] = geoCoordinate[1]
+      // console.log('this.state')
+      this.update()
+    })
+
+    xbus.on('TRACK-STOP', (msg) => {
+      if (msg.cardID === this.id && this.isTracking) {
+        this.isTracking = false
+        this.update()
+      }
+    })
+
+    this.getTel = (driver) => {
+      let driverID = driver.staff_id
+      let staff = xdata.metaStore.data.staff && xdata.metaStore.data.staff.get(driverID)
+      let tel = staff && staff.telephone
+      return tel
+    }
+
+    xbus.on('CARD-UPDATE-MONITOR', (msg) => {
+    // xbus.on('MAP-CARD-UPDATE', (msg) => {
+      if (this.curTitleType === 'HISTORY') return
+      let idIndex = CARD.card_id
+      if (this.isShowing && this.state && msg.card[idIndex] === this.id) {
+        this.state = xdata.metaStore.formatStateArray(this.stateDef, msg.card, null) // convert the display
+        if(this.state[3] && this.state[4]){
+          let geoCoordinate = this.horizontalToGeographic(this.state[3],this.state[4])
+          this.state[3] = geoCoordinate[0]
+          this.state[4] = geoCoordinate[1]
+        }
+        // add driver name
+        let vehicleNumber = msg.card[CARD.object_id]
+        let driver = xdata.metaStore.getVehicleDriver(vehicleNumber)
+        let driverName = driver ? driver.name : ''
+        let tel = driver ? this.getTel(driver) : ''
+        this.state.push(driverName)
+        this.state.push(tel)
+        let cardDeep = xdata.metaStore.getCardDeep(msg.card[CARD.area_id], msg.card[CARD.card_id], msg.card[CARD.speed])
+        this.state.push(`${cardDeep}米`)
+        this.update()
+      }
+    })
+
+    this.hide = () => {
+      let cl = this.root.classList
+      if (cl && !cl.contains('hide')) {
+        cl.add('hide')
+        this.isShowing = false
+        this.update()
+      }
+    }
+
+    // 计算 tips 的显示位置
+    this.getShowPoint = (evt) => {
+      let tt = this.root
+      let tbox = tt.getBoundingClientRect()  // tips 视区
+      let tboxX = tt.offsetWidth,tboxY = tt.offsetHeight
+      let mbox = tt.parentElement.getBoundingClientRect()  // 地图视区
+      const pageHeader = 40//这里暂不使用document获取该高度
+
+      let px = 0
+      let py = 0
+      if (!isPC) {
+        px = (mbox.width - tbox.width) / 2
+        py = (mbox.height - tbox.height) / 2
+
+        px = px < 0 ? 0 : px
+        py = py < 0 ? 0 : py
+        return { x: px, y: py }
+      }
+      // let ex = evt.clientX
+      // let ey = evt.clientY
+      let ex, ey
+      // 点击事件在地图视窗中的坐标(ex, ey)
+      if (evt.pixel) {
+        ex = evt.pixel[0]
+        ey = evt.pixel[1]
+      } else {
+        ex = evt.clientX
+        ey = evt.clientY
+      }
+    
+      let offset = 5
+
+      if (mbox.width - ex > tboxX) { // 当点击点右边空间足够时，显示在点击点的右边
+        px = ex + offset
+      } else if (ex > tboxX) { // 当点击点左边空间足够时，显示在点击点的左边
+        px = ex - tboxX - offset
+      } else { // 居中显示
+        px = (mbox.width - tboxX) / 2
+      }
+
+      if (mbox.height - ey > tboxY) { // 当点击点下边空间足够时，显示在点击点的下边
+        py = ey + pageHeader + offset 
+      } else if (ey > tboxY) { // 当点击点上边空间足够时，显示在点击点的上边
+        py = ey + pageHeader - tboxY - offset 
+      } else {  // 居中显示
+        py = (mbox.height - tboxY) / 2
+      }
+
+      return { x: px, y: py }
+    }
+  </script>
+</card-tips>

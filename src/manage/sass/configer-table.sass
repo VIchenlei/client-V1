@@ -1,0 +1,118 @@
+@import '../../sass/defs'
+.manage-table
+    @include wh(100%,100%)
+    color: #000
+    padding: 0 2rem
+    overflow: auto
+    background: #fff
+    .driverTitle
+        @include align-center-middle
+        height: 60px
+        .before,.after
+            cursor: pointer
+        #selectShift
+            width: 5rem
+            padding: 0 1rem
+            cursor: pointer
+            border: 0
+    .selectDay
+        @include align-middle-between
+        span
+            background: #09f
+            cursor: pointer
+            border-radius: 2px
+    .arrangeOrder
+        .ready
+            background: #dcdada
+            td:hover
+                background: none
+        tbody
+            .maintenance
+                background: #efefef !important
+                &:hover
+                    background: #efefef !important
+            tr
+                &:hover
+                    background: none!important
+                    //border: 0
+                border-bottom: 1px solid #f0f0f0
+                .changeMsg
+                    cursor: pointer
+                .search-input
+                    width: 60px
+                    padding: 0 10px
+                //.mor,.mid,.nig,.gra
+                   // display: flex
+                    
+                .mor:hover,.mid:hover,.nig:hover,.gra:hover
+                    border: 1px solid #e0e0e0
+                    opacity: 0.6
+                    background: #e0e0e0
+                    select  
+                        background: #e0e0e0
+                select
+                    width: 60px
+                    font-size: 14px
+                    padding-left: 8px
+                    border: 0
+                    cursor: pointer
+                    &:hover
+                        background: #e0e0e0
+
+                td
+                    width: 20%
+                    position: relative
+                    border: 1px solid #efefef
+                    input
+                        border: 0
+                    ul
+                        @include wh(100%,100px)
+                        overflow: auto
+                        background: #efefef
+                        li
+                            list-style: none
+                            cursor: pointer
+                    span
+                        @include wh(80%,30px)
+                        cursor: pointer
+                        display: inline-block
+                        line-height: 30px
+                    .icon
+                        @include absolute-right(0,.4rem)
+                        display: flex
+                        width: 5rem
+                        span
+                            width: 56px
+                        span:nth-child(1):hover
+                            color: #009fff
+                        span:nth-child(2):hover
+                            color: #ff5454
+
+    ul
+        @include wh(100px,266px)
+        background: #efefef
+        position: absolute
+        padding: 0 30px
+        overflow: auto
+        top: 0
+        li
+            text-align: center
+            margin: 8px 0
+            list-style: none
+            font-size: 16px
+            //margin: 10px 0
+            cursor: pointer
+            &:hover
+                color: #009fff
+
+    .waiting-panel
+        @include wh(654px,95px)
+        @include absolute(345px,150px)
+        background: #2b2b2b
+        .message
+            @include wh(100%,40px)
+            @include font-color-pos(14px,$disabled-color,center)
+            @include absolute(0,35px)
+            line-height: 5px
+            background: $color-white
+    

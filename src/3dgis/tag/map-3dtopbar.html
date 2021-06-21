@@ -1,0 +1,218 @@
+<map-3dtopbar onclick={ hideList }>
+  <ul class="tool-panel">
+    <li each={ toolbar } name={ name } id={ name } ref={ name } class='hint--top { class }' onclick={ switchItem } aria-label={
+      cont }>
+      <svg class="icon">
+        <use xlink:href="/icons/icons.svg#{iconName}"></use>
+      </svg>
+      <!-- <svg class="icon icon-down" if={ name !== 'vehicle' && name !== 'staff' && name !== 'edit_map'}>
+        <use xlink:href="/icons/icons.svg#icon-arrow-down"></use>
+      </svg> -->
+    </li>
+  </ul>
+  <ul class="tool-down hide" ref="tool-down" name="tool-down">
+    <li class="triangle"></li>
+    <li each={ tooldown } name={ name } id={ name } class={ activeArr.get(name) ? 'active' : '' } onclick={ toolDownSwitch }>
+      <svg class="icon">
+        <use xlink:href="/icons/icons.svg#{iconName}"></use>
+      </svg>
+      <span>{ cont }</span>
+    </li>
+  </ul>
+
+  <script>
+    import { ThreedbarItems } from '../../js/def/tool_bar.js'
+    // import CeMapService from '../../js/service/CeMapService.js'
+
+    this.mapID = this.parent.mapID
+    this.mapType = this.parent.mapType
+    // this.fifthSegment = toolbarItems.slice(15, 18)
+    this.toolbar = ThreedbarItems
+    this.switchSelect = false
+    this.activeArr = new Map()
+    this.switchItem = (evt) => {
+      let target = evt.currentTarget
+      target.classList.toggle('active')
+      let status = false
+      let opName = target.getAttribute('name')
+      this.toolList = opName
+      let msg = null
+      switch (opName) {
+        case 'gucheng_pos':
+          status = target.classList.contains('active')
+          msg = {
+            lon: 0.05,
+            lat: 0.005,
+            height: 10000
+          }
+
+          xbus.trigger('space_pos', msg)
+          break
+        case 'wangzhuang_pos':
+          status = target.classList.contains('active')
+          msg = {
+            lon: 0.05,
+            lat: 0.005,
+            height: 10000
+          }
+
+          xbus.trigger('space_pos', msg)
+          break
+        case 'gaohe_pos':
+          status = target.classList.contains('active')
+          msg = {
+            lon: 0.05,
+            lat: -0.035,
+            height: 1500
+          }
+
+          xbus.trigger('space_pos', msg)
+          break
+
+        case 'gaohe_dem':
+          status = target.classList.contains('active')
+          msg = {
+            isVisible: status
+          }
+          xbus.trigger('terrainControl', msg)
+          break
+      }
+    }
+
+    this.targetToggle = (target) => {
+      this.refs['tool-down'].classList.toggle('hide')
+      this.update()
+      this.resetPosition(target)
+    }
+
+    this.showMapNames = (evt) => {
+      let maps = xdata.mapStore.gisMap.values() && Array.from(xdata.mapStore.gisMap.values())
+      let mapList = []
+      for (let i = 0; i < maps.length; i++) {
+        let map = maps[i]
+        let msg = {
+          name: map.map_id,
+          cont: map.name
+        }
+        mapList.push(msg)
+      }
+      return mapList
+    }
+
+    this.toolDownSwitch = (evt) => {
+      evt.stopPropagation()
+      let target = evt.currentTarget
+      let status = false
+      let opName = target.getAttribute('name')
+      let msg = null
+      target.classList.toggle('active')
+      if (target.classList.contains('active')) {
+        this.activeArr.set(opName, true)
+      } else {
+        this.activeArr.delete(opName)
+      }
+
+      switch (opName) {
+        case 'gucheng_pos':
+          status = target.classList.contains('active')
+          msg = {
+            lon: 0.05,
+            lat: 0.01,
+            height: 10000
+          }
+
+          xbus.trigger('space_pos', msg)
+          break
+        case 'wangzhuang_pos':
+          status = target.classList.contains('active')
+          msg = {
+            lon: 0.05,
+            lat: 0.02,
+            height: 10000
+          }
+
+          xbus.trigger('space_pos', msg)
+          break
+        case 'gaohe_pos':
+          status = target.classList.contains('active')
+          msg = {
+            lon: 0.05,
+            lat: 0.03,
+            height: 10000
+          }
+
+          xbus.trigger('space_pos', msg)
+          break
+
+        case 'gaohe_dem':
+          status = target.classList.contains('active')
+          msg = {
+            isVisible: status
+          }
+          xbus.trigger('terrainControl', msg)
+          break
+      }
+      this.refs['tool-down'].classList.add('hide')
+      evt.preventUpdate = true
+    }
+
+    this.poly = (target, type, geotype) => {
+      let status = target.classList.contains('active')
+      let opName = target.getAttribute('name')
+      xbus.trigger('MAP-SEARCH-GEO', {
+        tool: target,
+        mapID: this.mapID,
+        mapType: this.mapType,
+        status: status,
+        type: type,
+        geotype: geotype
+      })
+      this.activeArr.delete(opName)
+    }
+
+    this.terrain = (target, layername) => {
+      let status = target.classList.contains('active')
+      xbus.trigger('terrainControl', {
+        layername: layername,
+        isVisible: status
+      })
+    }
+
+    this.resetMap = (target) => {
+      let mapID = Number(target.getAttribute('name'))
+      let currentMapID = xdata.metaStore.defaultMapID
+      if (mapID === currentMapID) return
+      // this.loadMap(mapID)
+      xbus.trigger('MAP-INIT-LABEL ALARM-LIST-CHANGED')
+      xdata.cardStore.reset()
+      xdata.metaStore.defaultMapID = mapID
+    }
+
+    this.loadMap = (mapID) => {
+      let currentmap = null
+      let gisMap = xdata.mapStore.maps.get(mapID)
+      this.mapService = new CeMapService(this.mapType)
+      if (window.monitormap.childNodes[0]) {
+        window.monitormap.removeChild(window.monitormap.childNodes[0])
+      }
+      this.mapService && this.mapService.resetWorkspace()
+      xbus.trigger('RESET-MAP', (mapID))
+      currentmap = this.mapService && this.mapService.loadMap('monitormap', mapID, gisMap)
+    }
+
+    this.resetPosition = (target) => {
+      let x = target.getBoundingClientRect().left
+      let y = target.getBoundingClientRect().top
+      let parX = this.root.getBoundingClientRect().left
+      let list = this.root.querySelector('.tool-down')
+      list.style.left = x - parX - 60 + 'px'
+      list.style.top = y + 'px'
+    }
+
+    xbus.on('HIDE-ALL-POPUP', () => {
+      if (this.refs['tool-down']) {
+        this.refs['tool-down'].classList.add('hide')
+      }
+    })
+  </script>
+</map-3dtopbar>

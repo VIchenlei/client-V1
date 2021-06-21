@@ -1,0 +1,137 @@
+<map-dialog>
+  <div class="dlg-bg">
+    <div name="map_dialog" class="dlg-window map-dialog">
+      <dialog-head title={title}></dialog-head>
+
+      <div name="dlg_content" class="dlg-body">
+        <div class="op-panel">
+          <span>{ title }</span>
+          <span onclick="{print}">
+            <svg class="icon black-icon">
+              <use xlink:href="/icons/icons.svg#icon-printer"></use>
+            </svg>
+          </span>
+        </div>
+        <div class="content-panel" id="track_content_panel">
+          <div id="track_map_canvas" class="map-panel"></div>
+          <div id="track_data_table" class="data-panel"></div>
+
+          <!--
+          <data-table data={ data }></data-table>
+          <map def={ map.def }></map>
+          -->
+        </div>
+        <!--
+        <div if={!hasdata} class="tips">
+          没有相关地图！
+        </div>
+        -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    this.title = '标识卡历史轨迹'
+    this.visible = false
+
+    this.tagMap = null
+    this.tagDataTable = null
+
+    this.on('mount', () => {
+      this.registerGlobalEventHandlers()
+      window.setDialogDraggable(this.root)
+      // this.setDraggable()
+      // this.hide()
+    })
+
+    this.on('unmount', () => {
+      this.unregisterGlobalEventHandlers()
+    })
+
+    this.registerGlobalEventHandlers = () => {
+      xbus.on('MAP-SHOW-TRACK', (msg) => {
+        this.show()
+
+        this.init(msg)
+        this.update()
+
+        xbus.trigger('HISTORY-TRACK', msg)
+      })
+    }
+
+    this.unregisterGlobalEventHandlers = () => {
+      xbus.off('MAP-SHOW-TRACK')
+    }
+
+    this.init = (msg) => {
+      this.mapID = msg.mapID
+
+      let dataDef = {
+        name: 'his_location',
+        label: '位置明细',
+        table: 'his_location',
+        keyIndex: 0,
+        fields: {
+          names: [
+            'card_id',
+            'cur_time',
+            'x',
+            'y',
+            'map_id',
+            'area_id'
+          ],
+          types: [
+            'NUMBER',
+            'DATETIME',
+            'NUMBER',
+            'NUMBER',
+            'NUMBER',
+            'NUMBER'
+          ],
+          labels: [
+            '卡号',
+            '时间',
+            'X',
+            'Y',
+            '所属地图',
+            '所属区域'
+          ]
+        }
+      }
+
+      let mapDef = {
+        id: msg.mapID,
+        type: 'HISTORY',
+        label: xdata.metaStore.getNameByID('map_id', this.mapID)
+      }
+      this.tagMap = riot.mount('div#track_map_canvas', 'map', {
+        def: mapDef
+      })[0]
+
+      let data = {
+        def: dataDef,
+        rows: msg.rows
+      }
+      this.tagDataTable = riot.mount('div#track_data_table', 'data-table', data)[0]
+    }
+
+    this.close = (evt) => {
+      this.unmount(true)
+    }
+
+    this.print = (evt) => {
+      xbus.trigger('PRINT-AREA', {
+        tag_id: 'track_content_panel',
+        title: this.title
+      })
+    }
+
+    this.show = () => {
+      let cl = this.root.classList
+      if (cl.contains('hide')) {
+        cl.remove('hide')
+      }
+      this.visible = true
+    }
+  </script>
+</map-dialog>

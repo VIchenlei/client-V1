@@ -1,0 +1,39 @@
+@import '../../sass/defs'
+
+.whole-stat
+    display: flex
+    justify-content: space-around
+    padding-top: 1.5rem
+    margin-bottom: 1rem
+
+    .whole-title-box
+        display: grid
+        border: rgba(58,55,55,0.1) 1px solid
+        border-radius: 0.2rem
+        font-size: 0.75rem
+
+        &:hover
+            box-shadow: 2px 5px 5px rgba(58, 55, 55, 0.25)
+
+        .whole-title
+            padding: 8px
+            border-top-right-radius: 5px
+            border-top-left-radius: 5px
+            text-align: center
+            font-size: $fontsize-m
+            background: #e6e6e6
+
+        .whole-detail
+            padding: 0 8px 4px 8px
+
+        #v_sum_nums
+            padding-right: 5px
+            font-size: 1.8rem
+            font-weight: 600
+            color: #48aaff
+
+span.print-button 
+    margin-right: 25px
+    display: flex;
+    flex-direction: column
+    align-items: flex-end
